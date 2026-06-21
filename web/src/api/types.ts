@@ -1,0 +1,216 @@
+// Decimal fields are serialised as strings by the backend (Pydantic).
+export type Money = string;
+
+export type Role = "admin" | "manager" | "agent" | "warehouse" | "accountant";
+
+export interface User {
+  id: number;
+  full_name: string;
+  email: string;
+  phone?: string | null;
+  role: Role;
+  is_active: boolean;
+  reset_requested?: boolean;
+  telegram_chat_id?: string | null;
+}
+
+export interface Product {
+  id: number;
+  sku: string;
+  name: string;
+  barcode?: string | null;
+  description?: string | null;
+  unit: string;
+  category_id?: number | null;
+  cost_price: Money;
+  sale_price: Money;
+  min_stock: Money;
+  is_active: boolean;
+  image_path?: string | null;
+  image_back_path?: string | null;
+  on_hand?: Money | null;
+}
+
+export interface ActivityEntry {
+  id: number;
+  user_id: number | null;
+  user_name: string | null;
+  method: string;
+  path: string;
+  action: string;
+  status_code: number;
+  created_at: string;
+}
+
+export interface StockRow {
+  product_id: number;
+  product_name: string;
+  sku: string;
+  warehouse_id: number;
+  quantity: Money;
+  min_stock: Money;
+  low: boolean;
+}
+
+export interface Customer {
+  id: number;
+  name: string;
+  phone?: string | null;
+  address?: string | null;
+  latitude?: Money | null;
+  longitude?: Money | null;
+  credit_limit: Money;
+  debt: Money;
+  agent_id?: number | null;
+}
+
+export type SalesOrderStatus =
+  | "draft"
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "picking"
+  | "delivered"
+  | "cancelled";
+
+export interface SalesOrderLine {
+  id: number;
+  product_id: number;
+  quantity: Money;
+  unit_price: Money;
+  line_total: Money;
+}
+
+export interface SalesOrder {
+  id: number;
+  customer_id: number;
+  agent_id: number;
+  warehouse_id: number;
+  status: SalesOrderStatus;
+  subtotal: Money;
+  discount: Money;
+  total: Money;
+  note?: string | null;
+  approved_by_id?: number | null;
+  approved_at?: string | null;
+  rejection_reason?: string | null;
+  created_at: string;
+  lines: SalesOrderLine[];
+}
+
+export type InvoiceStatus = "unpaid" | "partial" | "paid";
+
+export interface Invoice {
+  id: number;
+  number: string;
+  sales_order_id: number;
+  customer_id: number;
+  total: Money;
+  paid_amount: Money;
+  status: InvoiceStatus;
+  created_at: string;
+}
+
+export interface Payment {
+  id: number;
+  invoice_id: number;
+  amount: Money;
+  method: PaymentMethod;
+  collected_by_id: number | null;
+  collected_by_name: string | null;
+  collected_at: string;
+  note: string | null;
+  image_path: string | null;
+}
+
+export interface InvoiceDetail extends Invoice {
+  payments: Payment[];
+}
+
+export interface DashboardData {
+  pending_orders: number;
+  stock_value: Money;
+  total_debt: Money;
+  low_stock_items: number;
+}
+
+export interface AgentSalesRow {
+  agent_id: number;
+  agent_name: string;
+  orders: number;
+  total: Money;
+}
+
+export interface CommissionRow {
+  agent_id: number;
+  agent_name: string;
+  commission_rate: Money;
+  sales_total: Money;
+  commission: Money;
+  target?: Money | null;
+  achievement_pct?: number | null;
+}
+
+export interface DebtRow {
+  customer_id: number;
+  name: string;
+  debt: number;
+  credit_limit: number;
+  over_limit: boolean;
+}
+
+export type PaymentMethod = "cash" | "transfer" | "card";
+
+export interface Category {
+  id: number;
+  name: string;
+}
+
+export interface ProductHistoryEntry {
+  kind: "added" | "sale";
+  date: string;
+  quantity: Money;
+  user_name: string | null;
+  detail: string | null;
+}
+
+export interface TelegramTopic {
+  id: number;
+  name: string;
+  chat_id: number;
+  message_thread_id: number | null;
+  is_active: boolean;
+  is_default: boolean;
+}
+
+export interface TelegramUpdateHint {
+  chat_id: number | null;
+  chat_title: string | null;
+  chat_type: string | null;
+  message_thread_id: number | null;
+  topic_name: string | null;
+  text: string | null;
+}
+
+export type PhotoStage = "before" | "after";
+export type PhotoReportStatus = "pending" | "sent" | "failed";
+
+export interface PhotoImage {
+  id: number;
+  stage: PhotoStage;
+  file_path: string;
+  telegram_file_id: string | null;
+}
+
+export interface PhotoReport {
+  id: number;
+  agent_id: number;
+  customer_id: number;
+  sales_order_id: number | null;
+  topic_id: number | null;
+  note: string | null;
+  status: PhotoReportStatus;
+  error: string | null;
+  created_at: string;
+  images: PhotoImage[];
+}

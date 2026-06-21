@@ -1,0 +1,28 @@
+name: agent_app
+description: "Warehouse ERP — field agent app (orders + before/after photo reports)."
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.5.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  flutter_bloc: ^9.1.0
+  bloc: ^9.0.0
+  equatable: ^2.0.7
+  get_it: ^8.0.0
+  dio: ^5.7.0
+  shared_preferences: ^2.3.0
+  image_picker: ^1.1.2
+  intl: ^0.20.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true

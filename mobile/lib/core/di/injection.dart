@@ -1,0 +1,67 @@
+import 'package:get_it/get_it.dart';
+
+import '../network/api_client.dart';
+import '../storage/token_storage.dart';
+import '../../l10n/locale_cubit.dart';
+// Auth
+import '../../features/auth/data/datasources/auth_remote_data_source.dart';
+import '../../features/auth/data/repositories/auth_repository_impl.dart';
+import '../../features/auth/domain/repositories/auth_repository.dart';
+import '../../features/auth/presentation/bloc/auth_bloc.dart';
+// Customers
+import '../../features/customers/data/datasources/customer_remote_data_source.dart';
+import '../../features/customers/data/repositories/customer_repository_impl.dart';
+import '../../features/customers/domain/repositories/customer_repository.dart';
+import '../../features/customers/presentation/cubit/customers_cubit.dart';
+import '../../features/customers/presentation/cubit/create_shop_cubit.dart';
+// Products
+import '../../features/products/data/datasources/product_remote_data_source.dart';
+import '../../features/products/data/repositories/product_repository_impl.dart';
+import '../../features/products/domain/repositories/product_repository.dart';
+// Orders
+import '../../features/orders/data/datasources/order_remote_data_source.dart';
+import '../../features/orders/data/repositories/order_repository_impl.dart';
+import '../../features/orders/domain/repositories/order_repository.dart';
+import '../../features/orders/presentation/cubit/create_order_cubit.dart';
+// Photo reports
+import '../../features/photo_report/data/datasources/photo_remote_data_source.dart';
+import '../../features/photo_report/data/repositories/photo_repository_impl.dart';
+import '../../features/photo_report/domain/repositories/photo_repository.dart';
+import '../../features/photo_report/presentation/bloc/photo_report_bloc.dart';
+
+final GetIt sl = GetIt.instance;
+
+void configureDependencies() {
+  // Core
+  sl.registerLazySingleton(() => TokenStorage());
+  sl.registerLazySingleton(() => ApiClient(sl()));
+  sl.registerLazySingleton(() => LocaleCubit());
+
+  // Auth
+  sl.registerLazySingleton(() => AuthRemoteDataSource(sl()));
+  sl.registerLazySingleton<AuthRepository>(
+      () => AuthRepositoryImpl(sl(), sl()));
+  sl.registerLazySingleton(() => AuthBloc(sl()));
+
+  // Customers
+  sl.registerLazySingleton(() => CustomerRemoteDataSource(sl()));
+  sl.registerLazySingleton<CustomerRepository>(
+      () => CustomerRepositoryImpl(sl()));
+  sl.registerFactory(() => CustomersCubit(sl()));
+  sl.registerFactory(() => CreateShopCubit(sl()));
+
+  // Products
+  sl.registerLazySingleton(() => ProductRemoteDataSource(sl()));
+  sl.registerLazySingleton<ProductRepository>(
+      () => ProductRepositoryImpl(sl()));
+
+  // Orders
+  sl.registerLazySingleton(() => OrderRemoteDataSource(sl()));
+  sl.registerLazySingleton<OrderRepository>(() => OrderRepositoryImpl(sl()));
+  sl.registerFactory(() => CreateOrderCubit(sl(), sl(), sl()));
+
+  // Photo reports
+  sl.registerLazySingleton(() => PhotoRemoteDataSource(sl()));
+  sl.registerLazySingleton<PhotoRepository>(() => PhotoRepositoryImpl(sl()));
+  sl.registerFactory(() => PhotoReportBloc(sl(), sl()));
+}

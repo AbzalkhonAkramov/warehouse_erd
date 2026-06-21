@@ -1,0 +1,63 @@
+# Full warehouse-ERP stack: PostgreSQL + FastAPI backend + React web (nginx).
+#
+#   docker compose up -d --build      # build & start everything
+#   docker compose logs -f backend    # follow API logs
+#   docker compose down               # stop (data is kept in the volume)
+#
+# Open the admin at http://localhost:5173  (login admin@erp.local / admin123).
+# Secrets (SECRET_KEY, TELEGRAM_BOT_TOKEN, ...) come from the root .env file.
+
+services:
+  db:
+    image: postgres:16
+    container_name: erp_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: abzal7727
+      POSTGRES_DB: lh_warehouse
+    ports:
+      - "5433:5432"
+    volumes:
+      # Reuse the existing volume that already holds the migrated data.
+      - lh_warehouse_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d lh_warehouse"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    container_name: erp_backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:abzal7727@db:5432/lh_warehouse
+      SECRET_KEY: ${SECRET_KEY:-dev-only-change-me-to-a-long-random-string}
+      ENVIRONMENT: production
+      BACKEND_CORS_ORIGINS: http://localhost:5173,http://localhost
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_MANAGER_CHAT_ID: ${TELEGRAM_MANAGER_CHAT_ID:-}
+      UPLOAD_DIR: uploads
+    volumes:
+      # Bind-mount so existing/new product & report photos persist on the host.
+      - ./backend/uploads:/app/uploads
+    ports:
+      - "8000:8000"
+
+  web:
+    build: ./web
+    container_name: erp_web
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+
+volumes:
+  # Already created outside compose (holds the migrated lh_warehouse data).
+  lh_warehouse_pgdata:
+    external: true

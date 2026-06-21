@@ -1,0 +1,6 @@
+Async Alembic environment.
+
+Generate the first migration once the DB is running:
+
+    alembic revision --autogenerate -m "initial schema"
+    alembic upgrade head

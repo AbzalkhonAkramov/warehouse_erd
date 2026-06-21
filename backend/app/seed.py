@@ -94,24 +94,24 @@ async def seed() -> None:
                     )
                 )
 
-        await _get_or_create(
+        corner, _ = await _get_or_create(
             db, Customer, name="Corner Shop",
             defaults={
                 "phone": "+1000000001",
                 "address": "12 Market St",
                 "credit_limit": Decimal("500"),
-                "agent_id": agent.id,
             },
         )
-        await _get_or_create(
+        mini, _ = await _get_or_create(
             db, Customer, name="Mini Mart",
             defaults={
                 "phone": "+1000000002",
                 "address": "5 High St",
                 "credit_limit": Decimal("1000"),
-                "agent_id": agent.id,
             },
         )
+        corner.agents = [agent]
+        mini.agents = [agent]
 
         await db.commit()
 

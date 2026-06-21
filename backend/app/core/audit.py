@@ -2,6 +2,7 @@
 log. It writes *after* the response is fully sent (so the request's DB session is
 already released — important for SQLite's single-writer lock)."""
 
+import json
 import logging
 
 _log = logging.getLogger("audit")
@@ -12,6 +13,38 @@ from app.core.security import decode_access_token
 from app.models.activity import ActivityLog
 
 _WRITE_METHODS = {"POST", "PATCH", "PUT", "DELETE"}
+
+# Never record these fields' values (secrets).
+_REDACT = ("password", "token", "secret", "hashed")
+
+
+def _summarize_body(raw: bytes) -> str | None:
+    """Turn a JSON request body into a short 'field=value, ...' summary so the
+    activity log shows *what* was sent/changed, not just the action."""
+    if not raw:
+        return None
+    try:
+        data = json.loads(raw)
+    except (ValueError, UnicodeDecodeError):
+        return None
+    if not isinstance(data, dict):
+        return None
+
+    parts: list[str] = []
+    for key, value in data.items():
+        if any(s in key.lower() for s in _REDACT):
+            parts.append(f"{key}=***")
+        elif isinstance(value, list):
+            parts.append(f"{key}=[{len(value)} item(s)]")
+        elif isinstance(value, dict):
+            parts.append(f"{key}={{…}}")
+        else:
+            text = str(value)
+            if len(text) > 60:
+                text = text[:57] + "…"
+            parts.append(f"{key}={text}")
+    summary = ", ".join(parts)
+    return summary[:480] if summary else None
 
 _VERBS = {"POST": "Created", "PATCH": "Updated", "PUT": "Updated", "DELETE": "Deleted"}
 _RESOURCES = {
@@ -32,6 +65,7 @@ _SUFFIXES = {
     "pick": "Started picking",
     "deliver": "Delivered order",
     "cancel": "Cancelled order",
+    "refund": "Refunded order",
     "receive": "Received goods",
     "resend": "Resent photo report",
     "image": "Updated product photo",
@@ -72,13 +106,22 @@ class AuditMiddleware:
             return
 
         status = {"code": 0}
+        body_chunks: list[bytes] = []
+
+        async def receive_wrapper():
+            message = await receive()
+            if message.get("type") == "http.request":
+                chunk = message.get("body", b"")
+                if chunk and sum(len(c) for c in body_chunks) < 64_000:
+                    body_chunks.append(chunk)
+            return message
 
         async def send_wrapper(message):
             if message["type"] == "http.response.start":
                 status["code"] = message["status"]
             await send(message)
 
-        await self.app(scope, receive, send_wrapper)
+        await self.app(scope, receive_wrapper, send_wrapper)
 
         # Response fully sent; the request's DB session is now released.
         try:
@@ -91,6 +134,7 @@ class AuditMiddleware:
                     path = scope.get("path", "")
                     method = scope["method"]
                     if path.startswith(settings.API_PREFIX) and "/activity" not in path:
+                        detail = _summarize_body(b"".join(body_chunks))
                         async with AsyncSessionLocal() as session:
                             session.add(
                                 ActivityLog(
@@ -98,6 +142,7 @@ class AuditMiddleware:
                                     method=method,
                                     path=path,
                                     action=action_label(method, path),
+                                    detail=detail,
                                     status_code=status["code"],
                                 )
                             )

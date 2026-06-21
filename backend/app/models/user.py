@@ -1,6 +1,7 @@
 from sqlalchemy import Boolean, Enum, ForeignKey, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.models.associations import customer_agents
 from app.models.base import Base, TimestampMixin
 from app.models.enums import UserRole
 
@@ -27,7 +28,7 @@ class User(Base, TimestampMixin):
     # Default Telegram topic this agent's photo reports route to (admin-assigned).
     default_topic_id: Mapped[int | None] = mapped_column(ForeignKey("telegram_topics.id"))
 
-    # Customers assigned to this user when role == AGENT
+    # Markets pinned to this agent (many-to-many).
     customers: Mapped[list["Customer"]] = relationship(  # noqa: F821
-        back_populates="agent", foreign_keys="Customer.agent_id"
+        secondary=customer_agents, back_populates="agents"
     )

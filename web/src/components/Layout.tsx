@@ -17,6 +17,9 @@ interface NavItem {
 const NAV: NavItem[] = [
   { to: "/", labelKey: "nav.dashboard", end: true, exclude: ["agent"] },
   { to: "/orders", labelKey: "nav.orders" },
+  { to: "/orders/new", labelKey: "nav.createOrder" },
+  { to: "/refunds", labelKey: "nav.refunds", roles: ["manager", "accountant"] },
+  { to: "/order-history", labelKey: "nav.history", roles: ["manager", "accountant"] },
   { to: "/create", labelKey: "nav.create" },
   { to: "/products", labelKey: "nav.products" },
   { to: "/customers", labelKey: "nav.customers" },

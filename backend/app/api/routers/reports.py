@@ -17,8 +17,16 @@ from app.models.sales import Customer, SalesOrder, SalesOrderLine
 from app.models.user import User
 from app.schemas.agent import CommissionRow
 
-# Orders that should not count towards sales/commission figures.
-_EXCLUDED = (SalesOrderStatus.REJECTED, SalesOrderStatus.CANCELLED, SalesOrderStatus.DRAFT)
+# Orders that should not count towards sales/commission figures (only shipped/
+# delivered orders are real, stock-deducting sales).
+_EXCLUDED = (
+    SalesOrderStatus.NEW,
+    SalesOrderStatus.REFUND,
+    SalesOrderStatus.CANCELLED,
+    SalesOrderStatus.REJECTED,
+    SalesOrderStatus.DRAFT,
+    SalesOrderStatus.PENDING,
+)
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
@@ -45,7 +53,7 @@ async def dashboard(
     pending = await db.scalar(
         select(func.count())
         .select_from(SalesOrder)
-        .where(SalesOrder.status == SalesOrderStatus.PENDING)
+        .where(SalesOrder.status == SalesOrderStatus.NEW)
     )
     stock_value = await db.scalar(
         select(func.coalesce(func.sum(Stock.quantity * Product.cost_price), 0)).join(
@@ -82,7 +90,7 @@ async def sales_by_agent(
             func.coalesce(func.sum(SalesOrder.total), 0),
         )
         .join(SalesOrder, SalesOrder.agent_id == User.id)
-        .where(SalesOrder.status != SalesOrderStatus.REJECTED)
+        .where(SalesOrder.status.notin_(_EXCLUDED))
         .group_by(User.id, User.full_name)
         .order_by(func.sum(SalesOrder.total).desc())
     )

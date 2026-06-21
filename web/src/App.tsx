@@ -5,8 +5,12 @@ import { Spinner } from "./components/ui";
 import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
 import OrdersPage from "./pages/OrdersPage";
+import CreateOrderPage from "./pages/CreateOrderPage";
+import RefundedGoodsPage from "./pages/RefundedGoodsPage";
+import StatusHistoryPage from "./pages/StatusHistoryPage";
 import ProductsPage from "./pages/ProductsPage";
 import CustomersPage from "./pages/CustomersPage";
+import CustomerDetailPage from "./pages/CustomerDetailPage";
 import InvoicesPage from "./pages/InvoicesPage";
 import InvoiceDetailPage from "./pages/InvoiceDetailPage";
 import ReportsPage from "./pages/ReportsPage";
@@ -53,10 +57,20 @@ export default function App() {
           element={isAgent ? <Navigate to="/invoices" replace /> : <DashboardPage />}
         />
         <Route path="orders" element={<OrdersPage />} />
+        <Route path="orders/new" element={<CreateOrderPage />} />
+        <Route
+          path="refunds"
+          element={isAgent ? <Navigate to="/orders" replace /> : <RefundedGoodsPage />}
+        />
+        <Route
+          path="order-history"
+          element={isAgent ? <Navigate to="/orders" replace /> : <StatusHistoryPage />}
+        />
         <Route path="create" element={<CreatePage />} />
         <Route path="products" element={<ProductsPage />} />
         <Route path="products/:id" element={<ProductDetailPage />} />
         <Route path="customers" element={<CustomersPage />} />
+        <Route path="customers/:id" element={<CustomerDetailPage />} />
         <Route path="agents" element={<AgentsPage />} />
         <Route path="invoices" element={<InvoicesPage />} />
         <Route path="invoices/:id" element={<InvoiceDetailPage />} />

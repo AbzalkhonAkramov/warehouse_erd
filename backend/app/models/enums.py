@@ -10,13 +10,18 @@ class UserRole(str, enum.Enum):
 
 
 class SalesOrderStatus(str, enum.Enum):
-    DRAFT = "draft"           # being built on the agent's device
-    PENDING = "pending"       # submitted, awaiting manager approval
-    APPROVED = "approved"     # approved; stock reserved, invoice created
+    # Current workflow (manager-driven):
+    NEW = "new"               # just created; only a manager may change it
+    SHIPPED = "shipped"       # manager dispatched it -> stock + invoice + debt
+    DELIVERED = "delivered"   # goods received by the shop (confirmation)
+    REFUND = "refund"         # returned (label only; no stock/debt change)
+    CANCELLED = "cancelled"   # called off
+    # Legacy values kept so pre-existing rows still load (not used anymore):
+    DRAFT = "draft"
+    PENDING = "pending"
+    APPROVED = "approved"
     REJECTED = "rejected"
-    PICKING = "picking"       # warehouse preparing
-    DELIVERED = "delivered"
-    CANCELLED = "cancelled"
+    PICKING = "picking"
 
 
 class PurchaseOrderStatus(str, enum.Enum):

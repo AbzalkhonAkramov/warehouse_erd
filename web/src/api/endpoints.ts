@@ -14,8 +14,11 @@ import type {
   PhotoReport,
   Product,
   ProductHistoryEntry,
+  Region,
   SalesOrder,
   SalesOrderStatus,
+  RefundEntry,
+  OrderStatusHistory,
   StockRow,
   TelegramTopic,
   TelegramUpdateHint,
@@ -94,23 +97,96 @@ export const addStock = (product_id: number, quantity: string, note?: string) =>
   });
 
 // --- Customers ---
+export interface CustomerInput {
+  name?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  credit_limit?: string;
+  region_id?: number | null;
+  agent_ids?: number[];
+}
 export const listCustomers = () => api<Customer[]>("/customers");
-export const createCustomer = (body: Partial<Customer>) =>
+export const getCustomer = (id: number) => api<Customer>(`/customers/${id}`);
+export const createCustomer = (body: CustomerInput) =>
   api<Customer>("/customers", { method: "POST", body });
-export const updateCustomer = (id: number, body: Partial<Customer>) =>
+export const updateCustomer = (id: number, body: CustomerInput) =>
   api<Customer>(`/customers/${id}`, { method: "PATCH", body });
+// Manager assigns a set of shops to an agent (like categories).
+export const setAgentShops = (agentId: number, customer_ids: number[]) =>
+  api<Customer[]>(`/customers/agent-shops/${agentId}`, {
+    method: "PUT",
+    body: { customer_ids },
+  });
+
+// --- Regions ---
+export const listRegions = () => api<Region[]>("/regions");
+export const createRegion = (name: string) =>
+  api<Region>("/regions", { method: "POST", body: { name } });
 
 // --- Sales orders ---
-export const listOrders = (status?: SalesOrderStatus) =>
-  api<SalesOrder[]>(`/sales-orders${status ? `?status_filter=${status}` : ""}`);
-export const approveOrder = (id: number) =>
-  api<SalesOrder>(`/sales-orders/${id}/approve`, { method: "POST" });
-export const rejectOrder = (id: number, reason: string) =>
-  api<SalesOrder>(`/sales-orders/${id}/reject`, { method: "POST", body: { reason } });
-export const pickOrder = (id: number) =>
-  api<SalesOrder>(`/sales-orders/${id}/pick`, { method: "POST" });
-export const deliverOrder = (id: number) =>
-  api<SalesOrder>(`/sales-orders/${id}/deliver`, { method: "POST" });
+export interface OrderLineInput {
+  product_id: number;
+  quantity: string;
+  unit_price?: string;
+}
+export interface CreateOrderInput {
+  customer_id: number;
+  agent_id?: number;
+  discount?: string;
+  note?: string;
+  lines: OrderLineInput[];
+}
+export interface UpdateOrderInput {
+  deliverer?: string;
+  note?: string;
+}
+
+export interface MoveLineInput {
+  product_id: number;
+  quantity: string;
+}
+export interface MoveInput {
+  status: SalesOrderStatus;
+  lines?: MoveLineInput[]; // omitted = whole order
+  restock?: boolean; // only for refund
+  note?: string;
+}
+export interface RefundFilters {
+  customer_id?: number;
+  agent_id?: number;
+  product_id?: number;
+  restocked?: boolean;
+  date_from?: string;
+  date_to?: string;
+}
+
+export const listOrders = (status?: SalesOrderStatus, archived = false) => {
+  const p = new URLSearchParams();
+  if (status) p.set("status_filter", status);
+  if (archived) p.set("archived", "true");
+  const qs = p.toString();
+  return api<SalesOrder[]>(`/sales-orders${qs ? `?${qs}` : ""}`);
+};
+export const createOrder = (body: CreateOrderInput) =>
+  api<SalesOrder>("/sales-orders", { method: "POST", body });
+export const updateOrder = (id: number, body: UpdateOrderInput) =>
+  api<SalesOrder>(`/sales-orders/${id}`, { method: "PATCH", body });
+export const moveOrder = (id: number, body: MoveInput) =>
+  api<SalesOrder>(`/sales-orders/${id}/move`, { method: "POST", body });
+
+export const listRefunds = (filters: RefundFilters = {}) => {
+  const p = new URLSearchParams();
+  Object.entries(filters).forEach(([k, v]) => {
+    if (v !== undefined && v !== "") p.set(k, String(v));
+  });
+  const qs = p.toString();
+  return api<RefundEntry[]>(`/sales-orders/refunds${qs ? `?${qs}` : ""}`);
+};
+export const listStatusHistory = (orderId?: number) =>
+  api<OrderStatusHistory[]>(
+    `/sales-orders/status-history${orderId ? `?order_id=${orderId}` : ""}`,
+  );
 
 // --- Finance ---
 export const listInvoices = () => api<Invoice[]>("/invoices");

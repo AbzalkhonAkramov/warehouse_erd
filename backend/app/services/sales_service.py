@@ -22,9 +22,15 @@ from app.models.enums import (
 )
 from app.models.finance import Invoice, Payment
 from app.models.inventory import Stock, StockMovement
-from app.models.sales import Customer, SalesOrder, SalesOrderLine
+from app.models.sales import (
+    Customer,
+    OrderStatusHistory,
+    RefundEntry,
+    SalesOrder,
+    SalesOrderLine,
+)
 from app.models.user import User
-from app.schemas.sales import SalesOrderCreate
+from app.schemas.sales import SalesOrderCreate, SalesOrderUpdate, StatusMoveRequest
 from app.services import telegram
 
 ZERO = Decimal("0")
@@ -39,21 +45,48 @@ async def _default_warehouse_id(db: AsyncSession) -> int:
     return wh.id
 
 
-async def create_order(db: AsyncSession, agent: User, data: SalesOrderCreate) -> SalesOrder:
-    customer = await db.get(Customer, data.customer_id)
+async def create_order(db: AsyncSession, creator: User, data: SalesOrderCreate) -> SalesOrder:
+    """Create an order in status NEW. Agents file it under their own account; a
+    manager/admin may file it under any agent via ``data.agent_id``."""
+    customer = await db.scalar(
+        select(Customer)
+        .where(Customer.id == data.customer_id)
+        .options(selectinload(Customer.agents))
+    )
     if customer is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Customer not found")
 
+    # Agents may only order for markets they are pinned to (many-to-many).
+    if creator.role == UserRole.AGENT and creator.id not in {a.id for a in customer.agents}:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "This shop is not assigned to you"
+        )
+
+    # Only managers/admins may apply a discount.
+    discount = data.discount or ZERO
+    if creator.role not in (UserRole.ADMIN, UserRole.MANAGER):
+        discount = ZERO
+
     warehouse_id = data.warehouse_id or await _default_warehouse_id(db)
 
-    # Category visibility: an agent may only order goods in the categories a manager
-    # assigned to them. No assignment = unrestricted (mirrors GET /products).
+    # Resolve which agent the order belongs to.
+    is_privileged = creator.role in (UserRole.ADMIN, UserRole.MANAGER)
+    if is_privileged and data.agent_id is not None:
+        agent = await db.get(User, data.agent_id)
+        if agent is None or agent.role != UserRole.AGENT:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid agent")
+    else:
+        agent = creator
+
+    # Category visibility: when an *agent* creates the order they may only pick goods
+    # in the categories a manager assigned to them (no assignment = unrestricted).
+    # Managers/admins are never restricted. Mirrors GET /products.
     allowed_categories: set[int] | None = None
-    if agent.role == UserRole.AGENT:
+    if creator.role == UserRole.AGENT:
         cat_ids = set(
             await db.scalars(
                 select(agent_categories.c.category_id).where(
-                    agent_categories.c.agent_id == agent.id
+                    agent_categories.c.agent_id == creator.id
                 )
             )
         )
@@ -62,9 +95,10 @@ async def create_order(db: AsyncSession, agent: User, data: SalesOrderCreate) ->
     order = SalesOrder(
         customer_id=customer.id,
         agent_id=agent.id,
+        created_by_id=creator.id,
         warehouse_id=warehouse_id,
-        status=SalesOrderStatus.PENDING,
-        discount=data.discount or ZERO,
+        status=SalesOrderStatus.NEW,
+        discount=discount,
         note=data.note,
     )
 
@@ -93,11 +127,21 @@ async def create_order(db: AsyncSession, agent: User, data: SalesOrderCreate) ->
         )
 
     order.subtotal = subtotal
-    order.total = max(subtotal - (data.discount or ZERO), ZERO)
+    order.total = max(subtotal - discount, ZERO)
 
     db.add(order)
     await db.flush()
     await db.refresh(order, attribute_names=["lines"])
+
+    # Record the opening status transition (none -> new).
+    db.add(
+        OrderStatusHistory(
+            sales_order_id=order.id,
+            from_status=None,
+            to_status=order.status.value,
+            changed_by_id=creator.id,
+        )
+    )
 
     # Flag (do not block) when this order would push the customer over their credit limit.
     over_limit = (
@@ -106,49 +150,306 @@ async def create_order(db: AsyncSession, agent: User, data: SalesOrderCreate) ->
     )
     warn = "  ⚠️ OVER CREDIT LIMIT" if over_limit else ""
 
-    # Auto-approve when every line is in stock; otherwise leave PENDING for a manager.
-    if await _order_fully_in_stock(db, order):
-        invoice = await _fulfil_order(db, order, agent.id)  # approved_by stays null = auto
-        await db.flush()
-        await telegram.notify_managers(
-            f"✅ <b>Order #{order.id} auto-approved</b> (stock available)\n"
-            f"Customer: {customer.name}\n"
-            f"Agent: {agent.full_name}\n"
-            f"Total: {order.total} · {invoice.number}{warn}"
-        )
-        if agent.telegram_chat_id:
-            await telegram.send_message(
-                agent.telegram_chat_id,
-                f"✅ Your order #{order.id} was auto-approved. Invoice {invoice.number}.",
-            )
-    else:
-        await telegram.notify_managers(
-            f"🧾 <b>New order #{order.id}</b> needs approval (insufficient stock)\n"
-            f"Customer: {customer.name}\n"
-            f"Agent: {agent.full_name}\n"
-            f"Total: {order.total}{warn}"
-        )
+    # New orders wait for a manager to ship/deliver them.
+    await telegram.notify_managers(
+        f"🆕 <b>New order #{order.id}</b>\n"
+        f"Customer: {customer.name}\n"
+        f"Agent: {agent.full_name}\n"
+        f"Total: {order.total}{warn}"
+    )
     return order
 
 
-async def _order_fully_in_stock(db: AsyncSession, order: SalesOrder) -> bool:
-    """True when every line can be satisfied from the order's warehouse."""
-    for line in order.lines:
-        stock = await db.scalar(
-            select(Stock).where(
-                Stock.product_id == line.product_id,
-                Stock.warehouse_id == order.warehouse_id,
+# Statuses that mean the goods have left the warehouse (stock already deducted and an
+# invoice created). Entering one of these for the first time triggers fulfilment.
+_FULFILLED_STATUSES = (SalesOrderStatus.SHIPPED, SalesOrderStatus.DELIVERED)
+
+
+async def update_order(
+    db: AsyncSession, manager: User, order_id: int, data: SalesOrderUpdate
+) -> SalesOrder:
+    """Manager-only edit of the deliverer / note. The deliverer can only be changed
+    while the order is still NEW; status changes go through move_order()."""
+    order = await _get_order_with_lines(db, order_id)
+
+    if data.deliverer is not None and data.deliverer != (order.deliverer or ""):
+        if order.status != SalesOrderStatus.NEW:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                "The deliverer can only be edited while the order is New",
+            )
+        order.deliverer = data.deliverer
+    if data.note is not None:
+        order.note = data.note
+
+    await db.flush()
+    await db.refresh(order, attribute_names=["lines"])
+    return order
+
+
+def _change_status(
+    db: AsyncSession, order: SalesOrder, new_status: SalesOrderStatus, user_id: int
+) -> None:
+    """Apply a status change: record history and un-archive (a changed order is active
+    again). Caller flushes."""
+    db.add(
+        OrderStatusHistory(
+            sales_order_id=order.id,
+            from_status=order.status.value,
+            to_status=new_status.value,
+            changed_by_id=user_id,
+        )
+    )
+    order.status = new_status
+    order.archived = False
+
+
+def _recompute_invoice_status(inv: Invoice) -> None:
+    paid = Decimal(inv.paid_amount)
+    if paid <= ZERO:
+        inv.status = InvoiceStatus.UNPAID
+    elif paid >= Decimal(inv.total):
+        inv.status = InvoiceStatus.PAID
+    else:
+        inv.status = InvoiceStatus.PARTIAL
+
+
+async def _invoice_of(db: AsyncSession, order_id: int) -> "Invoice | None":
+    return await db.scalar(select(Invoice).where(Invoice.sales_order_id == order_id))
+
+
+async def _refund_goods(db, order, plan, restock, actor_id) -> None:
+    """Restock (optional) and record the returned goods for the refunded-goods page."""
+    for line, q, value in plan:
+        if restock:
+            stock = await db.scalar(
+                select(Stock).where(
+                    Stock.product_id == line.product_id,
+                    Stock.warehouse_id == order.warehouse_id,
+                )
+            )
+            if stock is None:
+                stock = Stock(
+                    product_id=line.product_id, warehouse_id=order.warehouse_id, quantity=ZERO
+                )
+                db.add(stock)
+            stock.quantity = Decimal(stock.quantity) + q
+            db.add(
+                StockMovement(
+                    product_id=line.product_id,
+                    warehouse_id=order.warehouse_id,
+                    type=StockMovementType.RETURN_IN,
+                    quantity=q,
+                    reference=f"refund:{order.id}",
+                    created_by_id=actor_id,
+                )
+            )
+        db.add(
+            RefundEntry(
+                sales_order_id=order.id,
+                product_id=line.product_id,
+                customer_id=order.customer_id,
+                agent_id=order.agent_id,
+                deliverer=order.deliverer,
+                quantity=q,
+                unit_price=line.unit_price,
+                value=value,
+                restocked=restock,
+                created_by_id=actor_id,
             )
         )
-        available = Decimal(stock.quantity) if stock else ZERO
-        if available < Decimal(line.quantity):
-            return False
-    return True
+
+
+async def move_order(
+    db: AsyncSession, manager: User, order_id: int, data: StatusMoveRequest
+) -> SalesOrder:
+    """Move an order to a status. With no lines the whole order moves; with lines a
+    partial amount moves and a new order forks off (the rest keeps the old status).
+
+    NEW -> SHIPPED/DELIVERED deducts stock + creates an invoice + debt. REFUND /
+    CANCELLED of already-sold goods cuts the debt (REFUND can also restock and is
+    recorded as refunded goods)."""
+    order = await _get_order_with_lines(db, order_id)
+    target = data.status
+    if data.note:
+        order.note = data.note
+    if target == order.status:
+        await db.flush()
+        await db.refresh(order, attribute_names=["lines"])
+        return order
+
+    # Plan which goods move (all lines, or the requested subset).
+    by_product = {line.product_id: line for line in order.lines}
+    plan: list[tuple[SalesOrderLine, Decimal, Decimal]] = []
+    moved_value = ZERO
+    if data.lines:
+        for req in data.lines:
+            line = by_product.get(req.product_id)
+            if line is None:
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    f"Product {req.product_id} is not in order #{order.id}",
+                )
+            avail = Decimal(line.quantity)
+            if Decimal(req.quantity) > avail:
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    f"Cannot move {req.quantity} of product {req.product_id}; only {avail} left",
+                )
+            value = (Decimal(line.unit_price) * Decimal(req.quantity)).quantize(Decimal("0.01"))
+            plan.append((line, Decimal(req.quantity), value))
+            moved_value += value
+    else:
+        for line in order.lines:
+            plan.append((line, Decimal(line.quantity), Decimal(line.line_total)))
+            moved_value += Decimal(line.line_total)
+
+    total_qty = sum((Decimal(line.quantity) for line in order.lines), ZERO)
+    move_qty = sum((q for _, q, _ in plan), ZERO)
+    full = move_qty >= total_qty
+
+    had_invoice = await _invoice_of(db, order.id) is not None
+    is_fulfil = target in _FULFILLED_STATUSES
+    is_reversal = target in (SalesOrderStatus.REFUND, SalesOrderStatus.CANCELLED)
+
+    if full:
+        moved = order
+        _change_status(db, order, target, manager.id)
+    else:
+        # Fork the moved goods into a new order; reduce the original.
+        fork_lines: list[SalesOrderLine] = []
+        for line, q, value in plan:
+            line.quantity = Decimal(line.quantity) - q
+            line.line_total = (Decimal(line.unit_price) * Decimal(line.quantity)).quantize(
+                Decimal("0.01")
+            )
+            fork_lines.append(
+                SalesOrderLine(
+                    product_id=line.product_id,
+                    quantity=q,
+                    unit_price=line.unit_price,
+                    line_total=value,
+                )
+            )
+        for line in list(order.lines):
+            if Decimal(line.quantity) <= ZERO:
+                order.lines.remove(line)
+        order.subtotal = sum((Decimal(line.line_total) for line in order.lines), ZERO)
+        order.total = max(order.subtotal - Decimal(order.discount), ZERO)
+        order.archived = False  # the original stays active in its current status
+
+        fork = SalesOrder(
+            customer_id=order.customer_id,
+            agent_id=order.agent_id,
+            created_by_id=manager.id,
+            parent_order_id=order.id,
+            warehouse_id=order.warehouse_id,
+            status=target,
+            deliverer=order.deliverer,
+            subtotal=moved_value,
+            discount=ZERO,
+            total=moved_value,
+            note=data.note,
+            archived=False,
+        )
+        fork.lines = fork_lines
+        db.add(fork)
+        await db.flush()
+        db.add(
+            OrderStatusHistory(
+                sales_order_id=fork.id,
+                from_status=None,
+                to_status=target.value,
+                changed_by_id=manager.id,
+            )
+        )
+        moved = fork
+
+    # Financial effects on the moved goods.
+    if is_fulfil:
+        if not had_invoice:
+            invoice = await _fulfil_order(db, moved, manager.id)
+            moved.approved_by_id = manager.id
+            moved.approved_at = datetime.now(timezone.utc)
+            await _notify_agent(
+                db, order, f"📦 Order #{order.id} → {target.value}. Invoice {invoice.number}."
+            )
+        else:
+            # Goods already sold/deducted (e.g. shipped → delivered).
+            if not full:
+                inv = await _invoice_of(db, order.id)
+                if inv is not None:
+                    inv.total = max(Decimal(inv.total) - moved_value, ZERO)
+                    _recompute_invoice_status(inv)
+                    db.add(
+                        Invoice(
+                            number=f"INV-{moved.id:06d}",
+                            sales_order_id=moved.id,
+                            customer_id=moved.customer_id,
+                            total=moved_value,
+                            paid_amount=ZERO,
+                            status=InvoiceStatus.UNPAID,
+                        )
+                    )
+            await _notify_agent(db, order, f"📦 Order #{order.id} → {target.value}.")
+    elif is_reversal:
+        if had_invoice:
+            reverse_value = Decimal(order.total) if full else moved_value
+            customer = await db.get(Customer, order.customer_id)
+            if customer is not None:
+                customer.debt = max(Decimal(customer.debt) - reverse_value, ZERO)
+            inv = await _invoice_of(db, order.id)
+            if inv is not None:
+                inv.total = max(Decimal(inv.total) - reverse_value, ZERO)
+                _recompute_invoice_status(inv)
+            if target == SalesOrderStatus.REFUND:
+                await _refund_goods(db, order, plan, data.restock, manager.id)
+            await _notify_agent(
+                db, order, f"↩️ Order #{order.id} → {target.value} (−{reverse_value})."
+            )
+        else:
+            # Goods were never sold; refund just records them, cancel is a label.
+            if target == SalesOrderStatus.REFUND:
+                await _refund_goods(db, order, plan, False, manager.id)
+            await _notify_agent(db, order, f"Order #{order.id} → {target.value}.")
+    else:
+        await _notify_agent(db, order, f"Order #{order.id} → {target.value}.")
+
+    await db.flush()
+    await db.refresh(order, attribute_names=["lines"])
+    return order
+
+
+async def archive_finished_orders(db: AsyncSession) -> int:
+    """Archive finished orders (delivered / cancelled / refund). Shipped & new stay
+    active. Returns the number archived. Idempotent."""
+    finished = (
+        SalesOrderStatus.DELIVERED,
+        SalesOrderStatus.CANCELLED,
+        SalesOrderStatus.REFUND,
+    )
+    rows = list(
+        await db.scalars(
+            select(SalesOrder).where(
+                SalesOrder.status.in_(finished), SalesOrder.archived.is_(False)
+            )
+        )
+    )
+    for order in rows:
+        order.archived = True
+    await db.flush()
+    return len(rows)
+
+
+async def _notify_agent(db: AsyncSession, order: SalesOrder, message: str) -> None:
+    agent = await db.get(User, order.agent_id)
+    if agent and agent.telegram_chat_id:
+        await telegram.send_message(agent.telegram_chat_id, message)
 
 
 async def _fulfil_order(db: AsyncSession, order: SalesOrder, actor_id: int) -> Invoice:
-    """Decrement stock, record movements, mark APPROVED, create the invoice and raise
-    the customer's debt. Raises 409 if any line lacks stock."""
+    """Decrement stock, record movements, create the invoice and raise the customer's
+    debt. Raises 409 if any line lacks stock. Caller sets the order status."""
     for line in order.lines:
         stock = await db.scalar(
             select(Stock).where(
@@ -175,9 +476,6 @@ async def _fulfil_order(db: AsyncSession, order: SalesOrder, actor_id: int) -> I
             )
         )
 
-    order.status = SalesOrderStatus.APPROVED
-    order.approved_at = datetime.now(timezone.utc)
-
     invoice = Invoice(
         number=f"INV-{order.id:06d}",
         sales_order_id=order.id,
@@ -191,82 +489,6 @@ async def _fulfil_order(db: AsyncSession, order: SalesOrder, actor_id: int) -> I
     customer = await db.get(Customer, order.customer_id)
     customer.debt = Decimal(customer.debt) + Decimal(order.total)
     return invoice
-
-
-async def approve_order(db: AsyncSession, manager: User, order_id: int) -> SalesOrder:
-    order = await _get_order_with_lines(db, order_id)
-    if order.status != SalesOrderStatus.PENDING:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT, f"Order is {order.status.value}, cannot approve"
-        )
-    invoice = await _fulfil_order(db, order, manager.id)
-    order.approved_by_id = manager.id
-    await db.flush()
-
-    agent = await db.get(User, order.agent_id)
-    if agent and agent.telegram_chat_id:
-        await telegram.send_message(
-            agent.telegram_chat_id,
-            f"✅ Your order #{order.id} was approved. Invoice {invoice.number}.",
-        )
-    return order
-
-
-async def reject_order(
-    db: AsyncSession, manager: User, order_id: int, reason: str
-) -> SalesOrder:
-    order = await _get_order_with_lines(db, order_id)
-    if order.status != SalesOrderStatus.PENDING:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT, f"Order is {order.status.value}, cannot reject"
-        )
-    order.status = SalesOrderStatus.REJECTED
-    order.rejection_reason = reason
-    await db.flush()
-
-    agent = await db.get(User, order.agent_id)
-    if agent and agent.telegram_chat_id:
-        await telegram.send_message(
-            agent.telegram_chat_id, f"❌ Your order #{order.id} was rejected: {reason}"
-        )
-    return order
-
-
-# Allowed warehouse fulfilment transitions.
-_FULFIL_TRANSITIONS: dict[SalesOrderStatus, set[SalesOrderStatus]] = {
-    SalesOrderStatus.APPROVED: {SalesOrderStatus.PICKING, SalesOrderStatus.DELIVERED},
-    SalesOrderStatus.PICKING: {SalesOrderStatus.DELIVERED},
-}
-
-
-async def advance_status(
-    db: AsyncSession, user: User, order_id: int, target: SalesOrderStatus
-) -> SalesOrder:
-    """Move an approved order through picking → delivered."""
-    order = await _get_order_with_lines(db, order_id)
-    allowed = _FULFIL_TRANSITIONS.get(order.status, set())
-    if target not in allowed:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            f"Cannot move order from {order.status.value} to {target.value}",
-        )
-    order.status = target
-    await db.flush()
-    return order
-
-
-async def cancel_order(db: AsyncSession, user: User, order_id: int) -> SalesOrder:
-    """Cancel a still-pending order. Approved/fulfilled orders need a credit note
-    (stock + debt reversal), which is intentionally not auto-handled yet."""
-    order = await _get_order_with_lines(db, order_id)
-    if order.status != SalesOrderStatus.PENDING:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            f"Only pending orders can be cancelled here (order is {order.status.value})",
-        )
-    order.status = SalesOrderStatus.CANCELLED
-    await db.flush()
-    return order
 
 
 async def record_payment(

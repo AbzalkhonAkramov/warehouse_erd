@@ -38,6 +38,7 @@ export interface ActivityEntry {
   method: string;
   path: string;
   action: string;
+  detail?: string | null;
   status_code: number;
   created_at: string;
 }
@@ -52,25 +53,37 @@ export interface StockRow {
   low: boolean;
 }
 
+export interface AgentBrief {
+  id: number;
+  full_name: string;
+}
+
+export interface Region {
+  id: number;
+  name: string;
+}
+
 export interface Customer {
   id: number;
   name: string;
   phone?: string | null;
   address?: string | null;
+  city?: string | null;
   latitude?: Money | null;
   longitude?: Money | null;
   credit_limit: Money;
   debt: Money;
-  agent_id?: number | null;
+  region_id?: number | null;
+  region_name?: string | null;
+  agents?: AgentBrief[];
+  agent_ids?: number[];
 }
 
 export type SalesOrderStatus =
-  | "draft"
-  | "pending"
-  | "approved"
-  | "rejected"
-  | "picking"
+  | "new"
+  | "shipped"
   | "delivered"
+  | "refund"
   | "cancelled";
 
 export interface SalesOrderLine {
@@ -79,23 +92,57 @@ export interface SalesOrderLine {
   quantity: Money;
   unit_price: Money;
   line_total: Money;
+  refunded_quantity: Money;
 }
 
 export interface SalesOrder {
   id: number;
   customer_id: number;
   agent_id: number;
+  agent_name?: string | null;
+  created_by_id?: number | null;
+  created_by_name?: string | null;
+  parent_order_id?: number | null;
   warehouse_id: number;
   status: SalesOrderStatus;
   subtotal: Money;
   discount: Money;
   total: Money;
   note?: string | null;
+  deliverer?: string | null;
+  archived: boolean;
   approved_by_id?: number | null;
   approved_at?: string | null;
   rejection_reason?: string | null;
   created_at: string;
   lines: SalesOrderLine[];
+}
+
+export interface RefundEntry {
+  id: number;
+  sales_order_id: number;
+  product_id: number;
+  product_name?: string | null;
+  customer_id: number;
+  customer_name?: string | null;
+  agent_id?: number | null;
+  agent_name?: string | null;
+  deliverer?: string | null;
+  quantity: Money;
+  unit_price: Money;
+  value: Money;
+  restocked: boolean;
+  created_at: string;
+}
+
+export interface OrderStatusHistory {
+  id: number;
+  sales_order_id: number;
+  from_status?: string | null;
+  to_status: string;
+  changed_by_id?: number | null;
+  changed_by_name?: string | null;
+  created_at: string;
 }
 
 export type InvoiceStatus = "unpaid" | "partial" | "paid";

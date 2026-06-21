@@ -29,11 +29,12 @@ export default function ActivityLogPage() {
     if (!activity.data) return;
     exportExcel(
       "activity-log",
-      [t("col.created"), t("col.user"), t("col.action"), "method", "path"],
+      [t("col.created"), t("col.user"), t("col.action"), t("activity.details"), "method", "path"],
       activity.data.map((a) => [
         date(a.created_at),
         a.user_name ?? `#${a.user_id ?? ""}`,
         a.action,
+        a.detail ?? "",
         a.method,
         a.path,
       ]),
@@ -85,6 +86,7 @@ export default function ActivityLogPage() {
                 <th>{t("col.created")}</th>
                 <th>{t("col.user")}</th>
                 <th>{t("col.action")}</th>
+                <th>{t("activity.details")}</th>
                 <th className="muted">path</th>
               </tr>
             </thead>
@@ -94,6 +96,7 @@ export default function ActivityLogPage() {
                   <td className="muted">{date(a.created_at)}</td>
                   <td>{a.user_name ?? `#${a.user_id ?? "—"}`}</td>
                   <td className="strong">{a.action}</td>
+                  <td className="small">{a.detail || "—"}</td>
                   <td className="muted small mono">
                     {a.method} {a.path}
                   </td>

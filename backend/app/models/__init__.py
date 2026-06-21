@@ -5,7 +5,15 @@ from app.models.user import User
 from app.models.catalog import Category, Product, Supplier, Warehouse
 from app.models.inventory import Stock, StockMovement
 from app.models.purchasing import PurchaseOrder, PurchaseOrderLine
-from app.models.sales import Customer, SalesOrder, SalesOrderLine, Visit
+from app.models.sales import (
+    Customer,
+    OrderStatusHistory,
+    RefundEntry,
+    Region,
+    SalesOrder,
+    SalesOrderLine,
+    Visit,
+)
 from app.models.finance import Invoice, Payment
 from app.models.agent import AgentTarget
 from app.models.telegram import TelegramTopic
@@ -31,8 +39,11 @@ __all__ = [
     "PurchaseOrder",
     "PurchaseOrderLine",
     "Customer",
+    "Region",
     "SalesOrder",
     "SalesOrderLine",
+    "RefundEntry",
+    "OrderStatusHistory",
     "Visit",
     "Invoice",
     "Payment",

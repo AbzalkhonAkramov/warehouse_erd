@@ -31,12 +31,10 @@ export function Button({ variant = "primary", className = "", ...rest }: ButtonP
 }
 
 const ORDER_COLORS: Record<SalesOrderStatus, string> = {
-  draft: "gray",
-  pending: "amber",
-  approved: "blue",
-  rejected: "red",
-  picking: "violet",
+  new: "amber",
+  shipped: "blue",
   delivered: "green",
+  refund: "violet",
   cancelled: "gray",
 };
 

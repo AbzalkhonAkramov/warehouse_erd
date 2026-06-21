@@ -845,3 +845,64 @@ h1 {
   gap: 10px;
   margin-top: 12px;
 }
+
+/* --- Orders: manager status editor + create-order form --- */
+.row-gap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.order-editor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border, #e5e7eb);
+}
+.order-editor .field {
+  min-width: 180px;
+}
+.order-line-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.order-line-row .grow {
+  flex: 1;
+  min-width: 0;
+}
+.order-line-row .qty-input {
+  width: 110px;
+}
+.section-sub {
+  margin: 18px 0 8px;
+  font-size: 0.95rem;
+  color: var(--muted, #6b7280);
+}
+.order-total {
+  margin: 14px 0;
+  font-size: 1.05rem;
+}
+.note.muted {
+  color: var(--muted, #6b7280);
+}
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+.refund-dest {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-top: 14px;
+}
+.refund-dest .radio {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}

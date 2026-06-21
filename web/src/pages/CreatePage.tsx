@@ -256,7 +256,7 @@ function ShopForm({ showAgentPicker }: { showAgentPicker: boolean }) {
         phone: form.phone || undefined,
         address: form.address || undefined,
         credit_limit: form.credit_limit,
-        agent_id: form.agent_id ? Number(form.agent_id) : undefined,
+        agent_ids: form.agent_id ? [Number(form.agent_id)] : undefined,
       }),
     onSuccess: (shop) => {
       qc.invalidateQueries({ queryKey: ["customers"] });

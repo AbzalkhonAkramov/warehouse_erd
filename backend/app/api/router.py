@@ -11,6 +11,7 @@ from app.api.routers import (
     photo_reports,
     products,
     purchasing,
+    regions,
     reports,
     sales_orders,
     telegram_topics,
@@ -23,6 +24,7 @@ api_router.include_router(users.router)
 api_router.include_router(catalog.router)
 api_router.include_router(products.router)
 api_router.include_router(customers.router)
+api_router.include_router(regions.router)
 api_router.include_router(inventory.router)
 api_router.include_router(purchasing.router)
 api_router.include_router(sales_orders.router)

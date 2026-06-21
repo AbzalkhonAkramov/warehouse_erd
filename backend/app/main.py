@@ -1,3 +1,5 @@
+import asyncio
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -7,12 +9,24 @@ from fastapi.staticfiles import StaticFiles
 from app.api.router import api_router
 from app.core.audit import AuditMiddleware
 from app.core.config import settings
+from app.core.scheduler import archive_loop
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    task = asyncio.create_task(archive_loop())
+    try:
+        yield
+    finally:
+        task.cancel()
+
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version="0.1.0",
     openapi_url=f"{settings.API_PREFIX}/openapi.json",
     docs_url="/docs",
+    lifespan=lifespan,
 )
 
 app.add_middleware(AuditMiddleware)

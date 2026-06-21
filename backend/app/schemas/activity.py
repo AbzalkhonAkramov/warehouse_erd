@@ -12,5 +12,6 @@ class ActivityOut(BaseModel):
     method: str
     path: str
     action: str
+    detail: str | None = None
     status_code: int
     created_at: datetime

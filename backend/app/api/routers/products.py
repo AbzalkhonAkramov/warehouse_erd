@@ -162,10 +162,15 @@ async def upload_product_image(
     return product
 
 
+# Statuses that do NOT represent a real (stock-deducting) sale.
 _EXCLUDED_SALE_STATUSES = (
-    SalesOrderStatus.REJECTED,
+    SalesOrderStatus.NEW,
+    SalesOrderStatus.REFUND,
     SalesOrderStatus.CANCELLED,
+    # legacy values:
+    SalesOrderStatus.REJECTED,
     SalesOrderStatus.DRAFT,
+    SalesOrderStatus.PENDING,
 )
 
 

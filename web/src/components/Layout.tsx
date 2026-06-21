@@ -29,6 +29,7 @@ const NAV: NavItem[] = [
   { to: "/reports", labelKey: "nav.reports", exclude: ["agent"] },
   { to: "/accounts", labelKey: "nav.accounts", roles: [] }, // admin-only
   { to: "/activity", labelKey: "nav.activity", roles: [] }, // admin-only
+  { to: "/branding", labelKey: "nav.branding", roles: [] }, // admin-only
   { to: "/topics", labelKey: "nav.topics", roles: [] }, // admin-only
 ];
 

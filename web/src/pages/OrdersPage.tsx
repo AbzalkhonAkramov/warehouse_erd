@@ -263,6 +263,17 @@ export default function OrdersPage() {
                             </p>
                           )}
 
+                          {(o.status === "shipped" || o.status === "delivered") && (
+                            <Button
+                              variant="ghost"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/orders/${o.id}/receipt`);
+                              }}
+                            >
+                              🧾 {t("orders.receipt")}
+                            </Button>
+                          )}
                           {isManager && (
                             <Button
                               variant="ghost"

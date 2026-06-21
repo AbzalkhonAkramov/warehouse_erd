@@ -4,6 +4,7 @@ import type {
   AgentSalesRow,
   Category,
   CommissionRow,
+  Company,
   Customer,
   DashboardData,
   DebtRow,
@@ -161,6 +162,17 @@ export interface RefundFilters {
   date_to?: string;
 }
 
+export const getCompany = () => api<Company>("/meta/company");
+export const updateCompany = (body: { name?: string; display_mode?: string }) =>
+  api<Company>("/meta/company", { method: "PATCH", body });
+export const uploadCompanyLogo = (file: File) => {
+  const form = new FormData();
+  form.append("file", file);
+  return api<Company>("/meta/company/logo", { method: "POST", body: form });
+};
+export const deleteCompanyLogo = () =>
+  api<Company>("/meta/company/logo", { method: "DELETE" });
+export const getOrder = (id: number) => api<SalesOrder>(`/sales-orders/${id}`);
 export const listOrders = (status?: SalesOrderStatus, archived = false) => {
   const p = new URLSearchParams();
   if (status) p.set("status_filter", status);

@@ -7,6 +7,7 @@ import DashboardPage from "./pages/DashboardPage";
 import OrdersPage from "./pages/OrdersPage";
 import CreateOrderPage from "./pages/CreateOrderPage";
 import OrderHistoryPage from "./pages/OrderHistoryPage";
+import ReceiptPage from "./pages/ReceiptPage";
 import RefundedGoodsPage from "./pages/RefundedGoodsPage";
 import StatusHistoryPage from "./pages/StatusHistoryPage";
 import ProductsPage from "./pages/ProductsPage";
@@ -24,6 +25,7 @@ import RegisterPage from "./pages/RegisterPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import AccountsPage from "./pages/AccountsPage";
 import ActivityLogPage from "./pages/ActivityLogPage";
+import BrandingPage from "./pages/BrandingPage";
 
 export default function App() {
   const { user, loading } = useAuth();
@@ -63,6 +65,7 @@ export default function App() {
           path="orders/:id/history"
           element={isAgent ? <Navigate to="/orders" replace /> : <OrderHistoryPage />}
         />
+        <Route path="orders/:id/receipt" element={<ReceiptPage />} />
         <Route
           path="refunds"
           element={isAgent ? <Navigate to="/orders" replace /> : <RefundedGoodsPage />}
@@ -86,6 +89,7 @@ export default function App() {
         />
         <Route path="accounts" element={<AccountsPage />} />
         <Route path="activity" element={<ActivityLogPage />} />
+        <Route path="branding" element={<BrandingPage />} />
         <Route path="topics" element={<TopicsPage />} />
       </Route>
       <Route path="/login" element={<Navigate to="/" replace />} />

@@ -8,6 +8,7 @@ from app.api.routers import (
     customers,
     finance,
     inventory,
+    meta,
     photo_reports,
     products,
     purchasing,
@@ -19,6 +20,7 @@ from app.api.routers import (
 )
 
 api_router = APIRouter()
+api_router.include_router(meta.router)
 api_router.include_router(auth.router)
 api_router.include_router(users.router)
 api_router.include_router(catalog.router)

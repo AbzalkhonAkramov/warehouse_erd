@@ -22,6 +22,11 @@ class Settings(BaseSettings):
     TELEGRAM_BOT_TOKEN: str | None = None
     TELEGRAM_MANAGER_CHAT_ID: str | None = None
 
+    # Branding shown on receipts/headers. The logo may be an svg/png/etc URL (left
+    # empty to use the text name only).
+    COMPANY_NAME: str = "Warehouse ERP"
+    COMPANY_LOGO_URL: str | None = None
+
     # Directory (relative to the backend working dir) for uploaded photos.
     UPLOAD_DIR: str = "uploads"
 

@@ -35,6 +35,7 @@ class SalesOrderLineOut(BaseModel):
 
     id: int
     product_id: int
+    product_name: str | None = None
     quantity: Decimal
     unit_price: Decimal
     line_total: Decimal
@@ -47,6 +48,7 @@ class SalesOrderOut(BaseModel):
     id: int
     # Display number: plain id for normal orders, "<parent>.<n>" for forked orders.
     order_no: str | None = None
+    invoice_number: str | None = None
     customer_id: int
     agent_id: int
     agent_name: str | None = None

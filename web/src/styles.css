@@ -906,3 +906,37 @@ h1 {
   gap: 6px;
   cursor: pointer;
 }
+.receipt {
+  max-width: 640px;
+}
+.receipt-logo {
+  max-height: 48px;
+  max-width: 220px;
+}
+.receipt-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 1.1rem;
+  border-bottom: 2px solid var(--border, #e5e7eb);
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+}
+.receipt-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 4px 18px;
+  margin-bottom: 14px;
+  font-size: 0.9rem;
+}
+.receipt-totals {
+  margin-top: 12px;
+  text-align: right;
+  display: grid;
+  gap: 4px;
+}
+.receipt-totals .strong {
+  font-size: 1.1rem;
+  border-top: 1px solid var(--border, #e5e7eb);
+  padding-top: 6px;
+}

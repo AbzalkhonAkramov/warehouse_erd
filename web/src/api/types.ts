@@ -89,15 +89,23 @@ export type SalesOrderStatus =
 export interface SalesOrderLine {
   id: number;
   product_id: number;
+  product_name?: string | null;
   quantity: Money;
   unit_price: Money;
   line_total: Money;
   refunded_quantity: Money;
 }
 
+export interface Company {
+  name: string;
+  logo_url?: string | null;
+  display_mode: "text" | "logo" | "both";
+}
+
 export interface SalesOrder {
   id: number;
   order_no?: string | null;
+  invoice_number?: string | null;
   customer_id: number;
   agent_id: number;
   agent_name?: string | null;

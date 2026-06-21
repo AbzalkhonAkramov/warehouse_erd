@@ -1,7 +1,7 @@
 from collections import defaultdict
 from datetime import date, datetime
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased, selectinload
@@ -10,6 +10,7 @@ from app.api.deps import get_current_user, require_roles
 from app.core.database import get_db
 from app.models.catalog import Product
 from app.models.enums import SalesOrderStatus, UserRole
+from app.models.finance import Invoice
 from app.models.sales import Customer, OrderStatusHistory, RefundEntry, SalesOrder
 from app.models.user import User
 from app.schemas.sales import (
@@ -165,6 +166,52 @@ async def status_history(
                 entry.related_order_id, str(entry.related_order_id)
             )
         out.append(row)
+    return out
+
+
+@router.get("/{order_id}", response_model=SalesOrderOut)
+async def get_order(
+    order_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> SalesOrderOut:
+    owner = aliased(User)
+    creator = aliased(User)
+    row = (
+        await db.execute(
+            select(SalesOrder, owner.full_name, creator.full_name)
+            .outerjoin(owner, owner.id == SalesOrder.agent_id)
+            .outerjoin(creator, creator.id == SalesOrder.created_by_id)
+            .options(selectinload(SalesOrder.lines))
+            .where(SalesOrder.id == order_id)
+        )
+    ).first()
+    if row is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Order not found")
+    order, owner_name, creator_name = row
+    if user.role == UserRole.AGENT and order.agent_id != user.id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not your order")
+
+    fork_no = _order_nos(await _parent_chain(db))
+    invoice = await db.scalar(select(Invoice.number).where(Invoice.sales_order_id == order.id))
+
+    out = SalesOrderOut.model_validate(order)
+    out.agent_name = owner_name
+    out.created_by_name = creator_name
+    out.order_no = fork_no.get(order.id, str(order.id))
+    out.invoice_number = invoice
+
+    names = dict(
+        (
+            await db.execute(
+                select(Product.id, Product.name).where(
+                    Product.id.in_([ln.product_id for ln in order.lines])
+                )
+            )
+        ).all()
+    )
+    for ln in out.lines:
+        ln.product_name = names.get(ln.product_id)
     return out
 
 

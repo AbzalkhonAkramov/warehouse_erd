@@ -20,6 +20,7 @@ from app.models.telegram import TelegramTopic
 from app.models.photo import PhotoReport, PhotoReportImage
 from app.models.associations import agent_categories
 from app.models.activity import ActivityLog
+from app.models.setting import CompanySettings
 
 __all__ = [
     "Base",
@@ -30,6 +31,7 @@ __all__ = [
     "PhotoReportImage",
     "agent_categories",
     "ActivityLog",
+    "CompanySettings",
     "Category",
     "Product",
     "Supplier",

@@ -41,6 +41,8 @@ services:
       BACKEND_CORS_ORIGINS: http://localhost:5173,http://localhost
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_MANAGER_CHAT_ID: ${TELEGRAM_MANAGER_CHAT_ID:-}
+      COMPANY_NAME: ${COMPANY_NAME:-Warehouse ERP}
+      COMPANY_LOGO_URL: ${COMPANY_LOGO_URL:-}
       UPLOAD_DIR: uploads
     volumes:
       # Bind-mount so existing/new product & report photos persist on the host.

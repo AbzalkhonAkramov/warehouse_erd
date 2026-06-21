@@ -36,6 +36,26 @@ from app.services import telegram
 ZERO = Decimal("0")
 
 
+def _fmt_qty(q) -> str:
+    return f"{float(q):g}"
+
+
+def _items_desc(pairs) -> str:
+    """Language-neutral '4×Cola, 2×Water' summary from (name, qty) pairs."""
+    return ", ".join(f"{_fmt_qty(q)}×{name}" for name, q in pairs)
+
+
+async def _plan_items_desc(db: AsyncSession, plan) -> str:
+    names = dict(
+        (await db.execute(
+            select(Product.id, Product.name).where(
+                Product.id.in_([line.product_id for line, _, _ in plan])
+            )
+        )).all()
+    )
+    return _items_desc([(names.get(line.product_id, f"#{line.product_id}"), q) for line, q, _ in plan])
+
+
 async def _default_warehouse_id(db: AsyncSession) -> int:
     wh = await db.scalar(select(Warehouse).where(Warehouse.is_default).limit(1))
     if wh is None:
@@ -103,6 +123,7 @@ async def create_order(db: AsyncSession, creator: User, data: SalesOrderCreate) 
     )
 
     subtotal = ZERO
+    created_items: list[tuple[str, Decimal]] = []
     for line in data.lines:
         product = await db.get(Product, line.product_id)
         if product is None or not product.is_active:
@@ -117,6 +138,7 @@ async def create_order(db: AsyncSession, creator: User, data: SalesOrderCreate) 
         unit_price = line.unit_price if line.unit_price is not None else Decimal(product.sale_price)
         line_total = (unit_price * line.quantity).quantize(Decimal("0.01"))
         subtotal += line_total
+        created_items.append((product.name, line.quantity))
         order.lines.append(
             SalesOrderLine(
                 product_id=product.id,
@@ -133,12 +155,14 @@ async def create_order(db: AsyncSession, creator: User, data: SalesOrderCreate) 
     await db.flush()
     await db.refresh(order, attribute_names=["lines"])
 
-    # Record the opening status transition (none -> new).
+    # Record the opening event (order created).
     db.add(
         OrderStatusHistory(
             sales_order_id=order.id,
             from_status=None,
             to_status=order.status.value,
+            kind="create",
+            detail=_items_desc(created_items),
             changed_by_id=creator.id,
         )
     )
@@ -188,7 +212,14 @@ async def update_order(
 
 
 def _change_status(
-    db: AsyncSession, order: SalesOrder, new_status: SalesOrderStatus, user_id: int
+    db: AsyncSession,
+    order: SalesOrder,
+    new_status: SalesOrderStatus,
+    user_id: int,
+    *,
+    kind: str = "move",
+    detail: str | None = None,
+    related_order_id: int | None = None,
 ) -> None:
     """Apply a status change: record history and un-archive (a changed order is active
     again). Caller flushes."""
@@ -197,6 +228,9 @@ def _change_status(
             sales_order_id=order.id,
             from_status=order.status.value,
             to_status=new_status.value,
+            kind=kind,
+            detail=detail,
+            related_order_id=related_order_id,
             changed_by_id=user_id,
         )
     )
@@ -307,6 +341,7 @@ async def move_order(
     total_qty = sum((Decimal(line.quantity) for line in order.lines), ZERO)
     move_qty = sum((q for _, q, _ in plan), ZERO)
     full = move_qty >= total_qty
+    moved_desc = await _plan_items_desc(db, plan)
 
     had_invoice = await _invoice_of(db, order.id) is not None
     is_fulfil = target in _FULFILLED_STATUSES
@@ -314,7 +349,7 @@ async def move_order(
 
     if full:
         moved = order
-        _change_status(db, order, target, manager.id)
+        _change_status(db, order, target, manager.id, kind="move", detail=moved_desc)
     else:
         # Fork the moved goods into a new order; reduce the original.
         fork_lines: list[SalesOrderLine] = []
@@ -355,11 +390,28 @@ async def move_order(
         fork.lines = fork_lines
         db.add(fork)
         await db.flush()
+        # Two linked events: the parent records what it forked out; the fork records
+        # that it was created by forking from the parent.
+        db.add(
+            OrderStatusHistory(
+                sales_order_id=order.id,
+                from_status=order.status.value,
+                # The destination status the forked goods moved into.
+                to_status=target.value,
+                kind="fork_out",
+                detail=moved_desc,
+                related_order_id=fork.id,
+                changed_by_id=manager.id,
+            )
+        )
         db.add(
             OrderStatusHistory(
                 sales_order_id=fork.id,
                 from_status=None,
                 to_status=target.value,
+                kind="fork_in",
+                detail=moved_desc,
+                related_order_id=order.id,
                 changed_by_id=manager.id,
             )
         )

@@ -6,6 +6,7 @@ import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
 import OrdersPage from "./pages/OrdersPage";
 import CreateOrderPage from "./pages/CreateOrderPage";
+import OrderHistoryPage from "./pages/OrderHistoryPage";
 import RefundedGoodsPage from "./pages/RefundedGoodsPage";
 import StatusHistoryPage from "./pages/StatusHistoryPage";
 import ProductsPage from "./pages/ProductsPage";
@@ -58,6 +59,10 @@ export default function App() {
         />
         <Route path="orders" element={<OrdersPage />} />
         <Route path="orders/new" element={<CreateOrderPage />} />
+        <Route
+          path="orders/:id/history"
+          element={isAgent ? <Navigate to="/orders" replace /> : <OrderHistoryPage />}
+        />
         <Route
           path="refunds"
           element={isAgent ? <Navigate to="/orders" replace /> : <RefundedGoodsPage />}

@@ -5,6 +5,7 @@ import {
   createCustomer,
   createProduct,
   listCategories,
+  listRegions,
   listUsers,
   uploadProductImage,
 } from "../api/endpoints";
@@ -21,7 +22,15 @@ const EMPTY_PRODUCT = {
   min_stock: "0",
   category_id: "",
 };
-const EMPTY_SHOP = { name: "", phone: "", address: "", credit_limit: "0", agent_id: "" };
+const EMPTY_SHOP = {
+  name: "",
+  phone: "",
+  address: "",
+  city: "",
+  region_id: "",
+  credit_limit: "0",
+  agent_id: "",
+};
 
 export default function CreatePage() {
   const { t } = useI18n();
@@ -248,6 +257,7 @@ function ShopForm({ showAgentPicker }: { showAgentPicker: boolean }) {
     queryFn: () => listUsers("agent"),
     enabled: showAgentPicker,
   });
+  const regions = useQuery({ queryKey: ["regions"], queryFn: listRegions });
 
   const create = useMutation({
     mutationFn: () =>
@@ -255,6 +265,8 @@ function ShopForm({ showAgentPicker }: { showAgentPicker: boolean }) {
         name: form.name,
         phone: form.phone || undefined,
         address: form.address || undefined,
+        city: form.city || undefined,
+        region_id: form.region_id ? Number(form.region_id) : null,
         credit_limit: form.credit_limit,
         agent_ids: form.agent_id ? [Number(form.agent_id)] : undefined,
       }),
@@ -274,6 +286,7 @@ function ShopForm({ showAgentPicker }: { showAgentPicker: boolean }) {
   }
 
   const agentName = agents.data?.find((a) => String(a.id) === form.agent_id)?.full_name;
+  const regionName = regions.data?.find((r) => String(r.id) === form.region_id)?.name;
 
   return (
     <Card title={t("create.shopSection")}>
@@ -282,6 +295,8 @@ function ShopForm({ showAgentPicker }: { showAgentPicker: boolean }) {
           rows={[
             { label: t("col.name"), value: form.name },
             { label: t("col.phone"), value: form.phone },
+            { label: t("customers.city"), value: form.city },
+            { label: t("customers.region"), value: regionName ?? t("common.none") },
             { label: t("field.address"), value: form.address },
             { label: t("col.creditLimit"), value: form.credit_limit },
             ...(showAgentPicker
@@ -304,6 +319,19 @@ function ShopForm({ showAgentPicker }: { showAgentPicker: boolean }) {
           <label className="field">
             <span>{t("col.phone")}</span>
             <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+          </label>
+          <label className="field">
+            <span>{t("customers.city")}</span>
+            <input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+          </label>
+          <label className="field">
+            <span>{t("customers.region")}</span>
+            <select value={form.region_id} onChange={(e) => setForm({ ...form, region_id: e.target.value })}>
+              <option value="">{t("common.none")}</option>
+              {regions.data?.map((r) => (
+                <option key={r.id} value={r.id}>{r.name}</option>
+              ))}
+            </select>
           </label>
           <label className="field full">
             <span>{t("field.address")}</span>

@@ -97,6 +97,7 @@ export interface SalesOrderLine {
 
 export interface SalesOrder {
   id: number;
+  order_no?: string | null;
   customer_id: number;
   agent_id: number;
   agent_name?: string | null;
@@ -138,8 +139,13 @@ export interface RefundEntry {
 export interface OrderStatusHistory {
   id: number;
   sales_order_id: number;
+  order_no?: string | null;
   from_status?: string | null;
   to_status: string;
+  kind?: string;
+  detail?: string | null;
+  related_order_id?: number | null;
+  related_order_no?: string | null;
   changed_by_id?: number | null;
   changed_by_name?: string | null;
   created_at: string;

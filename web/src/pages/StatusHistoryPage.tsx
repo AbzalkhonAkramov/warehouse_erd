@@ -24,7 +24,7 @@ export default function StatusHistoryPage() {
       [t("col.created"), "#", t("history.from"), t("history.to"), t("history.by")],
       history.data.map((h) => [
         date(h.created_at),
-        h.sales_order_id,
+        h.order_no ?? h.sales_order_id,
         label(h.from_status),
         label(h.to_status),
         h.changed_by_name ?? "—",
@@ -73,7 +73,7 @@ export default function StatusHistoryPage() {
               {history.data.map((h) => (
                 <tr key={h.id}>
                   <td>{date(h.created_at)}</td>
-                  <td className="mono">{h.sales_order_id}</td>
+                  <td className="mono">{h.order_no ?? h.sales_order_id}</td>
                   <td>{label(h.from_status)}</td>
                   <td>
                     <span className="badge badge-blue">{label(h.to_status)}</span>

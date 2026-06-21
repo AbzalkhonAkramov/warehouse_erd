@@ -45,6 +45,8 @@ class SalesOrderOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    # Display number: plain id for normal orders, "<parent>.<n>" for forked orders.
+    order_no: str | None = None
     customer_id: int
     agent_id: int
     agent_name: str | None = None
@@ -114,8 +116,13 @@ class OrderStatusHistoryOut(BaseModel):
 
     id: int
     sales_order_id: int
+    order_no: str | None = None
     from_status: str | None
     to_status: str
+    kind: str = "move"
+    detail: str | None = None
+    related_order_id: int | None = None
+    related_order_no: str | None = None
     changed_by_id: int | None
     changed_by_name: str | None = None
     created_at: datetime

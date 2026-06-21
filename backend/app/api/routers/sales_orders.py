@@ -1,3 +1,4 @@
+from collections import defaultdict
 from datetime import date, datetime
 
 from fastapi import APIRouter, Depends
@@ -24,6 +25,34 @@ from app.services import sales_service
 router = APIRouter(prefix="/sales-orders", tags=["sales-orders"])
 
 
+async def _parent_chain(db: AsyncSession) -> dict[int, int | None]:
+    rows = (await db.execute(select(SalesOrder.id, SalesOrder.parent_order_id))).all()
+    return {r.id: r.parent_order_id for r in rows}
+
+
+def _root_of(parent_of: dict[int, int | None], oid: int) -> int:
+    cur, seen = oid, set()
+    while parent_of.get(cur) is not None and cur not in seen:
+        seen.add(cur)
+        cur = parent_of[cur]
+    return cur
+
+
+def _order_nos(parent_of: dict[int, int | None]) -> dict[int, str]:
+    """Map each forked order to '<root>.<n>' — root-based at any nesting depth, so a
+    fork of a fork still counts under the first-created order, never the fork's id."""
+    descendants: dict[int, list[int]] = defaultdict(list)
+    for oid in parent_of:
+        root = _root_of(parent_of, oid)
+        if root != oid:
+            descendants[root].append(oid)
+    out: dict[int, str] = {}
+    for root, kids in descendants.items():
+        for i, kid in enumerate(sorted(kids), start=1):
+            out[kid] = f"{root}.{i}"
+    return out
+
+
 @router.get("", response_model=list[SalesOrderOut])
 async def list_orders(
     status_filter: SalesOrderStatus | None = None,
@@ -48,11 +77,14 @@ async def list_orders(
     if status_filter is not None:
         stmt = stmt.where(SalesOrder.status == status_filter)
 
+    fork_no = _order_nos(await _parent_chain(db))
+
     out: list[SalesOrderOut] = []
     for order, owner_name, creator_name in (await db.execute(stmt)).all():
         row = SalesOrderOut.model_validate(order)
         row.agent_name = owner_name
         row.created_by_name = creator_name
+        row.order_no = fork_no.get(order.id, str(order.id))
         out.append(row)
     return out
 
@@ -101,21 +133,37 @@ async def list_refunds(
 @router.get("/status-history", response_model=list[OrderStatusHistoryOut])
 async def status_history(
     order_id: int | None = None,
+    tree: bool = False,
     db: AsyncSession = Depends(get_db),
     _: User = Depends(require_roles(UserRole.MANAGER, UserRole.ACCOUNTANT)),
 ) -> list[OrderStatusHistoryOut]:
+    """Status-move history. With ``tree=true`` and an order_id, returns the whole
+    order tree (the root and all its forks), each row tagged with its order number."""
+    parent_of = await _parent_chain(db)
+    order_nos = _order_nos(parent_of)
+
     stmt = (
         select(OrderStatusHistory, User.full_name)
         .outerjoin(User, User.id == OrderStatusHistory.changed_by_id)
         .order_by(OrderStatusHistory.id.desc())
     )
     if order_id is not None:
-        stmt = stmt.where(OrderStatusHistory.sales_order_id == order_id)
+        if tree:
+            root = _root_of(parent_of, order_id)
+            ids = [oid for oid in parent_of if _root_of(parent_of, oid) == root]
+            stmt = stmt.where(OrderStatusHistory.sales_order_id.in_(ids))
+        else:
+            stmt = stmt.where(OrderStatusHistory.sales_order_id == order_id)
 
     out: list[OrderStatusHistoryOut] = []
     for entry, name in (await db.execute(stmt)).all():
         row = OrderStatusHistoryOut.model_validate(entry)
         row.changed_by_name = name
+        row.order_no = order_nos.get(entry.sales_order_id, str(entry.sales_order_id))
+        if entry.related_order_id is not None:
+            row.related_order_no = order_nos.get(
+                entry.related_order_id, str(entry.related_order_id)
+            )
         out.append(row)
     return out
 

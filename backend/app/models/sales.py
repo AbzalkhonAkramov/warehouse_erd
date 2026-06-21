@@ -140,6 +140,12 @@ class OrderStatusHistory(Base, TimestampMixin):
     from_status: Mapped[str | None] = mapped_column(String(20))
     to_status: Mapped[str] = mapped_column(String(20), nullable=False)
     changed_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    # "create" | "move" | "fork_out" | "fork_in" — what kind of event this was.
+    kind: Mapped[str] = mapped_column(String(16), default="move", nullable=False)
+    # Items involved (e.g. "4×Cola, 2×Water"); language-neutral product/qty summary.
+    detail: Mapped[str | None] = mapped_column(Text)
+    # The other order in a fork event (the fork, or the parent).
+    related_order_id: Mapped[int | None] = mapped_column(ForeignKey("sales_orders.id"))
 
 
 class Visit(Base, TimestampMixin):

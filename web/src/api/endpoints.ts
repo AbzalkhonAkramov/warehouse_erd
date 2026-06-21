@@ -183,10 +183,13 @@ export const listRefunds = (filters: RefundFilters = {}) => {
   const qs = p.toString();
   return api<RefundEntry[]>(`/sales-orders/refunds${qs ? `?${qs}` : ""}`);
 };
-export const listStatusHistory = (orderId?: number) =>
-  api<OrderStatusHistory[]>(
-    `/sales-orders/status-history${orderId ? `?order_id=${orderId}` : ""}`,
-  );
+export const listStatusHistory = (orderId?: number, tree = false) => {
+  const p = new URLSearchParams();
+  if (orderId) p.set("order_id", String(orderId));
+  if (tree) p.set("tree", "true");
+  const qs = p.toString();
+  return api<OrderStatusHistory[]>(`/sales-orders/status-history${qs ? `?${qs}` : ""}`);
+};
 
 // --- Finance ---
 export const listInvoices = () => api<Invoice[]>("/invoices");

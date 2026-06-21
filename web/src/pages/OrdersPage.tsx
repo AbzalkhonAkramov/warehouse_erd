@@ -1,5 +1,5 @@
 import { Fragment, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   listCustomers,
@@ -48,6 +48,7 @@ export default function OrdersPage() {
   const { t } = useI18n();
   const { user } = useAuth();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const isManager = user?.role === "admin" || user?.role === "manager";
 
   const [filter, setFilter] = useState("new");
@@ -151,7 +152,7 @@ export default function OrdersPage() {
       "orders",
       ["#", t("col.customer"), t("col.agent"), t("col.created"), t("col.total"), t("common.status"), t("orders.deliverer")],
       orders.data.map((o) => [
-        o.id,
+        o.order_no ?? o.id,
         customerName(o.customer_id),
         o.agent_name ?? agentName(o.agent_id),
         date(o.created_at),
@@ -212,7 +213,7 @@ export default function OrdersPage() {
               {orders.data.map((o) => (
                 <Fragment key={o.id}>
                   <tr className="clickable" onClick={() => openRow(o)}>
-                    <td className="mono">{o.id}</td>
+                    <td className="mono">{o.order_no ?? o.id}</td>
                     <td>{customerName(o.customer_id)}</td>
                     <td>{o.agent_name ?? agentName(o.agent_id)}</td>
                     <td>{date(o.created_at)}</td>
@@ -260,6 +261,18 @@ export default function OrdersPage() {
                             <p className="note muted">
                               {t("orders.createdBy")}: {o.created_by_name}
                             </p>
+                          )}
+
+                          {isManager && (
+                            <Button
+                              variant="ghost"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/orders/${o.id}/history`);
+                              }}
+                            >
+                              🕓 {t("orders.fullHistory")}
+                            </Button>
                           )}
 
                           {isManager ? (
@@ -319,7 +332,7 @@ export default function OrdersPage() {
 
       {moving && (
         <Modal
-          title={t("orders.moveTitle", { id: moving.id, status: t(`status.${moveTarget}`) })}
+          title={t("orders.moveTitle", { id: moving.order_no ?? moving.id, status: t(`status.${moveTarget}`) })}
           onClose={() => setMoving(null)}
         >
           <p className="muted small" style={{ marginTop: 0 }}>
@@ -406,6 +419,7 @@ export default function OrdersPage() {
           </div>
         </Modal>
       )}
+
     </div>
   );
 }

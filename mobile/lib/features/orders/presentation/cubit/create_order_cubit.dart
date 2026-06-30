@@ -4,6 +4,7 @@ import 'package:equatable/equatable.dart';
 import '../../../../core/network/api_exception.dart';
 import '../../../customers/domain/entities/customer.dart';
 import '../../../customers/domain/repositories/customer_repository.dart';
+import '../../../products/domain/entities/category.dart';
 import '../../../products/domain/entities/product.dart';
 import '../../../products/domain/repositories/product_repository.dart';
 import '../../domain/entities/order_line_input.dart';
@@ -24,10 +25,12 @@ class CreateOrderCubit extends Cubit<CreateOrderState> {
     try {
       final products = await _products.fetchProducts();
       final customers = await _customers.fetchCustomers();
+      final categories = await _products.fetchCategories();
       emit(state.copyWith(
         status: CreateOrderStatus.ready,
         products: products,
         customers: customers,
+        categories: categories,
       ));
     } on ApiException catch (e) {
       emit(state.copyWith(status: CreateOrderStatus.error, error: e.message));

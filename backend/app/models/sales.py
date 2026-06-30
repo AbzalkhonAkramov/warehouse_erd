@@ -70,6 +70,10 @@ class SalesOrder(Base, TimestampMixin):
     # orders drop out of the active list; changing their status un-archives them.
     archived: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
+    # Manager per-order switch (default on): when on AND the order's agent is
+    # flagged "important", before/after photos must be pinned before delivery.
+    photo_required: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
     # Who actually created the order (the order owner is agent_id; for a manager
     # placing an order on behalf of an agent these differ).
     created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))

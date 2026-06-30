@@ -6,6 +6,7 @@ abstract class PhotoRepository {
 
   Future<PhotoSubmitResult> submit({
     required int customerId,
+    int? salesOrderId,
     int? topicId,
     String? note,
     required String beforePath,

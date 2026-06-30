@@ -55,6 +55,7 @@ export default function AccountsPage() {
                 <th>{t("col.email")}</th>
                 <th>{t("col.role")}</th>
                 <th>{t("common.status")}</th>
+                <th>{t("accounts.photosImportant")}</th>
                 <th className="actions-col" />
               </tr>
             </thead>
@@ -91,6 +92,24 @@ export default function AccountsPage() {
                         <span className="badge badge-red" style={{ marginLeft: 6 }}>
                           {t("accounts.resetRequested")}
                         </span>
+                      )}
+                    </td>
+                    <td>
+                      {u.role === "agent" ? (
+                        <label className="inline-check" title={t("accounts.photosImportantHint")}>
+                          <input
+                            type="checkbox"
+                            checked={u.photo_required ?? true}
+                            onChange={(e) =>
+                              patch.mutate({
+                                id: u.id,
+                                body: { photo_required: e.target.checked },
+                              })
+                            }
+                          />
+                        </label>
+                      ) : (
+                        <span className="muted">—</span>
                       )}
                     </td>
                     <td className="actions-col">

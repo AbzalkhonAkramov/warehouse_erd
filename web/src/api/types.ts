@@ -12,6 +12,8 @@ export interface User {
   is_active: boolean;
   reset_requested?: boolean;
   telegram_chat_id?: string | null;
+  /** Admin "important" flag: this agent's orders need before/after photos. */
+  photo_required?: boolean;
 }
 
 export interface Product {
@@ -120,11 +122,25 @@ export interface SalesOrder {
   note?: string | null;
   deliverer?: string | null;
   archived: boolean;
+  /** Manager per-order switch: require before/after photos for this order. */
+  photo_required?: boolean;
+  /** Whether this order's agent is flagged "important" (photos matter). */
+  agent_photo_required?: boolean;
+  /** Before/after photos pinned to the order (populated by getOrder). */
+  photos?: OrderPhoto[];
+  /** True once both before and after photos are pinned. */
+  photo_complete?: boolean;
   approved_by_id?: number | null;
   approved_at?: string | null;
   rejection_reason?: string | null;
   created_at: string;
   lines: SalesOrderLine[];
+}
+
+export interface OrderPhoto {
+  stage: string; // "before" | "after"
+  /** Deep link to the Telegram message, or null if the send failed. */
+  link: string | null;
 }
 
 export interface RefundEntry {
@@ -259,8 +275,9 @@ export type PhotoReportStatus = "pending" | "sent" | "failed";
 export interface PhotoImage {
   id: number;
   stage: PhotoStage;
-  file_path: string;
-  telegram_file_id: string | null;
+  /** Deep link to the Telegram message (images are stored in Telegram only). */
+  telegram_link: string | null;
+  telegram_message_id?: number | null;
 }
 
 export interface PhotoReport {

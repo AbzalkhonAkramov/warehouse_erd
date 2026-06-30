@@ -6,6 +6,8 @@ import '../../l10n/language_switcher.dart';
 import '../auth/presentation/bloc/auth_bloc.dart';
 import '../customers/presentation/pages/customers_page.dart';
 import '../orders/presentation/pages/create_order_page.dart';
+import '../orders/presentation/pages/orders_page.dart';
+import '../products/presentation/pages/catalog_page.dart';
 import '../photo_report/presentation/pages/photo_report_page.dart';
 
 class HomePage extends StatefulWidget {
@@ -18,7 +20,13 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _index = 0;
 
-  static const _pages = [CustomersPage(), CreateOrderPage(), PhotoReportPage()];
+  static const _pages = [
+    CustomersPage(),
+    CreateOrderPage(),
+    OrdersPage(),
+    CatalogPage(),
+    PhotoReportPage(),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -26,6 +34,8 @@ class _HomePageState extends State<HomePage> {
     final titles = [
       context.tr('home.customers'),
       context.tr('home.order'),
+      context.tr('home.orders'),
+      context.tr('home.catalog'),
       context.tr('home.photos'),
     ];
     return Scaffold(
@@ -52,6 +62,10 @@ class _HomePageState extends State<HomePage> {
               icon: const Icon(Icons.store_outlined), label: context.tr('tab.customers')),
           NavigationDestination(
               icon: const Icon(Icons.add_shopping_cart_outlined), label: context.tr('tab.order')),
+          NavigationDestination(
+              icon: const Icon(Icons.receipt_long_outlined), label: context.tr('tab.orders')),
+          NavigationDestination(
+              icon: const Icon(Icons.inventory_2_outlined), label: context.tr('tab.catalog')),
           NavigationDestination(
               icon: const Icon(Icons.camera_alt_outlined), label: context.tr('tab.photos')),
         ],

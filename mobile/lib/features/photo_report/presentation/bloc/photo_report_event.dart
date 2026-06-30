@@ -8,12 +8,32 @@ sealed class PhotoReportEvent extends Equatable {
 }
 
 class PhotoInitRequested extends PhotoReportEvent {
-  const PhotoInitRequested();
+  const PhotoInitRequested({
+    this.initialCustomerId,
+    this.initialSalesOrderId,
+    this.locked = false,
+  });
+
+  /// When launched from a specific order, the customer + order are pre-pinned
+  /// and locked (the agent can't change them on the screen).
+  final int? initialCustomerId;
+  final int? initialSalesOrderId;
+  final bool locked;
+
+  @override
+  List<Object?> get props => [initialCustomerId, initialSalesOrderId, locked];
 }
 
 class PhotoCustomerSelected extends PhotoReportEvent {
   const PhotoCustomerSelected(this.id);
   final int id;
+  @override
+  List<Object?> get props => [id];
+}
+
+class PhotoOrderSelected extends PhotoReportEvent {
+  const PhotoOrderSelected(this.id);
+  final int? id;
   @override
   List<Object?> get props => [id];
 }

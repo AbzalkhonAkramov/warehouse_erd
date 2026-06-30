@@ -1,4 +1,4 @@
-from sqlalchemy import Enum, ForeignKey, String, Text
+from sqlalchemy import BigInteger, Enum, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
@@ -7,7 +7,8 @@ from app.models.enums import PhotoReportStatus, PhotoStage
 
 class PhotoReport(Base, TimestampMixin):
     """A before/after photo report submitted by a field agent and forwarded to a
-    Telegram group topic."""
+    Telegram group topic. The images live in Telegram only — they are never stored
+    on the server; we keep just a deep link to each message."""
 
     __tablename__ = "photo_reports"
 
@@ -34,8 +35,11 @@ class PhotoReportImage(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     report_id: Mapped[int] = mapped_column(ForeignKey("photo_reports.id"), nullable=False)
     stage: Mapped[PhotoStage] = mapped_column(Enum(PhotoStage), nullable=False)
-    # Relative path under the upload dir, served at /uploads/<path>.
-    file_path: Mapped[str] = mapped_column(String(255), nullable=False)
+    # Legacy server path (kept for old rows only; new reports are Telegram-only).
+    file_path: Mapped[str | None] = mapped_column(String(255))
     telegram_file_id: Mapped[str | None] = mapped_column(String(255))
+    # The Telegram message id and a deep link managers click to view the photo.
+    telegram_message_id: Mapped[int | None] = mapped_column(BigInteger)
+    telegram_link: Mapped[str | None] = mapped_column(String(255))
 
     report: Mapped["PhotoReport"] = relationship(back_populates="images")

@@ -18,6 +18,7 @@ class PhotoRemoteDataSource {
 
   Future<PhotoSubmitResult> submit({
     required int customerId,
+    int? salesOrderId,
     int? topicId,
     String? note,
     required String beforePath,
@@ -25,6 +26,7 @@ class PhotoRemoteDataSource {
   }) async {
     final form = FormData.fromMap({
       'customer_id': customerId,
+      if (salesOrderId != null) 'sales_order_id': salesOrderId,
       if (topicId != null) 'topic_id': topicId,
       if (note != null && note.isNotEmpty) 'note': note,
       'before': await MultipartFile.fromFile(beforePath, filename: 'before.jpg'),

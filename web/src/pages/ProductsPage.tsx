@@ -1,7 +1,14 @@
-import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMemo, useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { listCategories, listProducts, listStock, uploadUrl } from "../api/endpoints";
+import {
+  downloadStockTemplate,
+  importStock,
+  listCategories,
+  listProducts,
+  listStock,
+  uploadUrl,
+} from "../api/endpoints";
 import { useAuth } from "../auth/AuthContext";
 import { useI18n } from "../i18n";
 import { Button, Card, ErrorBox, ExcelButton, Spinner } from "../components/ui";
@@ -19,10 +26,32 @@ export default function ProductsPage() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<string>("");
   const [sort, setSort] = useState<Sort>("name");
+  const [importMsg, setImportMsg] = useState<string | null>(null);
+  const [importErr, setImportErr] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const qc = useQueryClient();
 
   const products = useQuery({ queryKey: ["products"], queryFn: listProducts });
   const stock = useQuery({ queryKey: ["stock"], queryFn: () => listStock(false) });
   const categories = useQuery({ queryKey: ["categories"], queryFn: listCategories });
+
+  const doImport = useMutation({
+    mutationFn: importStock,
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: ["stock"] });
+      qc.invalidateQueries({ queryKey: ["products"] });
+      setImportErr(null);
+      setImportMsg(
+        t("stockImport.done", {
+          updated: r.updated,
+          total: r.added_total,
+          skipped: r.skipped,
+        }) + (r.errors.length ? ` · ${r.errors.length} ${t("stockImport.errs")}` : ""),
+      );
+    },
+    onError: (e) =>
+      setImportErr(e instanceof Error ? e.message : t("common.somethingWrong")),
+  });
 
   const onHand = useMemo(() => {
     const map = new Map<number, { quantity: string; low: boolean }>();
@@ -77,12 +106,38 @@ export default function ProductsPage() {
         <div className="head-actions">
           <ExcelButton onClick={exportProducts} />
           {canManage && (
-            <Link to="/create">
-              <Button>{t("products.new")}</Button>
-            </Link>
+            <>
+              <Button variant="ghost" onClick={() => downloadStockTemplate()}>
+                ⬇ {t("stockImport.template")}
+              </Button>
+              <Button
+                variant="ghost"
+                disabled={doImport.isPending}
+                onClick={() => fileRef.current?.click()}
+              >
+                ⬆ {doImport.isPending ? t("common.saving") : t("stockImport.import")}
+              </Button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".xlsx"
+                style={{ display: "none" }}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) doImport.mutate(f);
+                  if (fileRef.current) fileRef.current.value = "";
+                }}
+              />
+              <Link to="/create">
+                <Button>{t("products.new")}</Button>
+              </Link>
+            </>
           )}
         </div>
       </div>
+
+      {importMsg && <div className="ok-box">{importMsg}</div>}
+      {importErr && <div className="error-box">{importErr}</div>}
 
       <div className="filter-row">
         <input

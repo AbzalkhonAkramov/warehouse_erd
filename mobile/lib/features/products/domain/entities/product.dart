@@ -7,6 +7,7 @@ class Product extends Equatable {
     required this.name,
     required this.unit,
     required this.salePrice,
+    this.categoryId,
     this.imagePath,
     this.onHand = 0,
   });
@@ -16,9 +17,11 @@ class Product extends Equatable {
   final String name;
   final String unit;
   final double salePrice; // retail price (agents never see the purchase price)
+  final int? categoryId;
   final String? imagePath;
   final double onHand; // available stock
 
   @override
-  List<Object?> get props => [id, sku, name, unit, salePrice, imagePath, onHand];
+  List<Object?> get props =>
+      [id, sku, name, unit, salePrice, categoryId, imagePath, onHand];
 }

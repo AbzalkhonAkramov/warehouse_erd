@@ -7,6 +7,7 @@ class CreateOrderState extends Equatable {
     this.status = CreateOrderStatus.initial,
     this.products = const [],
     this.customers = const [],
+    this.categories = const [],
     this.quantities = const {},
     this.customerId,
     this.createdOrderId,
@@ -17,6 +18,7 @@ class CreateOrderState extends Equatable {
   final CreateOrderStatus status;
   final List<Product> products;
   final List<Customer> customers;
+  final List<Category> categories;
   final Map<int, double> quantities;
   final int? customerId;
   final int? createdOrderId;
@@ -38,6 +40,7 @@ class CreateOrderState extends Equatable {
     CreateOrderStatus? status,
     List<Product>? products,
     List<Customer>? customers,
+    List<Category>? categories,
     Map<int, double>? quantities,
     int? customerId,
     int? createdOrderId,
@@ -48,6 +51,7 @@ class CreateOrderState extends Equatable {
       status: status ?? this.status,
       products: products ?? this.products,
       customers: customers ?? this.customers,
+      categories: categories ?? this.categories,
       quantities: quantities ?? this.quantities,
       customerId: customerId ?? this.customerId,
       createdOrderId: createdOrderId ?? this.createdOrderId,
@@ -61,6 +65,7 @@ class CreateOrderState extends Equatable {
         status,
         products,
         customers,
+        categories,
         quantities,
         customerId,
         createdOrderId,

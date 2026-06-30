@@ -11,9 +11,11 @@ from app.core.database import get_db
 from app.models.catalog import Product
 from app.models.enums import SalesOrderStatus, UserRole
 from app.models.finance import Invoice
+from app.models.photo import PhotoReport, PhotoReportImage
 from app.models.sales import Customer, OrderStatusHistory, RefundEntry, SalesOrder
 from app.models.user import User
 from app.schemas.sales import (
+    OrderPhotoOut,
     OrderStatusHistoryOut,
     RefundEntryOut,
     SalesOrderCreate,
@@ -195,11 +197,29 @@ async def get_order(
     fork_no = _order_nos(await _parent_chain(db))
     invoice = await db.scalar(select(Invoice.number).where(Invoice.sales_order_id == order.id))
 
+    # Before/after photos pinned to this order, plus the agent's "important" flag.
+    photo_rows = (
+        await db.execute(
+            select(PhotoReportImage.stage, PhotoReportImage.telegram_link)
+            .join(PhotoReport, PhotoReportImage.report_id == PhotoReport.id)
+            .where(PhotoReport.sales_order_id == order.id)
+            .order_by(PhotoReportImage.stage, PhotoReportImage.id)
+        )
+    ).all()
+    agent_important = await db.scalar(
+        select(User.photo_required).where(User.id == order.agent_id)
+    )
+
     out = SalesOrderOut.model_validate(order)
     out.agent_name = owner_name
     out.created_by_name = creator_name
     out.order_no = fork_no.get(order.id, str(order.id))
     out.invoice_number = invoice
+    out.agent_photo_required = bool(agent_important)
+    out.photos = [OrderPhotoOut(stage=s.value, link=link) for s, link in photo_rows]
+    # Complete only when both stages actually reached Telegram (have a link).
+    have = {s for s, link in photo_rows if link}
+    out.photo_complete = len(have) >= 2  # both BEFORE and AFTER present
 
     names = dict(
         (

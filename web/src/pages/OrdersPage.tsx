@@ -2,6 +2,7 @@ import { Fragment, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  getOrder,
   listCustomers,
   listOrders,
   listProducts,
@@ -74,6 +75,13 @@ export default function OrdersPage() {
   const agents = useQuery({ queryKey: ["users", "agent"], queryFn: () => listUsers("agent") });
   const products = useQuery({ queryKey: ["products"], queryFn: listProducts });
 
+  // Full detail (incl. pinned before/after photos) for the expanded order only.
+  const detail = useQuery({
+    queryKey: ["order", expanded],
+    queryFn: () => getOrder(expanded as number),
+    enabled: expanded != null,
+  });
+
   const customerName = useMemo(() => {
     const m = new Map<number, string>();
     customers.data?.forEach((c) => m.set(c.id, c.name));
@@ -109,6 +117,16 @@ export default function OrdersPage() {
   const saveDeliverer = useMutation({
     mutationFn: (o: SalesOrder) => updateOrder(o.id, { deliverer: editDeliverer }),
     onSuccess: refresh,
+    onError,
+  });
+
+  const togglePhotos = useMutation({
+    mutationFn: (v: { id: number; required: boolean }) =>
+      updateOrder(v.id, { photo_required: v.required }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["order"] });
+      refresh();
+    },
     onError,
   });
 
@@ -261,6 +279,63 @@ export default function OrdersPage() {
                             <p className="note muted">
                               {t("orders.createdBy")}: {o.created_by_name}
                             </p>
+                          )}
+
+                          {detail.data?.id === o.id && (
+                            <div className="order-photos" onClick={(e) => e.stopPropagation()}>
+                              <div className="order-photos-head">
+                                <strong>{t("orders.photos")}</strong>
+                                {isManager && (
+                                  <label className="inline-check">
+                                    <input
+                                      type="checkbox"
+                                      checked={detail.data.photo_required ?? true}
+                                      disabled={togglePhotos.isPending}
+                                      onChange={(e) =>
+                                        togglePhotos.mutate({
+                                          id: o.id,
+                                          required: e.target.checked,
+                                        })
+                                      }
+                                    />
+                                    {t("orders.requirePhotos")}
+                                  </label>
+                                )}
+                              </div>
+                              {detail.data.photos && detail.data.photos.length > 0 ? (
+                                <div className="tg-links">
+                                  {detail.data.photos.map((ph, i) =>
+                                    ph.link ? (
+                                      <a
+                                        key={i}
+                                        className="btn btn-ghost tg-link"
+                                        href={ph.link}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                      >
+                                        ✈ {t(`photo.${ph.stage}`)} · {t("photo.viewInTelegram")}
+                                      </a>
+                                    ) : (
+                                      <span key={i} className="note muted">
+                                        {t(`photo.${ph.stage}`)}: {t("photo.notSent")}
+                                      </span>
+                                    ),
+                                  )}
+                                </div>
+                              ) : (
+                                <p
+                                  className={`note ${
+                                    detail.data.photo_required && detail.data.agent_photo_required
+                                      ? "warn"
+                                      : "muted"
+                                  }`}
+                                >
+                                  {detail.data.photo_required && detail.data.agent_photo_required
+                                    ? t("orders.photosRequiredWarn")
+                                    : t("orders.photosNone")}
+                                </p>
+                              )}
+                            </div>
                           )}
 
                           {(o.status === "shipped" || o.status === "delivered") && (

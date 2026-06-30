@@ -28,6 +28,19 @@ class SalesOrderUpdate(BaseModel):
 
     deliverer: str | None = None
     note: str | None = None
+    # Manager waive/require before-after photos for this single order.
+    photo_required: bool | None = None
+
+
+class OrderPhotoOut(BaseModel):
+    """A before/after image pinned to an order (for the order-detail view).
+
+    Images live in Telegram only; ``link`` is the deep link managers click."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    stage: str
+    link: str | None
 
 
 class SalesOrderLineOut(BaseModel):
@@ -63,6 +76,13 @@ class SalesOrderOut(BaseModel):
     note: str | None
     deliverer: str | None
     archived: bool
+    photo_required: bool = True
+    # Whether the agent is flagged "important" (photos matter for their orders).
+    agent_photo_required: bool = True
+    # Before/after photos pinned to this order (populated on the detail endpoint).
+    photos: list[OrderPhotoOut] = []
+    # True once both a before AND an after photo are pinned to this order.
+    photo_complete: bool = False
     approved_by_id: int | None
     approved_at: datetime | None
     rejection_reason: str | None

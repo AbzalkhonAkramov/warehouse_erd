@@ -1,5 +1,6 @@
 import 'package:get_it/get_it.dart';
 
+import '../branding.dart';
 import '../network/api_client.dart';
 import '../storage/token_storage.dart';
 import '../../l10n/locale_cubit.dart';
@@ -23,6 +24,7 @@ import '../../features/orders/data/datasources/order_remote_data_source.dart';
 import '../../features/orders/data/repositories/order_repository_impl.dart';
 import '../../features/orders/domain/repositories/order_repository.dart';
 import '../../features/orders/presentation/cubit/create_order_cubit.dart';
+import '../../features/orders/presentation/cubit/orders_cubit.dart';
 // Photo reports
 import '../../features/photo_report/data/datasources/photo_remote_data_source.dart';
 import '../../features/photo_report/data/repositories/photo_repository_impl.dart';
@@ -36,6 +38,7 @@ void configureDependencies() {
   sl.registerLazySingleton(() => TokenStorage());
   sl.registerLazySingleton(() => ApiClient(sl()));
   sl.registerLazySingleton(() => LocaleCubit());
+  sl.registerLazySingleton(() => BrandingService(sl()));
 
   // Auth
   sl.registerLazySingleton(() => AuthRemoteDataSource(sl()));
@@ -59,9 +62,10 @@ void configureDependencies() {
   sl.registerLazySingleton(() => OrderRemoteDataSource(sl()));
   sl.registerLazySingleton<OrderRepository>(() => OrderRepositoryImpl(sl()));
   sl.registerFactory(() => CreateOrderCubit(sl(), sl(), sl()));
+  sl.registerFactory(() => OrdersCubit(sl(), sl()));
 
   // Photo reports
   sl.registerLazySingleton(() => PhotoRemoteDataSource(sl()));
   sl.registerLazySingleton<PhotoRepository>(() => PhotoRepositoryImpl(sl()));
-  sl.registerFactory(() => PhotoReportBloc(sl(), sl()));
+  sl.registerFactory(() => PhotoReportBloc(sl(), sl(), sl()));
 }

@@ -1,4 +1,5 @@
 import '../../../../core/network/api_client.dart';
+import '../../domain/entities/category.dart';
 import '../../domain/entities/product.dart';
 
 double _toDouble(dynamic v) =>
@@ -19,10 +20,18 @@ class ProductRemoteDataSource {
             name: j['name'] as String,
             unit: (j['unit'] as String?) ?? 'pcs',
             salePrice: _toDouble(j['sale_price']),
+            categoryId: j['category_id'] as int?,
             imagePath: j['image_path'] as String?,
             onHand: _toDouble(j['on_hand']),
           ),
         )
+        .toList();
+  }
+
+  Future<List<Category>> fetchCategories() async {
+    final data = await _client.get('/categories') as List<dynamic>;
+    return data
+        .map((j) => Category(id: j['id'] as int, name: j['name'] as String))
         .toList();
   }
 }

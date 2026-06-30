@@ -9,13 +9,39 @@ import '../../../../l10n/l10n_ext.dart';
 import '../bloc/photo_report_bloc.dart';
 
 class PhotoReportPage extends StatelessWidget {
-  const PhotoReportPage({super.key});
+  const PhotoReportPage({
+    super.key,
+    this.initialCustomerId,
+    this.initialSalesOrderId,
+    this.lockSelection = false,
+    this.standalone = false,
+  });
+
+  /// When launched from a specific order, the customer + order are pre-pinned
+  /// and (if [lockSelection]) cannot be changed on screen.
+  final int? initialCustomerId;
+  final int? initialSalesOrderId;
+  final bool lockSelection;
+
+  /// When true the page provides its own Scaffold/AppBar (pushed as a route);
+  /// inside the home tab it is hosted by the home Scaffold instead.
+  final bool standalone;
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => sl<PhotoReportBloc>()..add(const PhotoInitRequested()),
-      child: const _PhotoReportView(),
+      create: (_) => sl<PhotoReportBloc>()
+        ..add(PhotoInitRequested(
+          initialCustomerId: initialCustomerId,
+          initialSalesOrderId: initialSalesOrderId,
+          locked: lockSelection,
+        )),
+      child: standalone
+          ? Scaffold(
+              appBar: AppBar(title: Text(context.tr('photo.title'))),
+              body: const _PhotoReportView(),
+            )
+          : const _PhotoReportView(),
     );
   }
 }
@@ -54,7 +80,12 @@ class _PhotoReportView extends StatelessWidget {
                   : context.tr('photo.sentFail', {'error': r.error ?? 'unknown'})),
             ),
           );
-          context.read<PhotoReportBloc>().add(const PhotoInitRequested());
+          // Pinned-from-order flow: pop back to the order once submitted.
+          if (state.locked && Navigator.of(context).canPop()) {
+            Navigator.of(context).pop();
+          } else {
+            context.read<PhotoReportBloc>().add(const PhotoInitRequested());
+          }
         } else if (state.status == PhotoStatus.error && state.error != null) {
           ScaffoldMessenger.of(context)
               .showSnackBar(SnackBar(content: Text(state.error!)));
@@ -67,6 +98,7 @@ class _PhotoReportView extends StatelessWidget {
         }
         final bloc = context.read<PhotoReportBloc>();
         final submitting = state.status == PhotoStatus.submitting;
+        final orders = state.ordersForCustomer;
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
@@ -81,8 +113,33 @@ class _PhotoReportView extends StatelessWidget {
                   .map((c) =>
                       DropdownMenuItem(value: c.id, child: Text(c.name)))
                   .toList(),
-              onChanged: (id) =>
-                  id == null ? null : bloc.add(PhotoCustomerSelected(id)),
+              onChanged: state.locked
+                  ? null
+                  : (id) => id == null ? null : bloc.add(PhotoCustomerSelected(id)),
+            ),
+            const SizedBox(height: 14),
+            // Pin the report to a specific order (so it shows on the order).
+            DropdownButtonFormField<int?>(
+              initialValue: state.salesOrderId,
+              isExpanded: true,
+              decoration: InputDecoration(
+                labelText: context.tr('photo.order'),
+                helperText: context.tr('photo.orderHelp'),
+                border: const OutlineInputBorder(),
+              ),
+              items: [
+                DropdownMenuItem<int?>(
+                    value: null, child: Text(context.tr('photo.noOrder'))),
+                ...orders.map(
+                  (o) => DropdownMenuItem<int?>(
+                    value: o.id,
+                    child: Text('#${o.orderNo} · ${context.tr('status.${o.status}')}'),
+                  ),
+                ),
+              ],
+              onChanged: (state.locked || state.customerId == null)
+                  ? null
+                  : (id) => bloc.add(PhotoOrderSelected(id)),
             ),
             const SizedBox(height: 14),
             DropdownButtonFormField<int?>(

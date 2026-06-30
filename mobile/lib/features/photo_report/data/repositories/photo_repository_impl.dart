@@ -14,6 +14,7 @@ class PhotoRepositoryImpl implements PhotoRepository {
   @override
   Future<PhotoSubmitResult> submit({
     required int customerId,
+    int? salesOrderId,
     int? topicId,
     String? note,
     required String beforePath,
@@ -21,6 +22,7 @@ class PhotoRepositoryImpl implements PhotoRepository {
   }) {
     return _remote.submit(
       customerId: customerId,
+      salesOrderId: salesOrderId,
       topicId: topicId,
       note: note,
       beforePath: beforePath,

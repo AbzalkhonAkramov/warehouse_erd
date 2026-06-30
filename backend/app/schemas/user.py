@@ -12,6 +12,8 @@ class UserBase(BaseModel):
     role: UserRole = UserRole.AGENT
     telegram_chat_id: str | None = None
     default_topic_id: int | None = None
+    # Admin "important" flag: this agent's orders need before/after photos.
+    photo_required: bool = True
 
 
 class UserCreate(UserBase):
@@ -25,6 +27,7 @@ class UserUpdate(BaseModel):
     is_active: bool | None = None
     telegram_chat_id: str | None = None
     default_topic_id: int | None = None
+    photo_required: bool | None = None
     password: str | None = None
 
 

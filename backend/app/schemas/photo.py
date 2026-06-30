@@ -10,8 +10,9 @@ class PhotoImageOut(BaseModel):
 
     id: int
     stage: PhotoStage
-    file_path: str
-    telegram_file_id: str | None
+    # Deep link to the Telegram message (images are stored in Telegram only).
+    telegram_link: str | None
+    telegram_message_id: int | None = None
 
 
 class PhotoReportOut(BaseModel):

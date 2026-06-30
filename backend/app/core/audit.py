@@ -82,6 +82,8 @@ def action_label(method: str, path: str) -> str:
 
     if resource == "inventory" and last == "adjust":
         return "Added stock"
+    if resource == "inventory" and last == "stock-import":
+        return "Imported stock (Excel)"
     if resource == "auth" and last == "change-password":
         return "Changed password"
     if resource == "payments" and method == "POST":

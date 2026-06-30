@@ -1,4 +1,4 @@
-import { api } from "./client";
+import { api, downloadFile } from "./client";
 import type {
   ActivityEntry,
   AgentSalesRow,
@@ -91,6 +91,19 @@ export const getProductHistory = (id: number) =>
   api<ProductHistoryEntry[]>(`/products/${id}/history`);
 export const listStock = (lowOnly = false) =>
   api<StockRow[]>(`/inventory/stock${lowOnly ? "?low_only=true" : ""}`);
+export interface StockImportResult {
+  updated: number;
+  added_total: string;
+  skipped: number;
+  errors: string[];
+}
+export const downloadStockTemplate = () =>
+  downloadFile("/inventory/stock-template", "stock-template.xlsx");
+export const importStock = (file: File) => {
+  const form = new FormData();
+  form.append("file", file);
+  return api<StockImportResult>("/inventory/stock-import", { method: "POST", body: form });
+};
 export const addStock = (product_id: number, quantity: string, note?: string) =>
   api<{ product_id: number; quantity: number }>("/inventory/adjust", {
     method: "POST",
@@ -141,6 +154,7 @@ export interface CreateOrderInput {
 export interface UpdateOrderInput {
   deliverer?: string;
   note?: string;
+  photo_required?: boolean;
 }
 
 export interface MoveLineInput {

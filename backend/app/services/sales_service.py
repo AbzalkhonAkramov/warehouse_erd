@@ -22,6 +22,7 @@ from app.models.enums import (
 )
 from app.models.finance import Invoice, Payment
 from app.models.inventory import Stock, StockMovement
+from app.models.photo import PhotoReport, PhotoReportImage
 from app.models.sales import (
     Customer,
     OrderStatusHistory,
@@ -205,10 +206,28 @@ async def update_order(
         order.deliverer = data.deliverer
     if data.note is not None:
         order.note = data.note
+    if data.photo_required is not None:
+        order.photo_required = data.photo_required
 
     await db.flush()
     await db.refresh(order, attribute_names=["lines"])
     return order
+
+
+async def _photos_pinned(db: AsyncSession, order_id: int) -> bool:
+    """True when both a before AND an after photo were delivered to Telegram for
+    this order (a report whose Telegram send failed does not count)."""
+    stages = set(
+        await db.scalars(
+            select(PhotoReportImage.stage)
+            .join(PhotoReport, PhotoReportImage.report_id == PhotoReport.id)
+            .where(
+                PhotoReport.sales_order_id == order_id,
+                PhotoReportImage.telegram_link.is_not(None),
+            )
+        )
+    )
+    return len(stages) >= 2
 
 
 def _change_status(
@@ -311,6 +330,20 @@ async def move_order(
         await db.flush()
         await db.refresh(order, attribute_names=["lines"])
         return order
+
+    # Before/after photo gate: an order can only be delivered once its before+after
+    # photos are pinned — but only when the agent is flagged "important" (admin) AND
+    # the order itself still requires photos (manager can waive a single order).
+    if target == SalesOrderStatus.DELIVERED and order.photo_required:
+        agent_important = await db.scalar(
+            select(User.photo_required).where(User.id == order.agent_id)
+        )
+        if agent_important and not await _photos_pinned(db, order.id):
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "Before/after photos must be attached to this order before it can be "
+                "marked delivered.",
+            )
 
     # Plan which goods move (all lines, or the requested subset).
     by_product = {line.product_id: line for line in order.lines}

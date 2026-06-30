@@ -33,7 +33,7 @@ async def _setup_basic(db, stock_qty="24"):
     db.add(product)
     await db.flush()
     db.add(Stock(product_id=product.id, warehouse_id=wh.id, quantity=Decimal(stock_qty)))
-    customer = Customer(name="Shop", credit_limit=Decimal("5000"), agent_id=agent.id)
+    customer = Customer(name="Shop", credit_limit=Decimal("5000"), agents=[agent])
     db.add(customer)
     await db.flush()
     return manager, agent, product, customer

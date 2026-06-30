@@ -80,7 +80,7 @@ async def test_fulfilment_transitions(db):
     agent = User(full_name="A", email="a@e.l", role=UserRole.AGENT, hashed_password=hash_password("x"))
     db.add(agent)
     await db.flush()
-    customer = Customer(name="Shop", agent_id=agent.id)
+    customer = Customer(name="Shop", agents=[agent])
     db.add(customer)
     await db.flush()
 
@@ -108,7 +108,7 @@ async def test_commission_report(db):
                  commission_rate=Decimal("10"), hashed_password=hash_password("x"))
     db.add(agent)
     await db.flush()
-    customer = Customer(name="Shop", agent_id=agent.id)
+    customer = Customer(name="Shop", agents=[agent])
     db.add(customer)
     await db.flush()
 

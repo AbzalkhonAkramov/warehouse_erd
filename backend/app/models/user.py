@@ -28,6 +28,10 @@ class User(Base, TimestampMixin):
     # Default Telegram topic this agent's photo reports route to (admin-assigned).
     default_topic_id: Mapped[int | None] = mapped_column(ForeignKey("telegram_topics.id"))
 
+    # Admin "important" switch: when True this agent's orders need before/after
+    # photos pinned before they can be marked delivered. Off → photos never required.
+    photo_required: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
     # Markets pinned to this agent (many-to-many).
     customers: Mapped[list["Customer"]] = relationship(  # noqa: F821
         secondary=customer_agents, back_populates="agents"

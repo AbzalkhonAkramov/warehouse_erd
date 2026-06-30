@@ -11,7 +11,7 @@ class CreateShopPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => sl<CreateShopCubit>(),
+      create: (_) => sl<CreateShopCubit>()..loadRegions(),
       child: const _CreateShopView(),
     );
   }
@@ -29,12 +29,15 @@ class _CreateShopViewState extends State<_CreateShopView> {
   final _name = TextEditingController();
   final _phone = TextEditingController();
   final _address = TextEditingController();
+  final _city = TextEditingController();
+  int? _regionId;
 
   @override
   void dispose() {
     _name.dispose();
     _phone.dispose();
     _address.dispose();
+    _city.dispose();
     super.dispose();
   }
 
@@ -44,6 +47,8 @@ class _CreateShopViewState extends State<_CreateShopView> {
             name: _name.text.trim(),
             phone: _phone.text.trim(),
             address: _address.text.trim(),
+            city: _city.text.trim(),
+            regionId: _regionId,
           );
     }
   }
@@ -86,6 +91,24 @@ class _CreateShopViewState extends State<_CreateShopView> {
                     controller: _phone,
                     keyboardType: TextInputType.phone,
                     decoration: InputDecoration(labelText: context.tr('field.phone')),
+                  ),
+                  const SizedBox(height: 14),
+                  TextFormField(
+                    controller: _city,
+                    decoration: InputDecoration(labelText: context.tr('field.city')),
+                  ),
+                  const SizedBox(height: 14),
+                  DropdownButtonFormField<int>(
+                    initialValue: _regionId,
+                    isExpanded: true,
+                    decoration: InputDecoration(labelText: context.tr('field.region')),
+                    items: [
+                      DropdownMenuItem(
+                          value: null, child: Text(context.tr('field.noRegion'))),
+                      ...state.regions.map((r) =>
+                          DropdownMenuItem(value: r.id, child: Text(r.name))),
+                    ],
+                    onChanged: (v) => setState(() => _regionId = v),
                   ),
                   const SizedBox(height: 14),
                   TextFormField(

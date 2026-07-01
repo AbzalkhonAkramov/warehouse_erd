@@ -55,7 +55,8 @@ class _CustomersView extends StatelessWidget {
               );
             case CustomersStatus.loaded:
               if (state.customers.isEmpty) {
-                return EmptyView(
+                return RefreshableEmpty(
+                  onRefresh: () => context.read<CustomersCubit>().load(),
                   message: context.tr('customers.empty'),
                   icon: Icons.storefront_outlined,
                 );

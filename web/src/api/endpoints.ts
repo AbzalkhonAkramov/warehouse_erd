@@ -74,6 +74,19 @@ export const setAgentCategories = (agentId: number, category_ids: number[]) =>
     body: { category_ids },
   });
 
+// --- Agent photo-topic visibility (admin) ---
+export interface AgentTopic {
+  id: number;
+  name: string;
+}
+export const getAgentTopics = (agentId: number) =>
+  api<AgentTopic[]>(`/users/${agentId}/topics`);
+export const setAgentTopics = (agentId: number, topic_ids: number[]) =>
+  api<AgentTopic[]>(`/users/${agentId}/topics`, {
+    method: "PUT",
+    body: { topic_ids },
+  });
+
 // --- Products & stock ---
 export const listProducts = () => api<Product[]>("/products");
 export const getProduct = (id: number) => api<Product>(`/products/${id}`);

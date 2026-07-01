@@ -14,7 +14,15 @@ class SettingsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(context.tr('settings.title'))),
-      body: ListView(
+      body: RefreshIndicator(
+        onRefresh: () async {
+          final settings = context.read<SettingsCubit>();
+          final locale = context.read<LocaleCubit>();
+          await settings.load();
+          await locale.load();
+        },
+        child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(12),
         children: [
           _SectionTitle(context.tr('settings.catalog')),
@@ -57,6 +65,7 @@ class SettingsPage extends StatelessWidget {
             ),
           ),
         ],
+        ),
       ),
     );
   }

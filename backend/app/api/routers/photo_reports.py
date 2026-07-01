@@ -6,6 +6,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_current_user, require_roles
 from app.core.database import get_db
+from app.models.associations import agent_topics
 from app.models.enums import UserRole
 from app.models.photo import PhotoReport
 from app.models.telegram import TelegramTopic
@@ -24,12 +25,28 @@ class TopicOption(BaseModel):
 @router.get("/topics", response_model=list[TopicOption])
 async def list_topic_options(
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
 ) -> list[TopicOption]:
-    """Active topics an agent can target (id + name only — no chat ids)."""
-    rows = await db.scalars(
-        select(TelegramTopic).where(TelegramTopic.is_active.is_(True)).order_by(TelegramTopic.name)
+    """Active topics the caller may target (id + name only — no chat ids).
+
+    Admins restrict which topics an agent sees via the agent_topics assignment;
+    an agent with no assignment is unrestricted (sees every active topic)."""
+    stmt = (
+        select(TelegramTopic)
+        .where(TelegramTopic.is_active.is_(True))
+        .order_by(TelegramTopic.name)
     )
+    if user.role == UserRole.AGENT:
+        allowed = set(
+            await db.scalars(
+                select(agent_topics.c.topic_id).where(
+                    agent_topics.c.agent_id == user.id
+                )
+            )
+        )
+        if allowed:
+            stmt = stmt.where(TelegramTopic.id.in_(allowed))
+    rows = await db.scalars(stmt)
     return [TopicOption(id=t.id, name=t.name) for t in rows]
 
 

@@ -49,7 +49,8 @@ class _OrdersView extends StatelessWidget {
             );
           }
           if (state.orders.isEmpty && state.pending.isEmpty) {
-            return EmptyView(
+            return RefreshableEmpty(
+              onRefresh: () => context.read<OrdersCubit>().load(),
               message: context.tr('orders.empty'),
               icon: Icons.receipt_long_outlined,
             );

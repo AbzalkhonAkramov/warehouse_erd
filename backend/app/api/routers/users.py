@@ -5,12 +5,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import require_roles
 from app.core.database import get_db
 from app.core.security import hash_password
-from app.models.associations import agent_categories
+from app.models.associations import agent_categories, agent_topics
 from app.models.catalog import Category
 from app.models.enums import UserRole
+from app.models.telegram import TelegramTopic
 from app.models.user import User
 from app.schemas.catalog import CategoryOut
-from app.schemas.user import AgentCategoriesUpdate, UserCreate, UserOut, UserUpdate
+from app.schemas.user import (
+    AgentCategoriesUpdate,
+    AgentTopicOut,
+    AgentTopicsUpdate,
+    UserCreate,
+    UserOut,
+    UserUpdate,
+)
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -135,3 +143,53 @@ async def set_agent_categories(
             )
     await db.flush()
     return await _agent_categories(db, user_id)
+
+
+async def _agent_topics(db: AsyncSession, agent_id: int) -> list[TelegramTopic]:
+    rows = await db.scalars(
+        select(TelegramTopic)
+        .join(agent_topics, agent_topics.c.topic_id == TelegramTopic.id)
+        .where(agent_topics.c.agent_id == agent_id)
+        .order_by(TelegramTopic.name)
+    )
+    return list(rows)
+
+
+@router.get("/{user_id}/topics", response_model=list[AgentTopicOut])
+async def get_agent_topics(
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_roles()),  # admin only
+) -> list[TelegramTopic]:
+    """Telegram topics an agent may send photo reports to (empty = unrestricted)."""
+    return await _agent_topics(db, user_id)
+
+
+@router.put("/{user_id}/topics", response_model=list[AgentTopicOut])
+async def set_agent_topics(
+    user_id: int,
+    data: AgentTopicsUpdate,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_roles()),  # admin only
+) -> list[TelegramTopic]:
+    """Replace the set of topics an agent may pick when sending a photo report."""
+    agent = await db.get(User, user_id)
+    if agent is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+    if agent.role != UserRole.AGENT:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "User is not an agent")
+
+    await db.execute(delete(agent_topics).where(agent_topics.c.agent_id == user_id))
+    if data.topic_ids:
+        valid_ids = list(
+            await db.scalars(
+                select(TelegramTopic.id).where(TelegramTopic.id.in_(data.topic_ids))
+            )
+        )
+        if valid_ids:
+            await db.execute(
+                insert(agent_topics),
+                [{"agent_id": user_id, "topic_id": tid} for tid in valid_ids],
+            )
+    await db.flush()
+    return await _agent_topics(db, user_id)

@@ -100,7 +100,15 @@ class _PhotoReportView extends StatelessWidget {
         final bloc = context.read<PhotoReportBloc>();
         final submitting = state.status == PhotoStatus.submitting;
         final orders = state.ordersForCustomer;
-        return ListView(
+        return RefreshIndicator(
+          onRefresh: () async {
+            final done = bloc.stream.first; // resolves on the reload's emit
+            bloc.add(const PhotoReloaded());
+            await done.timeout(const Duration(seconds: 6),
+                onTimeout: () => bloc.state);
+          },
+          child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16),
           children: [
             DropdownButtonFormField<int>(
@@ -200,6 +208,7 @@ class _PhotoReportView extends StatelessWidget {
               label: Text(submitting ? context.tr('photo.sending') : context.tr('photo.send')),
             ),
           ],
+          ),
         );
       },
     );

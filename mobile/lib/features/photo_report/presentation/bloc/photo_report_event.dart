@@ -24,6 +24,11 @@ class PhotoInitRequested extends PhotoReportEvent {
   List<Object?> get props => [initialCustomerId, initialSalesOrderId, locked];
 }
 
+/// Pull-to-refresh: refetch shops/orders/topics without clearing the picks.
+class PhotoReloaded extends PhotoReportEvent {
+  const PhotoReloaded();
+}
+
 class PhotoCustomerSelected extends PhotoReportEvent {
   const PhotoCustomerSelected(this.id);
   final int id;

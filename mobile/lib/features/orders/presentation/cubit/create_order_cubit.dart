@@ -37,6 +37,23 @@ class CreateOrderCubit extends Cubit<CreateOrderState> {
     }
   }
 
+  /// Pull-to-refresh: refetch products/customers/categories but keep the order
+  /// the agent is building (selected customer + quantities).
+  Future<void> reload() async {
+    try {
+      final products = await _products.fetchProducts();
+      final customers = await _customers.fetchCustomers();
+      final categories = await _products.fetchCategories();
+      emit(state.copyWith(
+        products: products,
+        customers: customers,
+        categories: categories,
+      ));
+    } on ApiException {
+      // Keep the current data if the refresh fails (e.g. offline).
+    }
+  }
+
   void selectCustomer(int? id) => emit(state.copyWith(customerId: id));
 
   void setQuantity(int productId, double qty) {

@@ -266,6 +266,11 @@ const en: Dict = {
   "agents.seesAll": "Nothing selected — this agent currently sees ALL products.",
   "agents.seesN": "Agent will see products in {n} categories.",
   "agents.noCategories": "No categories exist yet. Create products with categories first.",
+  "agents.manageTopics": "Photo topics",
+  "agents.topicsTitle": "Photo topics — {name}",
+  "agents.topicsAll": "Nothing selected — this agent can send to ANY active topic.",
+  "agents.topicsN": "Agent can send photos to {n} topic(s).",
+  "agents.noTopics": "No Telegram topics configured yet.",
   "agents.noAgents": "No agents yet.",
 
   // invoices
@@ -671,6 +676,11 @@ const ru: Dict = {
   "agents.seesAll": "Ничего не выбрано — этот агент видит ВСЕ товары.",
   "agents.seesN": "Агент будет видеть товары в {n} категориях.",
   "agents.noCategories": "Категорий пока нет. Сначала создайте товары с категориями.",
+  "agents.manageTopics": "Темы фото",
+  "agents.topicsTitle": "Темы фото — {name}",
+  "agents.topicsAll": "Ничего не выбрано — этот агент может отправлять в ЛЮБУЮ активную тему.",
+  "agents.topicsN": "Агент может отправлять фото в темы: {n}.",
+  "agents.noTopics": "Темы Telegram ещё не настроены.",
   "agents.noAgents": "Агентов пока нет.",
 
   "invoices.title": "Счета и долги",
@@ -1071,6 +1081,11 @@ const uz: Dict = {
   "agents.seesAll": "Hech narsa tanlanmagan — bu agent BARCHA mahsulotlarni ko‘radi.",
   "agents.seesN": "Agent {n} ta kategoriyadagi mahsulotlarni ko‘radi.",
   "agents.noCategories": "Hozircha kategoriyalar yo‘q. Avval kategoriyali mahsulot yarating.",
+  "agents.manageTopics": "Foto mavzular",
+  "agents.topicsTitle": "Foto mavzular — {name}",
+  "agents.topicsAll": "Hech nima tanlanmagan — bu agent ISTALGAN faol mavzuga yubora oladi.",
+  "agents.topicsN": "Agent {n} ta mavzuga foto yubora oladi.",
+  "agents.noTopics": "Telegram mavzulari hali sozlanmagan.",
   "agents.noAgents": "Hozircha agentlar yo‘q.",
 
   "invoices.title": "Hisob-fakturalar va qarzlar",

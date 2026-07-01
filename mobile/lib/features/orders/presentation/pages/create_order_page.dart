@@ -165,11 +165,15 @@ class _CreateOrderView extends StatelessWidget {
             ),
             Expanded(
               child: positions.isEmpty
-                  ? EmptyView(
+                  ? RefreshableEmpty(
+                      onRefresh: () => cubit.reload(),
                       message: context.tr('order.noPositions'),
                       icon: Icons.add_shopping_cart_outlined,
                     )
-                  : ListView.builder(
+                  : RefreshIndicator(
+                      onRefresh: () => cubit.reload(),
+                      child: ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
                       itemCount: positions.length,
                       itemBuilder: (context, i) {
@@ -209,6 +213,7 @@ class _CreateOrderView extends StatelessWidget {
                           ),
                         );
                       },
+                    ),
                     ),
             ),
             _SubmitBar(

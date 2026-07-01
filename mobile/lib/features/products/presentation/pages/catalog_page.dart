@@ -120,7 +120,8 @@ class _CatalogPageState extends State<CatalogPage> {
           ),
         Expanded(
           child: list.isEmpty
-              ? EmptyView(
+              ? RefreshableEmpty(
+                  onRefresh: _load,
                   message: context.tr('catalog.empty'),
                   icon: Icons.inventory_2_outlined,
                 )

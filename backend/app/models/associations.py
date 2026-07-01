@@ -19,3 +19,12 @@ customer_agents = Table(
     Column("customer_id", ForeignKey("customers.id", ondelete="CASCADE"), primary_key=True),
     Column("agent_id", ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
 )
+
+# Which Telegram topics an agent may send photo reports to. An agent with no rows
+# here is unrestricted (may pick any active topic); add rows to restrict them.
+agent_topics = Table(
+    "agent_topics",
+    Base.metadata,
+    Column("agent_id", ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
+    Column("topic_id", ForeignKey("telegram_topics.id", ondelete="CASCADE"), primary_key=True),
+)

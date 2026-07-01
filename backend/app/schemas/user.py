@@ -41,3 +41,14 @@ class UserOut(UserBase):
 
 class AgentCategoriesUpdate(BaseModel):
     category_ids: list[int]
+
+
+class AgentTopicsUpdate(BaseModel):
+    topic_ids: list[int]
+
+
+class AgentTopicOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str

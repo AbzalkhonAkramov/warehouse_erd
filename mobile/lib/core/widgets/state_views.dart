@@ -73,3 +73,34 @@ class EmptyView extends StatelessWidget {
     );
   }
 }
+
+/// An [EmptyView] that can still be pulled down to refresh (a short list is
+/// otherwise not scrollable, so the gesture wouldn't fire).
+class RefreshableEmpty extends StatelessWidget {
+  const RefreshableEmpty({
+    super.key,
+    required this.onRefresh,
+    required this.message,
+    this.icon = Icons.inbox_outlined,
+  });
+
+  final Future<void> Function() onRefresh;
+  final String message;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return RefreshIndicator(
+      onRefresh: onRefresh,
+      child: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: EmptyView(message: message, icon: icon),
+          ),
+        ),
+      ),
+    );
+  }
+}

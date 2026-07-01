@@ -17,6 +17,7 @@ class PhotoReportBloc extends Bloc<PhotoReportEvent, PhotoReportState> {
   PhotoReportBloc(this._photos, this._customers, this._orders)
       : super(const PhotoReportState()) {
     on<PhotoInitRequested>(_onInit);
+    on<PhotoReloaded>(_onReload);
     on<PhotoCustomerSelected>(
         (e, emit) => emit(state.copyWith(customerId: e.id, clearOrder: true)));
     on<PhotoOrderSelected>((e, emit) => emit(state.copyWith(salesOrderId: e.id)));
@@ -50,6 +51,19 @@ class PhotoReportBloc extends Bloc<PhotoReportEvent, PhotoReportState> {
       ));
     } on ApiException catch (e) {
       emit(state.copyWith(status: PhotoStatus.error, error: e.message));
+    }
+  }
+
+  Future<void> _onReload(
+      PhotoReloaded event, Emitter<PhotoReportState> emit) async {
+    // Always emit at the end (even on failure) so the RefreshIndicator can stop.
+    try {
+      final customers = await _customers.fetchCustomers();
+      final topics = await _photos.fetchTopics();
+      final orders = await _orders.listOrders();
+      emit(state.copyWith(customers: customers, topics: topics, orders: orders));
+    } on ApiException {
+      emit(state.copyWith()); // keep current data
     }
   }
 

@@ -191,7 +191,11 @@ class _ReceiptPageState extends State<ReceiptPage> {
           ? const LoadingView()
           : _error != null
               ? ErrorView(message: _error!)
-              : _ReceiptBody(order: _order!, customer: _customer, company: _company!),
+              : RefreshIndicator(
+                  onRefresh: _load,
+                  child: _ReceiptBody(
+                      order: _order!, customer: _customer, company: _company!),
+                ),
       bottomNavigationBar: _loading || _error != null
           ? null
           : SafeArea(
@@ -233,6 +237,7 @@ class _ReceiptBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final df = DateFormat('d MMM yyyy, HH:mm');
     return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       children: [
         Row(

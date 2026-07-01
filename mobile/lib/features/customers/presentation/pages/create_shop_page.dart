@@ -74,7 +74,10 @@ class _CreateShopViewState extends State<_CreateShopView> {
         },
         builder: (context, state) {
           final submitting = state.status == CreateShopStatus.submitting;
-          return SingleChildScrollView(
+          return RefreshIndicator(
+            onRefresh: () => context.read<CreateShopCubit>().loadRegions(),
+            child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(16),
             child: Form(
               key: _formKey,
@@ -130,6 +133,7 @@ class _CreateShopViewState extends State<_CreateShopView> {
                   ),
                 ],
               ),
+            ),
             ),
           );
         },

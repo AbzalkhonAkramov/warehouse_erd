@@ -1,4 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
+import * as cls from "../ui/cls";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import {
@@ -45,8 +46,8 @@ export default function ProductDetailPage() {
   });
 
   return (
-    <div className="page">
-      <Link to="/products" className="back-link">
+    <div className={cls.page}>
+      <Link to="/products" className={cls.backLink}>
         ← {t("nav.products")}
       </Link>
 
@@ -139,9 +140,9 @@ function ProductDetail({ product, canManage }: { product: Product; canManage: bo
 
   return (
     <>
-      <div className="page-head">
+      <div className={cls.pageHead}>
         <h1>{product.name}</h1>
-        <div className="head-actions">
+        <div className={cls.headActions}>
           {canManage && (
             <Button variant="ghost" onClick={() => setEditing(true)}>
               ✎ {t("common.edit")}
@@ -152,21 +153,21 @@ function ProductDetail({ product, canManage }: { product: Product; canManage: bo
 
       {/* product summary */}
       <Card>
-        <div className="detail-summary">
-          <div className="detail-photo">
+        <div className={cls.detailSummary}>
+          <div className={cls.detailPhoto}>
             {product.image_path ? (
               <img src={uploadUrl(product.image_path)} alt={product.name} />
             ) : (
-              <div className="product-photo-empty">{t("products.noImage")}</div>
+              <div className={cls.productPhotoEmpty}>{t("products.noImage")}</div>
             )}
           </div>
           {product.image_back_path && (
-            <div className="detail-photo detail-photo-back">
+            <div className={cls.cx(cls.detailPhoto, cls.detailPhotoBack)}>
               <img src={uploadUrl(product.image_back_path)} alt="back" />
             </div>
           )}
-          <div className="stat-grid detail-stats">
-            <Stat label={t("col.sku")} value={<span className="mono">{product.sku}</span>} />
+          <div className={cls.cx(cls.statGrid, cls.detailStats)}>
+            <Stat label={t("col.sku")} value={<span className={cls.mono}>{product.sku}</span>} />
             <Stat label={t("col.sale")} value={money(product.sale_price)} />
             {product.cost_price != null && (
               <Stat label={t("col.cost")} value={money(product.cost_price)} />
@@ -178,8 +179,8 @@ function ProductDetail({ product, canManage }: { product: Product; canManage: bo
 
       {canManage && (
         <Card title={t("stock.title")}>
-          <div className="inline-add">
-            <label className="field">
+          <div className={cls.inlineAdd}>
+            <label className={cls.field}>
               <span>{t("field.quantity")}</span>
               <input
                 type="number"
@@ -189,7 +190,7 @@ function ProductDetail({ product, canManage }: { product: Product; canManage: bo
                 onChange={(e) => setQtyInput(e.target.value)}
               />
             </label>
-            <label className="field">
+            <label className={cls.field}>
               <span>{t("field.note")}</span>
               <input value={noteInput} onChange={(e) => setNoteInput(e.target.value)} />
             </label>
@@ -202,11 +203,11 @@ function ProductDetail({ product, canManage }: { product: Product; canManage: bo
 
       <Card title={t("products.history")}>
         {/* filters + sorting */}
-        <div className="filter-row">
+        <div className={cls.filterRow}>
           {(["all", "added", "sale"] as Kind[]).map((k) => (
             <button
               key={k}
-              className={`chip${kind === k ? " active" : ""}`}
+              className={cls.cx(cls.chip, kind === k && cls.chipActive)}
               onClick={() => setKind(k)}
             >
               {k === "all" ? t("common.all") : k === "added" ? t("history.added") : t("history.sale")}
@@ -218,15 +219,15 @@ function ProductDetail({ product, canManage }: { product: Product; canManage: bo
               <option key={a} value={a}>{a}</option>
             ))}
           </select>
-          <label className="inline-field">
+          <label className={cls.inlineField}>
             {t("field.dateFrom")}
             <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
           </label>
-          <label className="inline-field">
+          <label className={cls.inlineField}>
             {t("field.dateTo")}
             <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
           </label>
-          <label className="inline-field">
+          <label className={cls.inlineField}>
             {t("sort.label")}
             <select value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
               <option value="date_desc">{t("sort.dateDesc")}</option>
@@ -243,11 +244,11 @@ function ProductDetail({ product, canManage }: { product: Product; canManage: bo
         ) : history.error ? (
           <ErrorBox error={history.error} />
         ) : view.length > 0 ? (
-          <table className="table">
+          <table className={cls.table}>
             <thead>
               <tr>
                 <th>{t("col.event")}</th>
-                <th className="num">{t("col.qty")}</th>
+                <th className={cls.numCell}>{t("col.qty")}</th>
                 <th>{t("col.who")}</th>
                 <th>{t("col.created")}</th>
               </tr>
@@ -258,17 +259,17 @@ function ProductDetail({ product, canManage }: { product: Product; canManage: bo
                 return (
                   <tr key={i}>
                     <td>
-                      <span className={`badge badge-${added ? "green" : "blue"}`}>
+                      <span className={cls.badge[added ? "green" : "blue"]}>
                         {added ? t("history.added") : t("history.sale")}
                       </span>
-                      {h.detail && <span className="muted small"> {h.detail}</span>}
+                      {h.detail && <span className={cls.cx(cls.muted, cls.small)}> {h.detail}</span>}
                     </td>
-                    <td className={`num strong${added ? "" : " warn"}`}>
+                    <td className={cls.cx(cls.numCell, cls.strong, !added && cls.warn)}>
                       {added ? "+" : "−"}
                       {qty(h.quantity)}
                     </td>
                     <td>{h.user_name ?? "—"}</td>
-                    <td className="muted">{date(h.date)}</td>
+                    <td className={cls.muted}>{date(h.date)}</td>
                   </tr>
                 );
               })}
@@ -348,35 +349,35 @@ function ProductEditModal({ product, onClose }: { product: Product; onClose: () 
   return (
     <Modal title={t("products.editTitle")} onClose={onClose}>
       <form onSubmit={submit}>
-        <div className="form-grid">
-          <label className="field">
+        <div className={cls.formGrid}>
+          <label className={cls.field}>
             <span>{t("field.sku")}</span>
             <input value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} required />
           </label>
-          <label className="field">
+          <label className={cls.field}>
             <span>{t("field.name")}</span>
             <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
           </label>
-          <label className="field">
+          <label className={cls.field}>
             <span>{t("field.unit")}</span>
             <input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
           </label>
-          <label className="field">
+          <label className={cls.field}>
             <span>{t("field.costPrice")}</span>
             <input type="number" step="0.01" value={form.cost_price}
               onChange={(e) => setForm({ ...form, cost_price: e.target.value })} />
           </label>
-          <label className="field">
+          <label className={cls.field}>
             <span>{t("field.salePrice")}</span>
             <input type="number" step="0.01" value={form.sale_price}
               onChange={(e) => setForm({ ...form, sale_price: e.target.value })} />
           </label>
-          <label className="field">
+          <label className={cls.field}>
             <span>{t("field.minStock")}</span>
             <input type="number" step="0.001" value={form.min_stock}
               onChange={(e) => setForm({ ...form, min_stock: e.target.value })} />
           </label>
-          <label className="field full">
+          <label className={cls.cx(cls.field, cls.fieldFull)}>
             <span>{t("field.category")}</span>
             <select value={form.category_id} onChange={(e) => setForm({ ...form, category_id: e.target.value })}>
               <option value="">{t("create.noCategory")}</option>
@@ -385,23 +386,23 @@ function ProductEditModal({ product, onClose }: { product: Product; onClose: () 
               ))}
             </select>
           </label>
-          <label className="field full">
+          <label className={cls.cx(cls.field, cls.fieldFull)}>
             <span>{t("create.image")}</span>
             {product.image_path && (
-              <img className="receipt-thumb" src={uploadUrl(product.image_path)} alt="front" />
+              <img className={cls.receiptThumb} src={uploadUrl(product.image_path)} alt="front" />
             )}
             <input type="file" accept="image/*" onChange={(e) => setFrontFile(e.target.files?.[0] ?? null)} />
           </label>
-          <label className="field full">
+          <label className={cls.cx(cls.field, cls.fieldFull)}>
             <span>{t("create.imageBack")}</span>
             {product.image_back_path && (
-              <img className="receipt-thumb" src={uploadUrl(product.image_back_path)} alt="back" />
+              <img className={cls.receiptThumb} src={uploadUrl(product.image_back_path)} alt="back" />
             )}
             <input type="file" accept="image/*" onChange={(e) => setBackFile(e.target.files?.[0] ?? null)} />
           </label>
         </div>
         {error && <ErrorBox error={error} />}
-        <div className="modal-actions">
+        <div className={cls.modalActions}>
           <Button type="button" variant="ghost" onClick={onClose}>
             {t("common.cancel")}
           </Button>

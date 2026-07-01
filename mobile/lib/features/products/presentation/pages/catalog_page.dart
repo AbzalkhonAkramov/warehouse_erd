@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/config.dart';
 import '../../../../core/di/injection.dart';
+import '../../../../core/format.dart';
+import '../../../../core/settings/settings_cubit.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/state_views.dart';
 import '../../../../l10n/l10n_ext.dart';
 import '../../domain/entities/category.dart';
 import '../../domain/entities/product.dart';
@@ -54,8 +59,17 @@ class _CatalogPageState extends State<CatalogPage> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Center(child: CircularProgressIndicator());
-    if (_error != null) return Center(child: Text(_error!));
+    if (_loading) return const LoadingView();
+    if (_error != null) return ErrorView(message: _error!, onRetry: _load);
+
+    // Only offer categories the agent actually has products in.
+    final usedCategoryIds =
+        _products.map((p) => p.categoryId).whereType<int>().toSet();
+    final categories =
+        _categories.where((c) => usedCategoryIds.contains(c.id)).toList();
+
+    final showStock =
+        context.watch<SettingsCubit>().state.showCatalogStock;
 
     final q = _q.trim().toLowerCase();
     final list = _products.where((p) {
@@ -69,20 +83,18 @@ class _CatalogPageState extends State<CatalogPage> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
           child: TextField(
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.search),
               hintText: context.tr('catalog.search'),
-              isDense: true,
-              border: const OutlineInputBorder(),
             ),
             onChanged: (v) => setState(() => _q = v),
           ),
         ),
-        if (_categories.isNotEmpty)
+        if (categories.isNotEmpty)
           SizedBox(
-            height: 42,
+            height: 46,
             child: ListView(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -95,7 +107,7 @@ class _CatalogPageState extends State<CatalogPage> {
                     onSelected: (_) => setState(() => _cat = null),
                   ),
                 ),
-                ..._categories.map((c) => Padding(
+                ...categories.map((c) => Padding(
                       padding: const EdgeInsets.only(right: 6),
                       child: ChoiceChip(
                         label: Text(c.name),
@@ -106,29 +118,25 @@ class _CatalogPageState extends State<CatalogPage> {
               ],
             ),
           ),
-        const Divider(height: 1),
         Expanded(
           child: list.isEmpty
-              ? Center(child: Text(context.tr('catalog.empty')))
+              ? EmptyView(
+                  message: context.tr('catalog.empty'),
+                  icon: Icons.inventory_2_outlined,
+                )
               : RefreshIndicator(
                   onRefresh: _load,
-                  child: ListView.separated(
+                  child: GridView.builder(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      mainAxisExtent: showStock ? 252 : 232,
+                    ),
                     itemCount: list.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
-                    itemBuilder: (context, i) {
-                      final p = list[i];
-                      return ListTile(
-                        leading: _Thumb(product: p),
-                        title: Text(p.name),
-                        subtitle: Text('${context.tr('product.stock')}: '
-                            '${p.onHand.toStringAsFixed(0)} ${p.unit}'),
-                        trailing: Text(
-                          p.salePrice.toStringAsFixed(2),
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 15),
-                        ),
-                      );
-                    },
+                    itemBuilder: (context, i) =>
+                        _ProductCard(product: list[i], showStock: showStock),
                   ),
                 ),
         ),
@@ -137,29 +145,102 @@ class _CatalogPageState extends State<CatalogPage> {
   }
 }
 
-class _Thumb extends StatelessWidget {
-  const _Thumb({required this.product});
+class _ProductCard extends StatelessWidget {
+  const _ProductCard({required this.product, required this.showStock});
+
+  final Product product;
+  final bool showStock;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(height: 138, child: _Photo(product: product)),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    product.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w600, fontSize: 13.5, height: 1.2),
+                  ),
+                  const Spacer(),
+                  Text(
+                    money(product.salePrice),
+                    style: const TextStyle(
+                        color: AppColors.brand,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15),
+                  ),
+                  if (showStock)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.inventory_2_outlined,
+                              size: 13, color: AppColors.neutral),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              '${qty(product.onHand)} ${product.unit}',
+                              style: const TextStyle(
+                                  color: AppColors.neutral, fontSize: 12),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The product photo shown in full (uncropped) on a soft background.
+class _Photo extends StatelessWidget {
+  const _Photo({required this.product});
 
   final Product product;
 
   @override
   Widget build(BuildContext context) {
-    const size = 48.0;
-    final placeholder = Container(
-      width: size,
-      height: size,
-      color: Colors.grey.shade200,
-      child: const Icon(Icons.inventory_2_outlined, color: Colors.grey),
+    const placeholder = ColoredBox(
+      color: Color(0xFFF1F5F9),
+      child: Center(
+        child: Icon(Icons.inventory_2_outlined,
+            color: AppColors.line, size: 40),
+      ),
     );
     if (product.imagePath == null) return placeholder;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(6),
+    return ColoredBox(
+      color: const Color(0xFFF8FAFC),
       child: Image.network(
         AppConfig.uploadUrl(product.imagePath!),
-        width: size,
-        height: size,
-        fit: BoxFit.cover,
+        fit: BoxFit.contain,
+        width: double.infinity,
         errorBuilder: (_, __, ___) => placeholder,
+        loadingBuilder: (context, child, progress) => progress == null
+            ? child
+            : const Center(
+                child: SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
       ),
     );
   }

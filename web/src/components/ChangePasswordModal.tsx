@@ -3,6 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import { changePassword } from "../api/endpoints";
 import { useI18n } from "../i18n";
 import { Button, ErrorBox, Modal } from "./ui";
+import * as cls from "../ui/cls";
 
 export default function ChangePasswordModal({ onClose }: { onClose: () => void }) {
   const { t } = useI18n();
@@ -27,14 +28,14 @@ export default function ChangePasswordModal({ onClose }: { onClose: () => void }
     <Modal title={t("common.changePassword")} onClose={onClose}>
       {done ? (
         <>
-          <div className="ok-box">{t("changePw.done")}</div>
-          <div className="modal-actions">
+          <div className={cls.okBox}>{t("changePw.done")}</div>
+          <div className={cls.modalActions}>
             <Button onClick={onClose}>{t("common.cancel")}</Button>
           </div>
         </>
       ) : (
         <form onSubmit={submit}>
-          <label className="field">
+          <label className={cls.field}>
             <span>{t("changePw.current")}</span>
             <input
               type="password"
@@ -44,7 +45,7 @@ export default function ChangePasswordModal({ onClose }: { onClose: () => void }
               required
             />
           </label>
-          <label className="field">
+          <label className={cls.field}>
             <span>{t("changePw.new")}</span>
             <input
               type="password"
@@ -55,7 +56,7 @@ export default function ChangePasswordModal({ onClose }: { onClose: () => void }
             />
           </label>
           {error && <ErrorBox error={error} />}
-          <div className="modal-actions">
+          <div className={cls.modalActions}>
             <Button type="button" variant="ghost" onClick={onClose}>
               {t("common.cancel")}
             </Button>

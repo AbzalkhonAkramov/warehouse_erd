@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import * as cls from "../ui/cls";
 import { Link } from "react-router-dom";
 import { register } from "../api/endpoints";
 import { useI18n } from "../i18n";
@@ -32,27 +33,27 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="centered-screen">
-      <div className="login-card">
-        <div className="login-lang">
+    <div className={cls.centeredScreen}>
+      <div className={cls.loginCard}>
+        <div className={cls.loginLang}>
           <LanguageSwitcher />
         </div>
-        <div className="brand login-brand">📦 {t("brand")}</div>
-        <p className="login-sub">{t("register.title")}</p>
+        <div className={cls.loginBrand}>📦 {t("brand")}</div>
+        <p className={cls.loginSub}>{t("register.title")}</p>
 
         {done ? (
           <>
-            <div className="ok-box">{t("register.done")}</div>
+            <div className={cls.okBox}>{t("register.done")}</div>
             <Link to="/login">
               <Button>{t("register.backToLogin")}</Button>
             </Link>
           </>
         ) : (
           <form onSubmit={onSubmit}>
-            <p className="muted small" style={{ marginTop: -8 }}>
+            <p className={cls.cx(cls.muted, cls.small)} style={{ marginTop: -8 }}>
               {t("register.subtitle")}
             </p>
-            <label className="field">
+            <label className={cls.field}>
               <span>{t("register.fullName")}</span>
               <input
                 value={form.full_name}
@@ -60,7 +61,7 @@ export default function RegisterPage() {
                 required
               />
             </label>
-            <label className="field">
+            <label className={cls.field}>
               <span>{t("login.email")}</span>
               <input
                 type="email"
@@ -69,14 +70,14 @@ export default function RegisterPage() {
                 required
               />
             </label>
-            <label className="field">
+            <label className={cls.field}>
               <span>{t("col.phone")}</span>
               <input
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
               />
             </label>
-            <label className="field">
+            <label className={cls.field}>
               <span>{t("login.password")}</span>
               <input
                 type="password"
@@ -85,12 +86,12 @@ export default function RegisterPage() {
                 required
               />
             </label>
-            {error && <div className="error-box">{error}</div>}
+            {error && <div className={cls.errorBox}>{error}</div>}
             <Button type="submit" disabled={busy}>
               {busy ? t("common.saving") : t("register.submit")}
             </Button>
             <div style={{ marginTop: 12, textAlign: "center" }}>
-              <Link to="/login" className="plain-link" style={{ color: "var(--primary)" }}>
+              <Link to="/login" className={cls.plainLink} style={{ color: "var(--primary)" }}>
                 {t("register.backToLogin")}
               </Link>
             </div>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import * as cls from "../ui/cls";
 import { useQuery } from "@tanstack/react-query";
 import { listActivity, listUsers } from "../api/endpoints";
 import { useI18n } from "../i18n";
@@ -42,18 +43,18 @@ export default function ActivityLogPage() {
   };
 
   return (
-    <div className="page">
-      <div className="page-head">
+    <div className={cls.page}>
+      <div className={cls.pageHead}>
         <h1>{t("activity.title")}</h1>
         <ExcelButton onClick={exportLog} />
       </div>
-      <p className="muted" style={{ marginTop: -8, marginBottom: 16 }}>
+      <p className={cls.muted} style={{ marginTop: -8, marginBottom: 16 }}>
         {t("activity.subtitle")}
       </p>
 
-      <div className="filter-row">
+      <div className={cls.filterRow}>
         <input
-          className="search-input"
+          className={cls.searchInput}
           placeholder={t("field.search")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -64,11 +65,11 @@ export default function ActivityLogPage() {
             <option key={u.id} value={u.id}>{u.full_name}</option>
           ))}
         </select>
-        <label className="inline-field">
+        <label className={cls.inlineField}>
           {t("field.dateFrom")}
           <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
         </label>
-        <label className="inline-field">
+        <label className={cls.inlineField}>
           {t("field.dateTo")}
           <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
         </label>
@@ -80,24 +81,24 @@ export default function ActivityLogPage() {
         ) : activity.error ? (
           <ErrorBox error={activity.error} />
         ) : activity.data && activity.data.length > 0 ? (
-          <table className="table">
+          <table className={cls.table}>
             <thead>
               <tr>
                 <th>{t("col.created")}</th>
                 <th>{t("col.user")}</th>
                 <th>{t("col.action")}</th>
                 <th>{t("activity.details")}</th>
-                <th className="muted">path</th>
+                <th className={cls.muted}>path</th>
               </tr>
             </thead>
             <tbody>
               {activity.data.map((a) => (
                 <tr key={a.id}>
-                  <td className="muted">{date(a.created_at)}</td>
+                  <td className={cls.muted}>{date(a.created_at)}</td>
                   <td>{a.user_name ?? `#${a.user_id ?? "—"}`}</td>
-                  <td className="strong">{a.action}</td>
-                  <td className="small">{a.detail || "—"}</td>
-                  <td className="muted small mono">
+                  <td className={cls.strong}>{a.action}</td>
+                  <td className={cls.small}>{a.detail || "—"}</td>
+                  <td className={cls.cx(cls.muted, cls.small, cls.mono)}>
                     {a.method} {a.path}
                   </td>
                 </tr>

@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import * as cls from "../ui/cls";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { listCustomers } from "../api/endpoints";
@@ -33,10 +34,10 @@ export default function CustomersPage() {
   }
 
   return (
-    <div className="page">
-      <div className="page-head">
+    <div className={cls.page}>
+      <div className={cls.pageHead}>
         <h1>{t("customers.title")}</h1>
-        <div className="head-actions">
+        <div className={cls.headActions}>
           <ExcelButton onClick={exportCustomers} />
           <Link to="/create">
             <Button>{t("customers.new")}</Button>
@@ -50,15 +51,15 @@ export default function CustomersPage() {
         ) : customers.error ? (
           <ErrorBox error={customers.error} />
         ) : (
-          <table className="table">
+          <table className={cls.table}>
             <thead>
               <tr>
                 <th>{t("col.name")}</th>
                 <th>{t("customers.city")}</th>
                 <th>{t("customers.region")}</th>
                 <th>{t("col.agent")}</th>
-                <th className="num">{t("col.creditLimit")}</th>
-                <th className="num">{t("col.debt")}</th>
+                <th className={cls.numCell}>{t("col.creditLimit")}</th>
+                <th className={cls.numCell}>{t("col.debt")}</th>
               </tr>
             </thead>
             <tbody>
@@ -66,13 +67,13 @@ export default function CustomersPage() {
                 const over =
                   parseFloat(c.debt) > parseFloat(c.credit_limit) && parseFloat(c.credit_limit) > 0;
                 return (
-                  <tr key={c.id} className="clickable" onClick={() => navigate(`/customers/${c.id}`)}>
-                    <td className="strong">{c.name}</td>
+                  <tr key={c.id} className={cls.clickable} onClick={() => navigate(`/customers/${c.id}`)}>
+                    <td className={cls.strong}>{c.name}</td>
                     <td>{c.city ?? "—"}</td>
                     <td>{c.region_name ?? "—"}</td>
                     <td>{agentNames(c)}</td>
-                    <td className="num">{money(c.credit_limit)}</td>
-                    <td className={`num${over ? " warn strong" : ""}`}>{money(c.debt)}</td>
+                    <td className={cls.numCell}>{money(c.credit_limit)}</td>
+                    <td className={cls.cx(cls.numCell, over && cls.warn, over && cls.strong)}>{money(c.debt)}</td>
                   </tr>
                 );
               })}

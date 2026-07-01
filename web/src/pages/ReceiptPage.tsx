@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import * as cls from "../ui/cls";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { jsPDF } from "jspdf";
@@ -176,30 +177,30 @@ export default function ReceiptPage() {
   }
 
   if (order.isLoading) return <Spinner />;
-  if (order.error) return <div className="page"><ErrorBox error={order.error} /></div>;
+  if (order.error) return <div className={cls.page}><ErrorBox error={order.error} /></div>;
   const o = order.data!;
 
   return (
-    <div className="page">
-      <div className="page-head">
+    <div className={cls.page}>
+      <div className={cls.pageHead}>
         <h1>{t("receipt.title")} · #{o.order_no ?? o.id}</h1>
-        <div className="row-gap">
+        <div className={cls.rowGap}>
           <Button disabled={busy} onClick={exportPdf}>⬇ {t("receipt.export")}</Button>
           <Button variant="ghost" disabled={busy} onClick={sharePdf}>🔗 {t("receipt.share")}</Button>
-          <Link to="/orders" className="btn btn-ghost">← {t("orders.title")}</Link>
+          <Link to="/orders" className={cls.btn.ghost}>← {t("orders.title")}</Link>
         </div>
       </div>
 
       <Card>
-        <div className="receipt">
-          <div className="receipt-head">
-            <div className="row-gap">
-              {showLogo && <img src={logoUrl!} alt={companyName} className="receipt-logo" />}
+        <div className={cls.receipt}>
+          <div className={cls.receiptHead}>
+            <div className={cls.rowGap}>
+              {showLogo && <img src={logoUrl!} alt={companyName} className={cls.receiptLogo} />}
               {showName && <strong>{companyName}</strong>}
             </div>
-            <span className="badge badge-blue">{t(`status.${o.status}`)}</span>
+            <span className={cls.badge.blue}>{t(`status.${o.status}`)}</span>
           </div>
-          <div className="receipt-meta">
+          <div className={cls.receiptMeta}>
             <div>{t("receipt.order")}: <strong>#{o.order_no ?? o.id}</strong></div>
             {o.invoice_number && <div>{t("receipt.invoice")}: {o.invoice_number}</div>}
             <div>{t("col.created")}: {date(o.created_at)}</div>
@@ -208,30 +209,30 @@ export default function ReceiptPage() {
             <div>{t("col.agent")}: {o.agent_name ?? `#${o.agent_id}`}</div>
             <div>{t("receipt.deliverer")}: {o.deliverer ?? "—"}</div>
           </div>
-          <table className="table sub">
+          <table className={cls.tableSub}>
             <thead>
               <tr>
                 <th>{t("col.product")}</th>
-                <th className="num">{t("col.qty")}</th>
-                <th className="num">{t("col.unitPrice")}</th>
-                <th className="num">{t("col.lineTotal")}</th>
+                <th className={cls.numCell}>{t("col.qty")}</th>
+                <th className={cls.numCell}>{t("col.unitPrice")}</th>
+                <th className={cls.numCell}>{t("col.lineTotal")}</th>
               </tr>
             </thead>
             <tbody>
               {o.lines.map((l) => (
                 <tr key={l.id}>
                   <td>{productName(l.product_id, l.product_name)}</td>
-                  <td className="num">{qty(l.quantity)}</td>
-                  <td className="num">{money(l.unit_price)}</td>
-                  <td className="num">{money(l.line_total)}</td>
+                  <td className={cls.numCell}>{qty(l.quantity)}</td>
+                  <td className={cls.numCell}>{money(l.unit_price)}</td>
+                  <td className={cls.numCell}>{money(l.line_total)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <div className="receipt-totals">
+          <div className={cls.receiptTotals}>
             <div>{t("receipt.subtotal")}: {money(o.subtotal)}</div>
             <div>{t("createOrder.discount")}: {money(o.discount)}</div>
-            <div className="strong">{t("createOrder.total")}: {money(o.total)}</div>
+            <div className={cls.strong}>{t("createOrder.total")}: {money(o.total)}</div>
           </div>
         </div>
       </Card>

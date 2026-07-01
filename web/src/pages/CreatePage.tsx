@@ -1,4 +1,5 @@
 import { useRef, useState, type FormEvent } from "react";
+import * as cls from "../ui/cls";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createCategory,
@@ -40,9 +41,9 @@ export default function CreatePage() {
   const isManager = role === "admin" || role === "manager";
 
   return (
-    <div className="page">
+    <div className={cls.page}>
       <h1>{t("create.title")}</h1>
-      <div className="create-grid">
+      <div className={cls.createGrid}>
         {canProduct && <ProductForm />}
         {canProduct && <CategoryForm />}
         <ShopForm showAgentPicker={isManager} />
@@ -123,35 +124,35 @@ function ProductForm() {
         />
       )}
       <form onSubmit={submit}>
-        <div className="form-grid">
-          <label className="field">
+        <div className={cls.formGrid}>
+          <label className={cls.field}>
             <span>{t("field.sku")}</span>
             <input value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} required />
           </label>
-          <label className="field">
+          <label className={cls.field}>
             <span>{t("field.name")}</span>
             <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
           </label>
-          <label className="field">
+          <label className={cls.field}>
             <span>{t("field.unit")}</span>
             <input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
           </label>
-          <label className="field">
+          <label className={cls.field}>
             <span>{t("field.costPrice")}</span>
             <input type="number" step="0.01" value={form.cost_price}
               onChange={(e) => setForm({ ...form, cost_price: e.target.value })} />
           </label>
-          <label className="field">
+          <label className={cls.field}>
             <span>{t("field.salePrice")}</span>
             <input type="number" step="0.01" value={form.sale_price}
               onChange={(e) => setForm({ ...form, sale_price: e.target.value })} />
           </label>
-          <label className="field">
+          <label className={cls.field}>
             <span>{t("field.minStock")}</span>
             <input type="number" step="0.001" value={form.min_stock}
               onChange={(e) => setForm({ ...form, min_stock: e.target.value })} />
           </label>
-          <label className="field full">
+          <label className={cls.cx(cls.field, cls.fieldFull)}>
             <span>{t("field.category")}</span>
             <select
               value={form.category_id}
@@ -163,7 +164,7 @@ function ProductForm() {
               ))}
             </select>
           </label>
-          <label className="field full">
+          <label className={cls.cx(cls.field, cls.fieldFull)}>
             <span>{t("create.image")}</span>
             <input
               ref={fileRef}
@@ -172,7 +173,7 @@ function ProductForm() {
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             />
           </label>
-          <label className="field full">
+          <label className={cls.cx(cls.field, cls.fieldFull)}>
             <span>{t("create.imageBack")}</span>
             <input
               ref={backRef}
@@ -183,7 +184,7 @@ function ProductForm() {
           </label>
         </div>
         {error && <ErrorBox error={error} />}
-        {ok && <div className="ok-box">{ok}</div>}
+        {ok && <div className={cls.okBox}>{ok}</div>}
         <Button type="submit" disabled={create.isPending}>
           {create.isPending ? t("common.saving") : t("products.create")}
         </Button>
@@ -230,12 +231,12 @@ function CategoryForm() {
         />
       )}
       <form onSubmit={submit}>
-        <label className="field">
+        <label className={cls.field}>
           <span>{t("field.category")}</span>
           <input value={name} onChange={(e) => setName(e.target.value)} required />
         </label>
         {error && <ErrorBox error={error} />}
-        {ok && <div className="ok-box">{ok}</div>}
+        {ok && <div className={cls.okBox}>{ok}</div>}
         <Button type="submit" disabled={create.isPending || !name.trim()}>
           {create.isPending ? t("common.saving") : t("create.createCategory")}
         </Button>
@@ -311,20 +312,20 @@ function ShopForm({ showAgentPicker }: { showAgentPicker: boolean }) {
         />
       )}
       <form onSubmit={submit}>
-        <div className="form-grid">
-          <label className="field">
+        <div className={cls.formGrid}>
+          <label className={cls.field}>
             <span>{t("col.name")}</span>
             <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
           </label>
-          <label className="field">
+          <label className={cls.field}>
             <span>{t("col.phone")}</span>
             <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
           </label>
-          <label className="field">
+          <label className={cls.field}>
             <span>{t("customers.city")}</span>
             <input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
           </label>
-          <label className="field">
+          <label className={cls.field}>
             <span>{t("customers.region")}</span>
             <select value={form.region_id} onChange={(e) => setForm({ ...form, region_id: e.target.value })}>
               <option value="">{t("common.none")}</option>
@@ -333,17 +334,17 @@ function ShopForm({ showAgentPicker }: { showAgentPicker: boolean }) {
               ))}
             </select>
           </label>
-          <label className="field full">
+          <label className={cls.cx(cls.field, cls.fieldFull)}>
             <span>{t("field.address")}</span>
             <input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
           </label>
-          <label className="field">
+          <label className={cls.field}>
             <span>{t("col.creditLimit")}</span>
             <input type="number" step="0.01" value={form.credit_limit}
               onChange={(e) => setForm({ ...form, credit_limit: e.target.value })} />
           </label>
           {showAgentPicker && (
-            <label className="field">
+            <label className={cls.field}>
               <span>{t("field.assignedAgent")}</span>
               <select value={form.agent_id} onChange={(e) => setForm({ ...form, agent_id: e.target.value })}>
                 <option value="">{t("common.none")}</option>
@@ -355,7 +356,7 @@ function ShopForm({ showAgentPicker }: { showAgentPicker: boolean }) {
           )}
         </div>
         {error && <ErrorBox error={error} />}
-        {ok && <div className="ok-box">{ok}</div>}
+        {ok && <div className={cls.okBox}>{ok}</div>}
         <Button type="submit" disabled={create.isPending}>
           {create.isPending ? t("common.saving") : t("customers.create")}
         </Button>

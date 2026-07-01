@@ -1,4 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
+import * as cls from "../ui/cls";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { listCustomers, listInvoices, recordPayment } from "../api/endpoints";
@@ -90,8 +91,8 @@ export default function InvoicesPage() {
   }
 
   return (
-    <div className="page">
-      <div className="page-head">
+    <div className={cls.page}>
+      <div className={cls.pageHead}>
         <h1>{t("invoices.title")}</h1>
         <ExcelButton onClick={exportInvoices} />
       </div>
@@ -101,32 +102,32 @@ export default function InvoicesPage() {
         ) : invoices.error ? (
           <ErrorBox error={invoices.error} />
         ) : (
-          <table className="table">
+          <table className={cls.table}>
             <thead>
               <tr>
                 <th>{t("col.invoice")}</th>
                 <th>{t("col.customer")}</th>
                 <th>{t("col.created")}</th>
-                <th className="num">{t("col.total")}</th>
-                <th className="num">{t("col.paid")}</th>
-                <th className="num">{t("col.balance")}</th>
+                <th className={cls.numCell}>{t("col.total")}</th>
+                <th className={cls.numCell}>{t("col.paid")}</th>
+                <th className={cls.numCell}>{t("col.balance")}</th>
                 <th>{t("common.status")}</th>
-                <th className="actions-col" />
+                <th className={cls.actionsCol} />
               </tr>
             </thead>
             <tbody>
               {invoices.data!.map((inv) => (
                 <tr key={inv.id}>
-                  <td className="mono">{inv.number}</td>
+                  <td className={cls.mono}>{inv.number}</td>
                   <td>{customerName(inv.customer_id)}</td>
                   <td>{date(inv.created_at)}</td>
-                  <td className="num">{money(inv.total)}</td>
-                  <td className="num">{money(inv.paid_amount)}</td>
-                  <td className="num strong">{money(balance(inv))}</td>
+                  <td className={cls.numCell}>{money(inv.total)}</td>
+                  <td className={cls.numCell}>{money(inv.paid_amount)}</td>
+                  <td className={cls.cx(cls.numCell, cls.strong)}>{money(balance(inv))}</td>
                   <td>
                     <InvoiceBadge status={inv.status} />
                   </td>
-                  <td className="actions-col">
+                  <td className={cls.actionsCol}>
                     <Link to={`/invoices/${inv.id}`}>
                       <Button variant="ghost">{t("invoices.history")}</Button>
                     </Link>
@@ -144,11 +145,11 @@ export default function InvoicesPage() {
       {paying && (
         <Modal title={t("payment.title", { number: paying.number })} onClose={() => setPaying(null)}>
           <form onSubmit={submit}>
-            <p className="muted">
+            <p className={cls.muted}>
               {t("payment.balanceDue")} <strong>{money(balance(paying))}</strong>
             </p>
-            <div className="form-grid">
-              <label className="field">
+            <div className={cls.formGrid}>
+              <label className={cls.field}>
                 <span>{t("field.amount")}</span>
                 <input
                   type="number"
@@ -160,7 +161,7 @@ export default function InvoicesPage() {
                   required
                 />
               </label>
-              <label className="field">
+              <label className={cls.field}>
                 <span>{t("field.method")}</span>
                 <select value={method} onChange={(e) => setMethod(e.target.value as PaymentMethod)}>
                   <option value="cash">{t("method.cash")}</option>
@@ -169,8 +170,8 @@ export default function InvoicesPage() {
                 </select>
               </label>
             </div>
-            {payError && <div className="error-box">{payError}</div>}
-            <div className="modal-actions">
+            {payError && <div className={cls.errorBox}>{payError}</div>}
+            <div className={cls.modalActions}>
               <Button type="button" variant="ghost" onClick={() => setPaying(null)}>
                 {t("common.cancel")}
               </Button>

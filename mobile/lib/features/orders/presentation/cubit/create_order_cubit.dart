@@ -56,13 +56,15 @@ class CreateOrderCubit extends Cubit<CreateOrderState> {
       final lines = state.quantities.entries
           .map((e) => OrderLineInput(productId: e.key, quantity: e.value))
           .toList();
-      final res = await _orders.createOrder(
+      // Sends immediately when online; saves to the offline outbox otherwise.
+      final res = await _orders.submitOrder(
         customerId: state.customerId!,
         lines: lines,
         note: note,
       );
       emit(state.copyWith(
         status: CreateOrderStatus.success,
+        queued: res.queued,
         createdOrderId: res.id,
         createdStatus: res.status,
       ));

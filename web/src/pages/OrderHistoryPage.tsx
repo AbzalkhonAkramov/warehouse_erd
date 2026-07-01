@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import * as cls from "../ui/cls";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { listStatusHistory } from "../api/endpoints";
@@ -53,17 +54,17 @@ export default function OrderHistoryPage() {
   }
 
   return (
-    <div className="page">
-      <div className="page-head">
+    <div className={cls.page}>
+      <div className={cls.pageHead}>
         <h1>{t("ohist.title", { no: rootNo })}</h1>
-        <div className="row-gap">
+        <div className={cls.rowGap}>
           <ExcelButton onClick={exportRows} />
-          <Link to="/orders" className="btn btn-ghost">
+          <Link to="/orders" className={cls.btn.ghost}>
             ← {t("orders.title")}
           </Link>
         </div>
       </div>
-      <p className="muted" style={{ marginTop: -8 }}>
+      <p className={cls.muted} style={{ marginTop: -8 }}>
         {t("orders.historyTreeHint")}
       </p>
 
@@ -73,7 +74,7 @@ export default function OrderHistoryPage() {
         ) : history.error ? (
           <ErrorBox error={history.error} />
         ) : rows.length > 0 ? (
-          <table className="table">
+          <table className={cls.table}>
             <thead>
               <tr>
                 <th>{t("col.created")}</th>
@@ -85,8 +86,8 @@ export default function OrderHistoryPage() {
             <tbody>
               {rows.map((h) => (
                 <tr key={h.id}>
-                  <td className="muted small">{date(h.created_at)}</td>
-                  <td className="mono strong">{h.order_no ?? h.sales_order_id}</td>
+                  <td className={cls.cx(cls.muted, cls.small)}>{date(h.created_at)}</td>
+                  <td className={cls.cx(cls.mono, cls.strong)}>{h.order_no ?? h.sales_order_id}</td>
                   <td>{describe(h)}</td>
                   <td>{h.changed_by_name ?? "—"}</td>
                 </tr>

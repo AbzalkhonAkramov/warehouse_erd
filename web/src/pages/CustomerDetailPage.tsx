@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import * as cls from "../ui/cls";
 import { useParams, Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -91,49 +92,49 @@ export default function CustomerDetailPage() {
   }
 
   if (customer.isLoading) return <Spinner />;
-  if (customer.error) return <div className="page"><ErrorBox error={customer.error} /></div>;
+  if (customer.error) return <div className={cls.page}><ErrorBox error={customer.error} /></div>;
   const c = customer.data!;
 
   return (
-    <div className="page">
-      <div className="page-head">
+    <div className={cls.page}>
+      <div className={cls.pageHead}>
         <h1>{c.name}</h1>
-        <Link to="/customers" className="btn btn-ghost">
+        <Link to="/customers" className={cls.btn.ghost}>
           ← {t("customers.title")}
         </Link>
       </div>
-      <p className="muted" style={{ marginTop: -8 }}>
+      <p className={cls.muted} style={{ marginTop: -8 }}>
         {t("col.debt")}: <strong>{money(c.debt)}</strong>
       </p>
 
       <Card title={t("customers.details")}>
-        <div className="form-grid">
-          <label className="field">
+        <div className={cls.formGrid}>
+          <label className={cls.field}>
             <span>{t("col.name")}</span>
             <input value={form.name} disabled={!canEdit}
               onChange={(e) => setForm({ ...form, name: e.target.value })} />
           </label>
-          <label className="field">
+          <label className={cls.field}>
             <span>{t("col.phone")}</span>
             <input value={form.phone} disabled={!canEdit}
               onChange={(e) => setForm({ ...form, phone: e.target.value })} />
           </label>
-          <label className="field">
+          <label className={cls.field}>
             <span>{t("customers.city")}</span>
             <input value={form.city} disabled={!canEdit}
               onChange={(e) => setForm({ ...form, city: e.target.value })} />
           </label>
-          <label className="field">
+          <label className={cls.field}>
             <span>{t("col.creditLimit")}</span>
             <input type="number" step="0.01" value={form.credit_limit} disabled={!canEdit}
               onChange={(e) => setForm({ ...form, credit_limit: e.target.value })} />
           </label>
-          <label className="field full">
+          <label className={cls.cx(cls.field, cls.fieldFull)}>
             <span>{t("field.address")}</span>
             <input value={form.address} disabled={!canEdit}
               onChange={(e) => setForm({ ...form, address: e.target.value })} />
           </label>
-          <label className="field">
+          <label className={cls.field}>
             <span>{t("customers.region")}</span>
             <select value={form.region_id} disabled={!canEdit}
               onChange={(e) => setForm({ ...form, region_id: e.target.value })}>
@@ -144,9 +145,9 @@ export default function CustomerDetailPage() {
             </select>
           </label>
           {canEdit && (
-            <label className="field">
+            <label className={cls.field}>
               <span>{t("customers.newRegion")}</span>
-              <div className="row-gap">
+              <div className={cls.rowGap}>
                 <input value={newRegion} onChange={(e) => setNewRegion(e.target.value)} />
                 <Button variant="ghost" disabled={!newRegion.trim() || addRegion.isPending}
                   onClick={() => addRegion.mutate()}>
@@ -157,10 +158,10 @@ export default function CustomerDetailPage() {
           )}
         </div>
 
-        <h3 className="section-sub">{t("customers.agents")}</h3>
-        <div className="check-list">
+        <h3 className={cls.sectionSub}>{t("customers.agents")}</h3>
+        <div className={cls.checkList}>
           {agents.data?.map((a) => (
-            <label key={a.id} className="checkbox-field">
+            <label key={a.id} className={cls.checkboxField}>
               <input type="checkbox" checked={agentIds.has(a.id)} disabled={!canEdit}
                 onChange={() => toggleAgent(a.id)} />
               {a.full_name}
@@ -170,7 +171,7 @@ export default function CustomerDetailPage() {
 
         {addRegion.error && <ErrorBox error={addRegion.error} />}
         {save.error && <ErrorBox error={save.error} />}
-        {ok && <div className="ok-box">{t("common.saved")}</div>}
+        {ok && <div className={cls.okBox}>{t("common.saved")}</div>}
         {canEdit && (
           <Button disabled={save.isPending} onClick={() => save.mutate()}>
             {save.isPending ? t("common.saving") : t("common.save")}

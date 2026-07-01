@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/di/injection.dart';
+import '../../../../core/widgets/state_views.dart';
 import '../../../../l10n/l10n_ext.dart';
 import '../bloc/photo_report_bloc.dart';
 
@@ -94,7 +95,7 @@ class _PhotoReportView extends StatelessWidget {
       builder: (context, state) {
         if (state.status == PhotoStatus.loading ||
             state.status == PhotoStatus.initial) {
-          return const Center(child: CircularProgressIndicator());
+          return const LoadingView();
         }
         final bloc = context.read<PhotoReportBloc>();
         final submitting = state.status == PhotoStatus.submitting;
@@ -107,7 +108,6 @@ class _PhotoReportView extends StatelessWidget {
               isExpanded: true,
               decoration: InputDecoration(
                 labelText: context.tr('photo.customer'),
-                border: const OutlineInputBorder(),
               ),
               items: state.customers
                   .map((c) =>
@@ -125,7 +125,6 @@ class _PhotoReportView extends StatelessWidget {
               decoration: InputDecoration(
                 labelText: context.tr('photo.order'),
                 helperText: context.tr('photo.orderHelp'),
-                border: const OutlineInputBorder(),
               ),
               items: [
                 DropdownMenuItem<int?>(
@@ -148,7 +147,6 @@ class _PhotoReportView extends StatelessWidget {
               decoration: InputDecoration(
                 labelText: context.tr('photo.topic'),
                 helperText: context.tr('photo.topicHelp'),
-                border: const OutlineInputBorder(),
               ),
               items: [
                 DropdownMenuItem<int?>(
@@ -183,7 +181,6 @@ class _PhotoReportView extends StatelessWidget {
             TextField(
               decoration: InputDecoration(
                 labelText: context.tr('photo.note'),
-                border: const OutlineInputBorder(),
               ),
               maxLines: 2,
               onChanged: (v) => bloc.add(PhotoNoteChanged(v)),
@@ -200,10 +197,7 @@ class _PhotoReportView extends StatelessWidget {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.send),
-              label: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                child: Text(submitting ? context.tr('photo.sending') : context.tr('photo.send')),
-              ),
+              label: Text(submitting ? context.tr('photo.sending') : context.tr('photo.send')),
             ),
           ],
         );

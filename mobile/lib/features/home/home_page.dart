@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../core/theme/app_colors.dart';
 import '../../l10n/l10n_ext.dart';
 import '../../l10n/language_switcher.dart';
 import '../auth/presentation/bloc/auth_bloc.dart';
 import '../customers/presentation/pages/customers_page.dart';
+import '../finance/presentation/pages/invoices_page.dart';
+import '../orders/presentation/cubit/outbox_cubit.dart';
 import '../orders/presentation/pages/create_order_page.dart';
 import '../orders/presentation/pages/orders_page.dart';
 import '../products/presentation/pages/catalog_page.dart';
 import '../photo_report/presentation/pages/photo_report_page.dart';
+import '../settings/presentation/pages/settings_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -24,6 +28,7 @@ class _HomePageState extends State<HomePage> {
     CustomersPage(),
     CreateOrderPage(),
     OrdersPage(),
+    InvoicesPage(),
     CatalogPage(),
     PhotoReportPage(),
   ];
@@ -35,6 +40,7 @@ class _HomePageState extends State<HomePage> {
       context.tr('home.customers'),
       context.tr('home.order'),
       context.tr('home.orders'),
+      context.tr('home.finance'),
       context.tr('home.catalog'),
       context.tr('home.photos'),
     ];
@@ -43,17 +49,61 @@ class _HomePageState extends State<HomePage> {
         title: Text(titles[_index]),
         actions: [
           const LanguageSwitcher(),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: context.tr('settings.title'),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const SettingsPage()),
+            ),
+          ),
           PopupMenuButton<String>(
+            offset: const Offset(0, 48),
             onSelected: (_) =>
                 context.read<AuthBloc>().add(const AuthLogoutRequested()),
             itemBuilder: (_) => [
-              PopupMenuItem(enabled: false, child: Text(agent?.fullName ?? '')),
-              PopupMenuItem(value: 'logout', child: Text(context.tr('common.signOut'))),
+              PopupMenuItem(
+                enabled: false,
+                child: Text(agent?.fullName ?? '',
+                    style: const TextStyle(fontWeight: FontWeight.w600)),
+              ),
+              const PopupMenuDivider(),
+              PopupMenuItem(
+                value: 'logout',
+                child: Row(
+                  children: [
+                    const Icon(Icons.logout, size: 18),
+                    const SizedBox(width: 10),
+                    Text(context.tr('common.signOut')),
+                  ],
+                ),
+              ),
             ],
+            child: Padding(
+              padding: const EdgeInsets.only(right: 12, left: 4),
+              child: CircleAvatar(
+                radius: 16,
+                backgroundColor: Colors.indigo.withValues(alpha: 0.12),
+                child: Text(
+                  (agent?.fullName.trim().isNotEmpty ?? false)
+                      ? agent!.fullName.trim().characters.first.toUpperCase()
+                      : '?',
+                  style: const TextStyle(
+                    color: Colors.indigo,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       ),
-      body: IndexedStack(index: _index, children: _pages),
+      body: Column(
+        children: [
+          const _OfflineBanner(),
+          Expanded(child: IndexedStack(index: _index, children: _pages)),
+        ],
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),
@@ -65,11 +115,82 @@ class _HomePageState extends State<HomePage> {
           NavigationDestination(
               icon: const Icon(Icons.receipt_long_outlined), label: context.tr('tab.orders')),
           NavigationDestination(
+              icon: const Icon(Icons.account_balance_wallet_outlined),
+              label: context.tr('tab.finance')),
+          NavigationDestination(
               icon: const Icon(Icons.inventory_2_outlined), label: context.tr('tab.catalog')),
           NavigationDestination(
               icon: const Icon(Icons.camera_alt_outlined), label: context.tr('tab.photos')),
         ],
       ),
+    );
+  }
+}
+
+/// A thin bar under the app bar that appears when the device is offline or has
+/// orders waiting to be sent; also toasts when the queue drains.
+class _OfflineBanner extends StatelessWidget {
+  const _OfflineBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocConsumer<OutboxCubit, OutboxState>(
+      listenWhen: (p, c) => p.syncedTick != c.syncedTick && c.justSynced > 0,
+      listener: (context, state) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: AppColors.success,
+            content: Text(context.tr('orders.syncedN', {'n': state.justSynced})),
+          ),
+        );
+      },
+      builder: (context, state) {
+        final offline = !state.online;
+        final hasPending = state.pending > 0;
+        if (!offline && !hasPending) return const SizedBox.shrink();
+
+        final Color bg = offline ? AppColors.warning : AppColors.brand;
+        final IconData icon =
+            offline ? Icons.cloud_off_rounded : Icons.cloud_sync_outlined;
+        String text;
+        if (offline && hasPending) {
+          text = context.tr('offline.bannerPending', {'n': state.pending});
+        } else if (offline) {
+          text = context.tr('offline.banner');
+        } else {
+          // online with a queue → syncing
+          text = context.tr('offline.syncing', {'n': state.pending});
+        }
+        return Material(
+          color: bg,
+          child: SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              child: Row(
+                children: [
+                  Icon(icon, color: Colors.white, size: 18),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(text,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600)),
+                  ),
+                  if (state.syncing)
+                    const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

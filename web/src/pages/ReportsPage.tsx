@@ -1,4 +1,5 @@
 import { useState } from "react";
+import * as cls from "../ui/cls";
 import { useQuery } from "@tanstack/react-query";
 import { commissions, debtAging, salesByAgent } from "../api/endpoints";
 import { Card, ErrorBox, ExcelButton, Spinner } from "../components/ui";
@@ -21,12 +22,12 @@ export default function ReportsPage() {
   });
 
   return (
-    <div className="page">
+    <div className={cls.page}>
       <h1>{t("reports.title")}</h1>
 
       <Card title={t("reports.salesByAgent")}>
         {sales.data && sales.data.length > 0 && (
-          <div className="modal-toolbar">
+          <div className={cls.modalToolbar}>
             <span />
             <ExcelButton
               onClick={() =>
@@ -44,25 +45,25 @@ export default function ReportsPage() {
         ) : sales.error ? (
           <ErrorBox error={sales.error} />
         ) : (
-          <table className="table">
+          <table className={cls.table}>
             <thead>
               <tr>
                 <th>{t("col.agent")}</th>
-                <th className="num">{t("col.orders")}</th>
-                <th className="num">{t("col.totalSales")}</th>
+                <th className={cls.numCell}>{t("col.orders")}</th>
+                <th className={cls.numCell}>{t("col.totalSales")}</th>
               </tr>
             </thead>
             <tbody>
               {sales.data!.map((r) => (
                 <tr key={r.agent_id}>
                   <td>{r.agent_name}</td>
-                  <td className="num">{r.orders}</td>
-                  <td className="num strong">{money(r.total)}</td>
+                  <td className={cls.numCell}>{r.orders}</td>
+                  <td className={cls.cx(cls.numCell, cls.strong)}>{money(r.total)}</td>
                 </tr>
               ))}
               {sales.data!.length === 0 && (
                 <tr>
-                  <td colSpan={3} className="empty">
+                  <td colSpan={3} className={cls.empty}>
                     {t("reports.noSales")}
                   </td>
                 </tr>
@@ -74,7 +75,7 @@ export default function ReportsPage() {
 
       <Card title={t("reports.debtAging")}>
         {debt.data && debt.data.length > 0 && (
-          <div className="modal-toolbar">
+          <div className={cls.modalToolbar}>
             <span />
             <ExcelButton
               onClick={() =>
@@ -97,12 +98,12 @@ export default function ReportsPage() {
         ) : debt.error ? (
           <ErrorBox error={debt.error} />
         ) : (
-          <table className="table">
+          <table className={cls.table}>
             <thead>
               <tr>
                 <th>{t("col.customer")}</th>
-                <th className="num">{t("col.debt")}</th>
-                <th className="num">{t("col.creditLimit")}</th>
+                <th className={cls.numCell}>{t("col.debt")}</th>
+                <th className={cls.numCell}>{t("col.creditLimit")}</th>
                 <th>{t("common.status")}</th>
               </tr>
             </thead>
@@ -110,20 +111,20 @@ export default function ReportsPage() {
               {debt.data!.map((r) => (
                 <tr key={r.customer_id}>
                   <td>{r.name}</td>
-                  <td className="num strong">{money(r.debt)}</td>
-                  <td className="num">{money(r.credit_limit)}</td>
+                  <td className={cls.cx(cls.numCell, cls.strong)}>{money(r.debt)}</td>
+                  <td className={cls.numCell}>{money(r.credit_limit)}</td>
                   <td>
                     {r.over_limit ? (
-                      <span className="badge badge-red">{t("col.overLimit")}</span>
+                      <span className={cls.badge.red}>{t("col.overLimit")}</span>
                     ) : (
-                      <span className="badge badge-green">{t("col.ok")}</span>
+                      <span className={cls.badge.green}>{t("col.ok")}</span>
                     )}
                   </td>
                 </tr>
               ))}
               {debt.data!.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="empty">
+                  <td colSpan={4} className={cls.empty}>
                     {t("reports.noDebt")}
                   </td>
                 </tr>
@@ -134,8 +135,8 @@ export default function ReportsPage() {
       </Card>
 
       <Card title={t("reports.commissions")}>
-        <div className="filter-row">
-          <label className="inline-field">
+        <div className={cls.filterRow}>
+          <label className={cls.inlineField}>
             {t("field.year")}
             <input
               type="number"
@@ -144,7 +145,7 @@ export default function ReportsPage() {
               style={{ width: 90 }}
             />
           </label>
-          <label className="inline-field">
+          <label className={cls.inlineField}>
             {t("field.month")}
             <select value={month} onChange={(e) => setMonth(Number(e.target.value))}>
               {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
@@ -156,7 +157,7 @@ export default function ReportsPage() {
           </label>
         </div>
         {comm.data && comm.data.length > 0 && (
-          <div className="modal-toolbar">
+          <div className={cls.modalToolbar}>
             <span />
             <ExcelButton
               onClick={() =>
@@ -188,26 +189,26 @@ export default function ReportsPage() {
         ) : comm.error ? (
           <ErrorBox error={comm.error} />
         ) : (
-          <table className="table">
+          <table className={cls.table}>
             <thead>
               <tr>
                 <th>{t("col.agent")}</th>
-                <th className="num">{t("col.rate")}</th>
-                <th className="num">{t("col.sales")}</th>
-                <th className="num">{t("col.commission")}</th>
-                <th className="num">{t("col.target")}</th>
-                <th className="num">{t("col.achieved")}</th>
+                <th className={cls.numCell}>{t("col.rate")}</th>
+                <th className={cls.numCell}>{t("col.sales")}</th>
+                <th className={cls.numCell}>{t("col.commission")}</th>
+                <th className={cls.numCell}>{t("col.target")}</th>
+                <th className={cls.numCell}>{t("col.achieved")}</th>
               </tr>
             </thead>
             <tbody>
               {comm.data!.map((r) => (
                 <tr key={r.agent_id}>
                   <td>{r.agent_name}</td>
-                  <td className="num">{money(r.commission_rate)}</td>
-                  <td className="num">{money(r.sales_total)}</td>
-                  <td className="num strong">{money(r.commission)}</td>
-                  <td className="num">{r.target ? money(r.target) : "—"}</td>
-                  <td className="num">
+                  <td className={cls.numCell}>{money(r.commission_rate)}</td>
+                  <td className={cls.numCell}>{money(r.sales_total)}</td>
+                  <td className={cls.cx(cls.numCell, cls.strong)}>{money(r.commission)}</td>
+                  <td className={cls.numCell}>{r.target ? money(r.target) : "—"}</td>
+                  <td className={cls.numCell}>
                     {r.achievement_pct != null ? `${r.achievement_pct}%` : "—"}
                   </td>
                 </tr>

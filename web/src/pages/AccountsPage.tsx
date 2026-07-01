@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import * as cls from "../ui/cls";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { listUsers, resetUserPassword, updateUser } from "../api/endpoints";
 import type { Role, User } from "../api/types";
@@ -34,13 +35,13 @@ export default function AccountsPage() {
   );
 
   return (
-    <div className="page">
+    <div className={cls.page}>
       <h1>{t("accounts.title")}</h1>
-      <p className="muted" style={{ marginTop: -8, marginBottom: 16 }}>
+      <p className={cls.muted} style={{ marginTop: -8, marginBottom: 16 }}>
         {t("accounts.subtitle")}
       </p>
 
-      {error && <div className="error-box">{error}</div>}
+      {error && <div className={cls.errorBox}>{error}</div>}
 
       <Card>
         {users.isLoading ? (
@@ -48,7 +49,7 @@ export default function AccountsPage() {
         ) : users.error ? (
           <ErrorBox error={users.error} />
         ) : sorted.length > 0 ? (
-          <table className="table">
+          <table className={cls.table}>
             <thead>
               <tr>
                 <th>{t("col.name")}</th>
@@ -56,7 +57,7 @@ export default function AccountsPage() {
                 <th>{t("col.role")}</th>
                 <th>{t("common.status")}</th>
                 <th>{t("accounts.photosImportant")}</th>
-                <th className="actions-col" />
+                <th className={cls.actionsCol} />
               </tr>
             </thead>
             <tbody>
@@ -66,9 +67,9 @@ export default function AccountsPage() {
                   <tr key={u.id}>
                     <td>
                       {u.full_name}
-                      {isSelf && <span className="muted small"> ({t("accounts.you")})</span>}
+                      {isSelf && <span className={cls.cx(cls.muted, cls.small)}> ({t("accounts.you")})</span>}
                     </td>
-                    <td className="muted">{u.email}</td>
+                    <td className={cls.muted}>{u.email}</td>
                     <td>
                       <select
                         value={u.role}
@@ -84,19 +85,19 @@ export default function AccountsPage() {
                     </td>
                     <td>
                       {u.is_active ? (
-                        <span className="badge badge-green">{t("common.active")}</span>
+                        <span className={cls.badge.green}>{t("common.active")}</span>
                       ) : (
-                        <span className="badge badge-amber">{t("accounts.pending")}</span>
+                        <span className={cls.badge.amber}>{t("accounts.pending")}</span>
                       )}
                       {u.reset_requested && (
-                        <span className="badge badge-red" style={{ marginLeft: 6 }}>
+                        <span className={cls.badge.red} style={{ marginLeft: 6 }}>
                           {t("accounts.resetRequested")}
                         </span>
                       )}
                     </td>
                     <td>
                       {u.role === "agent" ? (
-                        <label className="inline-check" title={t("accounts.photosImportantHint")}>
+                        <label className={cls.inlineCheck} title={t("accounts.photosImportantHint")}>
                           <input
                             type="checkbox"
                             checked={u.photo_required ?? true}
@@ -109,10 +110,10 @@ export default function AccountsPage() {
                           />
                         </label>
                       ) : (
-                        <span className="muted">—</span>
+                        <span className={cls.muted}>—</span>
                       )}
                     </td>
-                    <td className="actions-col">
+                    <td className={cls.actionsCol}>
                       <Button variant="ghost" onClick={() => setResetFor(u)}>
                         {t("accounts.resetPassword")}
                       </Button>
@@ -186,7 +187,7 @@ function ResetPasswordModal({
   return (
     <Modal title={`${t("accounts.resetPassword")} — ${user.full_name}`} onClose={onClose}>
       <form onSubmit={submit}>
-        <label className="field">
+        <label className={cls.field}>
           <span>{t("changePw.new")}</span>
           <input
             type="text"
@@ -196,7 +197,7 @@ function ResetPasswordModal({
             required
           />
         </label>
-        <div className="modal-actions">
+        <div className={cls.modalActions}>
           <Button type="button" variant="ghost" onClick={onClose}>
             {t("common.cancel")}
           </Button>

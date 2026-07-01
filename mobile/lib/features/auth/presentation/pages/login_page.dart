@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/theme/app_colors.dart';
 import '../../../../l10n/l10n_ext.dart';
 import '../../../../l10n/language_switcher.dart';
 import '../bloc/auth_bloc.dart';
@@ -66,45 +67,88 @@ class _LoginPageState extends State<LoginPage> {
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            const Icon(Icons.warehouse, size: 56, color: Colors.indigo),
-                            const SizedBox(height: 12),
+                            Center(
+                              child: Container(
+                                width: 78,
+                                height: 78,
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [AppColors.brand, AppColors.brandDark],
+                                  ),
+                                  borderRadius: BorderRadius.circular(22),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: AppColors.brand.withValues(alpha: 0.35),
+                                      blurRadius: 18,
+                                      offset: const Offset(0, 8),
+                                    ),
+                                  ],
+                                ),
+                                child: const Icon(Icons.warehouse_rounded,
+                                    size: 40, color: Colors.white),
+                              ),
+                            ),
+                            const SizedBox(height: 18),
                             Text(
                               'Warehouse ERP',
                               textAlign: TextAlign.center,
-                              style: Theme.of(context).textTheme.headlineSmall,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .headlineSmall
+                                  ?.copyWith(fontWeight: FontWeight.bold),
                             ),
+                            const SizedBox(height: 4),
                             Text(
                               context.tr('login.subtitle'),
                               textAlign: TextAlign.center,
-                              style: const TextStyle(color: Colors.black54),
+                              style: const TextStyle(color: AppColors.neutral),
                             ),
                             const SizedBox(height: 28),
-                            TextFormField(
-                              controller: _email,
-                              keyboardType: TextInputType.emailAddress,
-                              decoration: InputDecoration(labelText: context.tr('login.email')),
-                              validator: (v) => (v == null || v.isEmpty) ? '—' : null,
-                            ),
-                            const SizedBox(height: 14),
-                            TextFormField(
-                              controller: _password,
-                              obscureText: true,
-                              decoration: InputDecoration(labelText: context.tr('login.password')),
-                              validator: (v) => (v == null || v.isEmpty) ? '—' : null,
-                              onFieldSubmitted: (_) => _submit(),
-                            ),
-                            const SizedBox(height: 22),
-                            FilledButton(
-                              onPressed: loading ? null : _submit,
+                            Card(
                               child: Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                child: loading
-                                    ? const SizedBox(
-                                        height: 20,
-                                        width: 20,
-                                        child: CircularProgressIndicator(strokeWidth: 2),
-                                      )
-                                    : Text(context.tr('login.signIn')),
+                                padding: const EdgeInsets.all(18),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    TextFormField(
+                                      controller: _email,
+                                      keyboardType: TextInputType.emailAddress,
+                                      decoration: InputDecoration(
+                                        labelText: context.tr('login.email'),
+                                        prefixIcon: const Icon(Icons.mail_outline),
+                                      ),
+                                      validator: (v) =>
+                                          (v == null || v.isEmpty) ? '—' : null,
+                                    ),
+                                    const SizedBox(height: 14),
+                                    TextFormField(
+                                      controller: _password,
+                                      obscureText: true,
+                                      decoration: InputDecoration(
+                                        labelText: context.tr('login.password'),
+                                        prefixIcon: const Icon(Icons.lock_outline),
+                                      ),
+                                      validator: (v) =>
+                                          (v == null || v.isEmpty) ? '—' : null,
+                                      onFieldSubmitted: (_) => _submit(),
+                                    ),
+                                    const SizedBox(height: 20),
+                                    FilledButton(
+                                      onPressed: loading ? null : _submit,
+                                      child: loading
+                                          ? const SizedBox(
+                                              height: 20,
+                                              width: 20,
+                                              child: CircularProgressIndicator(
+                                                  strokeWidth: 2,
+                                                  color: Colors.white),
+                                            )
+                                          : Text(context.tr('login.signIn')),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ],

@@ -63,15 +63,17 @@ class ApiClient {
   ApiException _mapError(DioException e) {
     final status = e.response?.statusCode;
     final data = e.response?.data;
+    // No HTTP response received → the device couldn't reach the server (offline).
+    final isNetwork = e.response == null;
     String message = 'Network error';
     if (data is Map && data['detail'] is String) {
       message = data['detail'] as String;
     } else if (data is Map && data['detail'] is List) {
       final list = data['detail'] as List;
       message = list.map((d) => d is Map ? d['msg'] : d).join(', ');
-    } else if (e.type == DioExceptionType.connectionError) {
+    } else if (isNetwork) {
       message = 'Cannot reach the server';
     }
-    return ApiException(message, statusCode: status);
+    return ApiException(message, statusCode: status, isNetwork: isNetwork);
   }
 }

@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import * as cls from "../ui/cls";
 import { Link } from "react-router-dom";
 import { forgotPassword } from "../api/endpoints";
 import { useI18n } from "../i18n";
@@ -23,27 +24,27 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="centered-screen">
-      <div className="login-card">
-        <div className="login-lang">
+    <div className={cls.centeredScreen}>
+      <div className={cls.loginCard}>
+        <div className={cls.loginLang}>
           <LanguageSwitcher />
         </div>
-        <div className="brand login-brand">📦 {t("brand")}</div>
-        <p className="login-sub">{t("forgot.title")}</p>
+        <div className={cls.loginBrand}>📦 {t("brand")}</div>
+        <p className={cls.loginSub}>{t("forgot.title")}</p>
 
         {done ? (
           <>
-            <div className="ok-box">{t("forgot.done")}</div>
+            <div className={cls.okBox}>{t("forgot.done")}</div>
             <Link to="/login">
               <Button>{t("register.backToLogin")}</Button>
             </Link>
           </>
         ) : (
           <form onSubmit={onSubmit}>
-            <p className="muted small" style={{ marginTop: -8 }}>
+            <p className={cls.cx(cls.muted, cls.small)} style={{ marginTop: -8 }}>
               {t("forgot.subtitle")}
             </p>
-            <label className="field">
+            <label className={cls.field}>
               <span>{t("login.email")}</span>
               <input
                 type="email"
@@ -56,7 +57,7 @@ export default function ForgotPasswordPage() {
               {busy ? t("common.saving") : t("forgot.submit")}
             </Button>
             <div style={{ marginTop: 12, textAlign: "center" }}>
-              <Link to="/login" className="plain-link" style={{ color: "var(--primary)" }}>
+              <Link to="/login" className={cls.plainLink} style={{ color: "var(--primary)" }}>
                 {t("register.backToLogin")}
               </Link>
             </div>

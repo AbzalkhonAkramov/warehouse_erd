@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import * as cls from "../ui/cls";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getAgentCategories,
@@ -19,9 +20,9 @@ export default function AgentsPage() {
   const agents = useQuery({ queryKey: ["users", "agent"], queryFn: () => listUsers("agent") });
 
   return (
-    <div className="page">
+    <div className={cls.page}>
       <h1>{t("agents.title")}</h1>
-      <p className="muted" style={{ marginTop: -8, marginBottom: 16 }}>
+      <p className={cls.muted} style={{ marginTop: -8, marginBottom: 16 }}>
         {t("agents.subtitle")}
       </p>
 
@@ -31,28 +32,28 @@ export default function AgentsPage() {
         ) : agents.error ? (
           <ErrorBox error={agents.error} />
         ) : agents.data && agents.data.length > 0 ? (
-          <table className="table">
+          <table className={cls.table}>
             <thead>
               <tr>
                 <th>{t("col.name")}</th>
                 <th>{t("col.email")}</th>
                 <th>{t("common.status")}</th>
-                <th className="actions-col" />
+                <th className={cls.actionsCol} />
               </tr>
             </thead>
             <tbody>
               {agents.data.map((a) => (
                 <tr key={a.id}>
                   <td>{a.full_name}</td>
-                  <td className="muted">{a.email}</td>
+                  <td className={cls.muted}>{a.email}</td>
                   <td>
                     {a.is_active ? (
-                      <span className="badge badge-green">{t("common.active")}</span>
+                      <span className={cls.badge.green}>{t("common.active")}</span>
                     ) : (
-                      <span className="badge badge-gray">{t("common.inactive")}</span>
+                      <span className={cls.badge.gray}>{t("common.inactive")}</span>
                     )}
                   </td>
-                  <td className="actions-col">
+                  <td className={cls.actionsCol}>
                     <Button variant="ghost" onClick={() => setEditing(a)}>
                       {t("agents.manage")}
                     </Button>
@@ -121,22 +122,22 @@ function ShopsModal({ agent, onClose }: { agent: User; onClose: () => void }) {
         <ErrorBox error={customers.error} />
       ) : customers.data && customers.data.length > 0 ? (
         <>
-          <p className="muted small" style={{ marginTop: 0 }}>
+          <p className={cls.cx(cls.muted, cls.small)} style={{ marginTop: 0 }}>
             {t("agents.shopsHint", { n: selected.size })}
           </p>
-          <div className="check-list">
+          <div className={cls.checkList}>
             {customers.data.map((c) => (
-              <label key={c.id} className="checkbox-field">
+              <label key={c.id} className={cls.checkboxField}>
                 <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggle(c.id)} />
                 {c.name}
                 {(c.agent_ids ?? []).some((a) => a !== agent.id) && (
-                  <span className="muted small"> · {t("agents.otherAgent")}</span>
+                  <span className={cls.cx(cls.muted, cls.small)}> · {t("agents.otherAgent")}</span>
                 )}
               </label>
             ))}
           </div>
           {save.error && <ErrorBox error={save.error} />}
-          <div className="modal-actions">
+          <div className={cls.modalActions}>
             <Button variant="ghost" onClick={onClose}>
               {t("common.cancel")}
             </Button>
@@ -197,14 +198,14 @@ function CategoryModal({ agent, onClose }: { agent: User; onClose: () => void })
         <ErrorBox error={categories.error} />
       ) : categories.data && categories.data.length > 0 ? (
         <>
-          <p className="muted small" style={{ marginTop: 0 }}>
+          <p className={cls.cx(cls.muted, cls.small)} style={{ marginTop: 0 }}>
             {selected.size === 0
               ? t("agents.seesAll")
               : t("agents.seesN", { n: selected.size })}
           </p>
-          <div className="check-list">
+          <div className={cls.checkList}>
             {categories.data.map((c) => (
-              <label key={c.id} className="checkbox-field">
+              <label key={c.id} className={cls.checkboxField}>
                 <input
                   type="checkbox"
                   checked={selected.has(c.id)}
@@ -215,7 +216,7 @@ function CategoryModal({ agent, onClose }: { agent: User; onClose: () => void })
             ))}
           </div>
           {save.error && <ErrorBox error={save.error} />}
-          <div className="modal-actions">
+          <div className={cls.modalActions}>
             <Button variant="ghost" onClick={onClose}>
               {t("common.cancel")}
             </Button>

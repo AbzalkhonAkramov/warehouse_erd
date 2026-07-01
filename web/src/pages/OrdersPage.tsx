@@ -1,4 +1,5 @@
 import { Fragment, useMemo, useState } from "react";
+import * as cls from "../ui/cls";
 import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -184,22 +185,22 @@ export default function OrdersPage() {
   const moveLines = moving?.lines.filter((l) => moveRows[l.product_id]) ?? [];
 
   return (
-    <div className="page">
-      <div className="page-head">
+    <div className={cls.page}>
+      <div className={cls.pageHead}>
         <h1>{t("orders.title")}</h1>
-        <div className="row-gap">
-          <Link className="btn btn-primary" to="/orders/new">
+        <div className={cls.rowGap}>
+          <Link className={cls.btn.primary} to="/orders/new">
             {t("orders.new")}
           </Link>
           <ExcelButton onClick={exportOrders} />
         </div>
       </div>
 
-      <div className="filter-row">
+      <div className={cls.filterRow}>
         {FILTERS.map((f) => (
           <button
             key={f.value}
-            className={`chip${filter === f.value ? " active" : ""}`}
+            className={cls.cx(cls.chip, filter === f.value && cls.chipActive)}
             onClick={() => setFilter(f.value)}
           >
             {t(f.labelKey)}
@@ -207,7 +208,7 @@ export default function OrdersPage() {
         ))}
       </div>
 
-      {actionError && <div className="error-box">{actionError}</div>}
+      {actionError && <div className={cls.errorBox}>{actionError}</div>}
 
       <Card>
         {orders.isLoading ? (
@@ -215,14 +216,14 @@ export default function OrdersPage() {
         ) : orders.error ? (
           <ErrorBox error={orders.error} />
         ) : orders.data && orders.data.length > 0 ? (
-          <table className="table">
+          <table className={cls.table}>
             <thead>
               <tr>
                 <th>#</th>
                 <th>{t("col.customer")}</th>
                 <th>{t("col.agent")}</th>
                 <th>{t("col.created")}</th>
-                <th className="num">{t("col.total")}</th>
+                <th className={cls.numCell}>{t("col.total")}</th>
                 <th>{t("common.status")}</th>
                 <th>{t("orders.deliverer")}</th>
               </tr>
@@ -230,63 +231,63 @@ export default function OrdersPage() {
             <tbody>
               {orders.data.map((o) => (
                 <Fragment key={o.id}>
-                  <tr className="clickable" onClick={() => openRow(o)}>
-                    <td className="mono">{o.order_no ?? o.id}</td>
+                  <tr className={cls.clickable} onClick={() => openRow(o)}>
+                    <td className={cls.mono}>{o.order_no ?? o.id}</td>
                     <td>{customerName(o.customer_id)}</td>
                     <td>{o.agent_name ?? agentName(o.agent_id)}</td>
                     <td>{date(o.created_at)}</td>
-                    <td className="num strong">{money(o.total)}</td>
+                    <td className={cls.cx(cls.numCell, cls.strong)}>{money(o.total)}</td>
                     <td>
                       <StatusBadge status={o.status} />
                     </td>
                     <td>{o.deliverer || "—"}</td>
                   </tr>
                   {expanded === o.id && (
-                    <tr className="detail-row">
+                    <tr className={cls.detailRowTd}>
                       <td colSpan={7}>
-                        <div className="order-detail">
+                        <div className={cls.orderDetail}>
                           {o.parent_order_id && (
-                            <p className="note muted">
+                            <p className={cls.note}>
                               ↩ {t("orders.refundOf", { id: o.parent_order_id })}
                             </p>
                           )}
-                          <table className="table sub">
+                          <table className={cls.tableSub}>
                             <thead>
                               <tr>
                                 <th>{t("col.product")}</th>
-                                <th className="num">{t("col.qty")}</th>
-                                <th className="num">{t("col.unitPrice")}</th>
-                                <th className="num">{t("col.lineTotal")}</th>
+                                <th className={cls.numCell}>{t("col.qty")}</th>
+                                <th className={cls.numCell}>{t("col.unitPrice")}</th>
+                                <th className={cls.numCell}>{t("col.lineTotal")}</th>
                               </tr>
                             </thead>
                             <tbody>
                               {o.lines.map((l) => (
                                 <tr key={l.id}>
                                   <td>{productName(l.product_id)}</td>
-                                  <td className="num">{qty(l.quantity)}</td>
-                                  <td className="num">{money(l.unit_price)}</td>
-                                  <td className="num">{money(l.line_total)}</td>
+                                  <td className={cls.numCell}>{qty(l.quantity)}</td>
+                                  <td className={cls.numCell}>{money(l.unit_price)}</td>
+                                  <td className={cls.numCell}>{money(l.line_total)}</td>
                                 </tr>
                               ))}
                             </tbody>
                           </table>
                           {o.note && (
-                            <p className="note">
+                            <p className={cls.note}>
                               {t("orders.note")}: {o.note}
                             </p>
                           )}
                           {o.created_by_name && o.created_by_id !== o.agent_id && (
-                            <p className="note muted">
+                            <p className={cls.note}>
                               {t("orders.createdBy")}: {o.created_by_name}
                             </p>
                           )}
 
                           {detail.data?.id === o.id && (
-                            <div className="order-photos" onClick={(e) => e.stopPropagation()}>
-                              <div className="order-photos-head">
+                            <div className={cls.orderPhotos} onClick={(e) => e.stopPropagation()}>
+                              <div className={cls.orderPhotosHead}>
                                 <strong>{t("orders.photos")}</strong>
                                 {isManager && (
-                                  <label className="inline-check">
+                                  <label className={cls.inlineCheck}>
                                     <input
                                       type="checkbox"
                                       checked={detail.data.photo_required ?? true}
@@ -303,12 +304,12 @@ export default function OrdersPage() {
                                 )}
                               </div>
                               {detail.data.photos && detail.data.photos.length > 0 ? (
-                                <div className="tg-links">
+                                <div className={cls.tgLinks}>
                                   {detail.data.photos.map((ph, i) =>
                                     ph.link ? (
                                       <a
                                         key={i}
-                                        className="btn btn-ghost tg-link"
+                                        className={cls.cx(cls.btn.ghost, cls.tgLink)}
                                         href={ph.link}
                                         target="_blank"
                                         rel="noreferrer"
@@ -316,7 +317,7 @@ export default function OrdersPage() {
                                         ✈ {t(`photo.${ph.stage}`)} · {t("photo.viewInTelegram")}
                                       </a>
                                     ) : (
-                                      <span key={i} className="note muted">
+                                      <span key={i} className={cls.note}>
                                         {t(`photo.${ph.stage}`)}: {t("photo.notSent")}
                                       </span>
                                     ),
@@ -324,11 +325,11 @@ export default function OrdersPage() {
                                 </div>
                               ) : (
                                 <p
-                                  className={`note ${
+                                  className={
                                     detail.data.photo_required && detail.data.agent_photo_required
-                                      ? "warn"
-                                      : "muted"
-                                  }`}
+                                      ? cls.noteWarn
+                                      : cls.note
+                                  }
                                 >
                                   {detail.data.photo_required && detail.data.agent_photo_required
                                     ? t("orders.photosRequiredWarn")
@@ -362,8 +363,8 @@ export default function OrdersPage() {
                           )}
 
                           {isManager ? (
-                            <div className="order-editor" onClick={(e) => e.stopPropagation()}>
-                              <label className="field">
+                            <div className={cls.orderEditor} onClick={(e) => e.stopPropagation()}>
+                              <label className={cls.field}>
                                 <span>{t("orders.deliWho")}</span>
                                 <input
                                   value={editDeliverer}
@@ -383,7 +384,7 @@ export default function OrdersPage() {
                               >
                                 {t("orders.save")}
                               </Button>
-                              <label className="field">
+                              <label className={cls.field}>
                                 <span>{t("orders.moveTo")}</span>
                                 <select
                                   value={moveSel}
@@ -401,7 +402,7 @@ export default function OrdersPage() {
                               </Button>
                             </div>
                           ) : (
-                            <p className="note muted">{t("orders.managerOnly")}</p>
+                            <p className={cls.note}>{t("orders.managerOnly")}</p>
                           )}
                         </div>
                       </td>
@@ -421,16 +422,16 @@ export default function OrdersPage() {
           title={t("orders.moveTitle", { id: moving.order_no ?? moving.id, status: t(`status.${moveTarget}`) })}
           onClose={() => setMoving(null)}
         >
-          <p className="muted small" style={{ marginTop: 0 }}>
+          <p className={cls.cx(cls.muted, cls.small)} style={{ marginTop: 0 }}>
             {t("orders.moveHint")}
           </p>
-          <table className="table sub">
+          <table className={cls.tableSub}>
             <thead>
               <tr>
                 <th></th>
                 <th>{t("col.product")}</th>
-                <th className="num">{t("orders.available")}</th>
-                <th className="num">{t("orders.moveQty")}</th>
+                <th className={cls.numCell}>{t("orders.available")}</th>
+                <th className={cls.numCell}>{t("orders.moveQty")}</th>
               </tr>
             </thead>
             <tbody>
@@ -451,10 +452,10 @@ export default function OrdersPage() {
                       />
                     </td>
                     <td>{productName(l.product_id)}</td>
-                    <td className="num">{qty(r.max)}</td>
-                    <td className="num">
+                    <td className={cls.numCell}>{qty(r.max)}</td>
+                    <td className={cls.numCell}>
                       <input
-                        className="qty-input"
+                        className={cls.qtyInput}
                         type="number"
                         min="0"
                         max={r.max}
@@ -476,19 +477,19 @@ export default function OrdersPage() {
           </table>
 
           {moveTarget === "refund" && (
-            <div className="refund-dest">
-              <label className="radio">
+            <div className={cls.refundDest}>
+              <label className={cls.radio}>
                 <input type="radio" checked={restock} onChange={() => setRestock(true)} />
                 {t("orders.restock")}
               </label>
-              <label className="radio">
+              <label className={cls.radio}>
                 <input type="radio" checked={!restock} onChange={() => setRestock(false)} />
                 {t("orders.holdRefunded")}
               </label>
             </div>
           )}
 
-          <div className="modal-actions">
+          <div className={cls.modalActions}>
             <Button variant="ghost" onClick={() => setMoving(null)}>
               {t("common.cancel")}
             </Button>

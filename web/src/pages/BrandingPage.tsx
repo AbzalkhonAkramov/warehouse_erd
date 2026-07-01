@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import * as cls from "../ui/cls";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   deleteCompanyLogo,
@@ -51,33 +52,33 @@ export default function BrandingPage() {
   const logoUrl = company.data?.logo_url ?? null;
 
   return (
-    <div className="page">
+    <div className={cls.page}>
       <h1>{t("branding.title")}</h1>
-      <p className="muted" style={{ marginTop: -8, marginBottom: 16 }}>
+      <p className={cls.muted} style={{ marginTop: -8, marginBottom: 16 }}>
         {t("branding.subtitle")}
       </p>
 
       <Card title={t("branding.display")}>
-        <div className="refund-dest" style={{ marginTop: 0 }}>
+        <div className={cls.refundDest} style={{ marginTop: 0 }}>
           {MODES.map((m) => (
-            <label key={m} className="radio">
+            <label key={m} className={cls.radio}>
               <input type="radio" checked={mode === m} onChange={() => setMode(m)} />
               {t(`branding.mode.${m}`)}
             </label>
           ))}
         </div>
 
-        <label className="field" style={{ maxWidth: 360, marginTop: 16 }}>
+        <label className={cls.field} style={{ maxWidth: 360, marginTop: 16 }}>
           <span>{t("branding.name")}</span>
           <input value={name} onChange={(e) => setName(e.target.value)} />
         </label>
 
-        <h3 className="section-sub">{t("branding.logo")}</h3>
-        <div className="row-gap" style={{ alignItems: "center" }}>
+        <h3 className={cls.sectionSub}>{t("branding.logo")}</h3>
+        <div className={cls.rowGap} style={{ alignItems: "center" }}>
           {logoUrl ? (
-            <img src={logoUrl} alt="logo" className="receipt-logo" />
+            <img src={logoUrl} alt="logo" className={cls.receiptLogo} />
           ) : (
-            <span className="muted small">{t("branding.noLogo")}</span>
+            <span className={cls.cx(cls.muted, cls.small)}>{t("branding.noLogo")}</span>
           )}
           <input
             ref={fileRef}
@@ -95,21 +96,21 @@ export default function BrandingPage() {
             </Button>
           )}
         </div>
-        <p className="muted small">{t("branding.logoHint")}</p>
+        <p className={cls.cx(cls.muted, cls.small)}>{t("branding.logoHint")}</p>
 
         {(save.error || upload.error || removeLogo.error) && (
           <ErrorBox error={(save.error || upload.error || removeLogo.error) as Error} />
         )}
-        {ok && <div className="ok-box">{t("common.saved")}</div>}
+        {ok && <div className={cls.okBox}>{t("common.saved")}</div>}
         <Button disabled={save.isPending} onClick={() => save.mutate()}>
           {save.isPending ? t("common.saving") : t("common.save")}
         </Button>
       </Card>
 
       <Card title={t("branding.preview")}>
-        <div className="receipt-head" style={{ borderBottom: "none" }}>
+        <div className={cls.receiptHead} style={{ borderBottom: "none" }}>
           {(mode === "logo" || mode === "both") && logoUrl ? (
-            <img src={logoUrl} alt="logo" className="receipt-logo" />
+            <img src={logoUrl} alt="logo" className={cls.receiptLogo} />
           ) : null}
           {(mode === "text" || mode === "both" || !logoUrl) && <strong>{name}</strong>}
         </div>

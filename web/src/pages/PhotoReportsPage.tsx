@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import * as cls from "../ui/cls";
 import { useQuery } from "@tanstack/react-query";
 import { listCustomers, listPhotoReports } from "../api/endpoints";
 import type { PhotoImage, PhotoReport } from "../api/types";
@@ -9,21 +10,21 @@ import { date } from "../lib/format";
 type T = (key: string, vars?: Record<string, string | number>) => string;
 
 function statusBadge(status: PhotoReport["status"], t: T) {
-  const cls = status === "sent" ? "green" : status === "failed" ? "red" : "amber";
-  return <span className={`badge badge-${cls}`}>{t(`photos.status.${status}`)}</span>;
+  const color = status === "sent" ? "green" : status === "failed" ? "red" : "amber";
+  return <span className={cls.badge[color]}>{t(`photos.status.${status}`)}</span>;
 }
 
 function stageLink(images: PhotoImage[], stage: "before" | "after", t: T) {
   const img = images.find((i) => i.stage === stage);
   if (!img || !img.telegram_link) {
     return (
-      <span className="note muted">
+      <span className={cls.note}>
         {t(`photos.stage.${stage}`)}: {t("photo.notSent")}
       </span>
     );
   }
   return (
-    <a className="btn btn-ghost tg-link" href={img.telegram_link} target="_blank" rel="noreferrer">
+    <a className={cls.cx(cls.btn.ghost, cls.tgLink)} href={img.telegram_link} target="_blank" rel="noreferrer">
       ✈ {t(`photos.stage.${stage}`)} · {t("photo.viewInTelegram")}
     </a>
   );
@@ -41,39 +42,39 @@ export default function PhotoReportsPage() {
   }, [customers.data]);
 
   return (
-    <div className="page">
+    <div className={cls.page}>
       <h1>{t("photos.title")}</h1>
       {reports.isLoading ? (
         <Spinner />
       ) : reports.error ? (
         <ErrorBox error={reports.error} />
       ) : reports.data && reports.data.length > 0 ? (
-        <div className="report-grid">
+        <div className={cls.reportGrid}>
           {reports.data.map((r) => (
             <Card key={r.id}>
-              <div className="report-head">
+              <div className={cls.reportHead}>
                 <div>
                   <strong>{customerName(r.customer_id)}</strong>
-                  <div className="muted small">{date(r.created_at)}</div>
+                  <div className={cls.cx(cls.muted, cls.small)}>{date(r.created_at)}</div>
                 </div>
                 {statusBadge(r.status, t)}
               </div>
               {r.sales_order_id ? (
-                <p className="note muted small">
+                <p className={cls.cx(cls.note, cls.small)}>
                   {t("photos.order")}: #{r.sales_order_id}
                 </p>
               ) : (
-                <p className="note muted small">{t("photos.noOrder")}</p>
+                <p className={cls.cx(cls.note, cls.small)}>{t("photos.noOrder")}</p>
               )}
-              <div className="tg-links">
+              <div className={cls.tgLinks}>
                 {stageLink(r.images, "before", t)}
                 {stageLink(r.images, "after", t)}
               </div>
-              {r.note && <p className="note">{r.note}</p>}
+              {r.note && <p className={cls.note}>{r.note}</p>}
               {r.status === "failed" && (
-                <div className="report-foot">
-                  <span className="muted small">{r.error}</span>
-                  <span className="muted small">{t("photos.resendUnavailable")}</span>
+                <div className={cls.reportFoot}>
+                  <span className={cls.cx(cls.muted, cls.small)}>{r.error}</span>
+                  <span className={cls.cx(cls.muted, cls.small)}>{t("photos.resendUnavailable")}</span>
                 </div>
               )}
             </Card>

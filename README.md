@@ -108,3 +108,18 @@ Default admin after seeding: `admin@erp.local` / `admin123` (change it).
 - [x] Flutter agent app (clean architecture + BLoC): login, customers, orders, photo reports
 - [ ] Telegram bot webhook (inline approve/reject buttons)
 - [ ] Offline order capture + background sync (mobile)
+
+## Deployment
+
+🚀 **[DEPLOYMENT.md](DEPLOYMENT.md)** (English) · **[DEPLOYMENT.ru.md](DEPLOYMENT.ru.md)**
+(Русский) — deploy the whole stack (PostgreSQL, FastAPI backend, React web admin,
+Flutter mobile app) with Docker Compose: secrets/`.env`, database + volumes, HTTPS
+reverse proxy, mobile builds (`--dart-define`), Telegram setup, backups, and a
+production checklist.
+
+## Правила (Rules)
+
+📖 **[RULES.md](RULES.md)** — полный набор правил системы на русском: жизненный цикл
+заказа, требование фото и «шлюз» доставки, когда агент может отправить фотоотчёт
+(только пока заказ отгружен), хранение фото только в Telegram (альбом + хештеги),
+видимость/доступ, и что именно блокируется.

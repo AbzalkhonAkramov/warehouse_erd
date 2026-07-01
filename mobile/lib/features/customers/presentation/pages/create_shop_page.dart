@@ -115,19 +115,18 @@ class _CreateShopViewState extends State<_CreateShopView> {
                     controller: _address,
                     decoration: InputDecoration(labelText: context.tr('field.address')),
                   ),
-                  const SizedBox(height: 22),
-                  FilledButton(
+                  const SizedBox(height: 24),
+                  FilledButton.icon(
                     onPressed: submitting ? null : _submit,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      child: submitting
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : Text(context.tr('createShop.submit')),
-                    ),
+                    icon: submitting
+                        ? const SizedBox(
+                            height: 18,
+                            width: 18,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Icon(Icons.check),
+                    label: Text(context.tr('createShop.submit')),
                   ),
                 ],
               ),

@@ -6,6 +6,14 @@
 	<string>This app uses the camera to capture before/after photos of shop visits.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>This app needs photo access to attach before/after photos to reports.</string>
+	<!-- Allow plain-HTTP calls to localhost / the local network during development
+	     (e.g. the iOS Simulator talking to the backend on your Mac). Production
+	     uses HTTPS, which is permitted by default and unaffected by this. -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>

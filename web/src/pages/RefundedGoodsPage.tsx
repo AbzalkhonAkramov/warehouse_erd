@@ -1,4 +1,5 @@
 import { useState } from "react";
+import * as cls from "../ui/cls";
 import { useQuery } from "@tanstack/react-query";
 import {
   listCustomers,
@@ -60,15 +61,15 @@ export default function RefundedGoodsPage() {
   }
 
   return (
-    <div className="page">
-      <div className="page-head">
+    <div className={cls.page}>
+      <div className={cls.pageHead}>
         <h1>{t("refunds.title")}</h1>
         <ExcelButton onClick={exportRows} />
       </div>
 
       <Card>
-        <div className="filter-grid">
-          <label className="field">
+        <div className={cls.filterGrid}>
+          <label className={cls.field}>
             <span>{t("refunds.customer")}</span>
             <select
               value={filters.customer_id ?? ""}
@@ -82,7 +83,7 @@ export default function RefundedGoodsPage() {
               ))}
             </select>
           </label>
-          <label className="field">
+          <label className={cls.field}>
             <span>{t("col.agent")}</span>
             <select
               value={filters.agent_id ?? ""}
@@ -96,7 +97,7 @@ export default function RefundedGoodsPage() {
               ))}
             </select>
           </label>
-          <label className="field">
+          <label className={cls.field}>
             <span>{t("col.product")}</span>
             <select
               value={filters.product_id ?? ""}
@@ -110,7 +111,7 @@ export default function RefundedGoodsPage() {
               ))}
             </select>
           </label>
-          <label className="field">
+          <label className={cls.field}>
             <span>{t("refunds.dest")}</span>
             <select
               value={filters.restocked === undefined ? "" : filters.restocked ? "1" : "0"}
@@ -123,7 +124,7 @@ export default function RefundedGoodsPage() {
               <option value="0">{t("refunds.held")}</option>
             </select>
           </label>
-          <label className="field">
+          <label className={cls.field}>
             <span>{t("col.dateFrom")}</span>
             <input
               type="date"
@@ -131,7 +132,7 @@ export default function RefundedGoodsPage() {
               onChange={(e) => set("date_from", e.target.value || undefined)}
             />
           </label>
-          <label className="field">
+          <label className={cls.field}>
             <span>{t("col.dateTo")}</span>
             <input
               type="date"
@@ -148,7 +149,7 @@ export default function RefundedGoodsPage() {
         ) : refunds.error ? (
           <ErrorBox error={refunds.error} />
         ) : refunds.data && refunds.data.length > 0 ? (
-          <table className="table">
+          <table className={cls.table}>
             <thead>
               <tr>
                 <th>{t("col.created")}</th>
@@ -157,8 +158,8 @@ export default function RefundedGoodsPage() {
                 <th>{t("refunds.customer")}</th>
                 <th>{t("col.agent")}</th>
                 <th>{t("orders.deliverer")}</th>
-                <th className="num">{t("col.qty")}</th>
-                <th className="num">{t("refunds.value")}</th>
+                <th className={cls.numCell}>{t("col.qty")}</th>
+                <th className={cls.numCell}>{t("refunds.value")}</th>
                 <th>{t("refunds.dest")}</th>
               </tr>
             </thead>
@@ -166,15 +167,15 @@ export default function RefundedGoodsPage() {
               {refunds.data.map((r) => (
                 <tr key={r.id}>
                   <td>{date(r.created_at)}</td>
-                  <td className="mono">{r.sales_order_id}</td>
+                  <td className={cls.mono}>{r.sales_order_id}</td>
                   <td>{r.product_name ?? `#${r.product_id}`}</td>
                   <td>{r.customer_name ?? `#${r.customer_id}`}</td>
                   <td>{r.agent_name ?? "—"}</td>
                   <td>{r.deliverer ?? "—"}</td>
-                  <td className="num">{qty(r.quantity)}</td>
-                  <td className="num strong">{money(r.value)}</td>
+                  <td className={cls.numCell}>{qty(r.quantity)}</td>
+                  <td className={cls.cx(cls.numCell, cls.strong)}>{money(r.value)}</td>
                   <td>
-                    <span className={`badge badge-${r.restocked ? "green" : "amber"}`}>
+                    <span className={cls.badge[r.restocked ? "green" : "amber"]}>
                       {r.restocked ? t("refunds.restocked") : t("refunds.held")}
                     </span>
                   </td>

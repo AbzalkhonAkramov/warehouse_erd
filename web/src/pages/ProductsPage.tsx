@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from "react";
+import * as cls from "../ui/cls";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import {
@@ -100,10 +101,10 @@ export default function ProductsPage() {
     );
 
   return (
-    <div className="page">
-      <div className="page-head">
+    <div className={cls.page}>
+      <div className={cls.pageHead}>
         <h1>{t("products.title")}</h1>
-        <div className="head-actions">
+        <div className={cls.headActions}>
           <ExcelButton onClick={exportProducts} />
           {canManage && (
             <>
@@ -136,12 +137,12 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      {importMsg && <div className="ok-box">{importMsg}</div>}
-      {importErr && <div className="error-box">{importErr}</div>}
+      {importMsg && <div className={cls.okBox}>{importMsg}</div>}
+      {importErr && <div className={cls.errorBox}>{importErr}</div>}
 
-      <div className="filter-row">
+      <div className={cls.filterRow}>
         <input
-          className="search-input"
+          className={cls.searchInput}
           placeholder={t("products.searchPh")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -152,7 +153,7 @@ export default function ProductsPage() {
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </select>
-        <label className="inline-field">
+        <label className={cls.inlineField}>
           {t("sort.label")}
           <select value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
             <option value="name">{t("sort.nameAsc")}</option>
@@ -168,24 +169,24 @@ export default function ProductsPage() {
       ) : products.error ? (
         <ErrorBox error={products.error} />
       ) : (
-        <div className="product-grid">
+        <div className={cls.productGrid}>
           {view.map((p) => {
             const s = onHand.get(p.id);
             return (
               <Card key={p.id}>
-                <Link to={`/products/${p.id}`} className="product-clickable plain-link">
-                  <div className="product-photo">
+                <Link to={`/products/${p.id}`} className={cls.cx(cls.productClickable, cls.plainLink)}>
+                  <div className={cls.productPhoto}>
                     {p.image_path ? (
                       <img src={uploadUrl(p.image_path)} alt={p.name} />
                     ) : (
-                      <div className="product-photo-empty">{t("products.noImage")}</div>
+                      <div className={cls.productPhotoEmpty}>{t("products.noImage")}</div>
                     )}
                   </div>
-                  <div className="product-sku mono">{p.sku}</div>
-                  <div className="product-name">{p.name}</div>
-                  <div className="product-row">
-                    <span className="product-price">{money(p.sale_price)}</span>
-                    <span className={`product-stock${s?.low ? " warn" : ""}`}>
+                  <div className={cls.cx(cls.productSku, cls.mono)}>{p.sku}</div>
+                  <div className={cls.productName}>{p.name}</div>
+                  <div className={cls.productRow}>
+                    <span className={cls.productPrice}>{money(p.sale_price)}</span>
+                    <span className={s?.low ? cls.productStockWarn : cls.productStock}>
                       {t("col.onHand")}: {s ? qty(s.quantity) : "0"} {p.unit}
                     </span>
                   </div>

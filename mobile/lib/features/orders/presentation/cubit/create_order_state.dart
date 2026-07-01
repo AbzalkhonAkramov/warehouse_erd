@@ -12,6 +12,7 @@ class CreateOrderState extends Equatable {
     this.customerId,
     this.createdOrderId,
     this.createdStatus,
+    this.queued = false,
     this.error,
   });
 
@@ -23,6 +24,7 @@ class CreateOrderState extends Equatable {
   final int? customerId;
   final int? createdOrderId;
   final String? createdStatus; // 'approved' (auto) or 'pending'
+  final bool queued; // saved to the offline outbox instead of sent
   final String? error;
 
   double get total {
@@ -45,6 +47,7 @@ class CreateOrderState extends Equatable {
     int? customerId,
     int? createdOrderId,
     String? createdStatus,
+    bool? queued,
     String? error,
   }) {
     return CreateOrderState(
@@ -56,6 +59,7 @@ class CreateOrderState extends Equatable {
       customerId: customerId ?? this.customerId,
       createdOrderId: createdOrderId ?? this.createdOrderId,
       createdStatus: createdStatus ?? this.createdStatus,
+      queued: queued ?? this.queued,
       error: error,
     );
   }
@@ -70,6 +74,7 @@ class CreateOrderState extends Equatable {
         customerId,
         createdOrderId,
         createdStatus,
+        queued,
         error,
       ];
 }

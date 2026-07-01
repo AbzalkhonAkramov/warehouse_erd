@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'core/di/injection.dart';
+import 'core/settings/settings_cubit.dart';
+import 'core/theme/app_theme.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
 import 'features/auth/presentation/pages/login_page.dart';
 import 'features/home/home_page.dart';
+import 'features/orders/presentation/cubit/outbox_cubit.dart';
 import 'l10n/locale_cubit.dart';
 import 'l10n/messages.dart';
 
@@ -17,6 +20,8 @@ class AgentApp extends StatelessWidget {
       providers: [
         BlocProvider.value(value: sl<AuthBloc>()..add(const AuthCheckRequested())),
         BlocProvider.value(value: sl<LocaleCubit>()..load()),
+        BlocProvider.value(value: sl<SettingsCubit>()..load()),
+        BlocProvider.value(value: sl<OutboxCubit>()..start()),
       ],
       // Rebuild the whole app when the language changes so every `context.tr`
       // (which reads the current locale) re-resolves.
@@ -25,14 +30,7 @@ class AgentApp extends StatelessWidget {
           return MaterialApp(
             title: 'Warehouse ERP — Agent',
             debugShowCheckedModeBanner: false,
-            theme: ThemeData(
-              colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
-              useMaterial3: true,
-              inputDecorationTheme: const InputDecorationTheme(
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-            ),
+            theme: AppTheme.light,
             home: BlocBuilder<AuthBloc, AuthState>(
               builder: (context, state) {
                 switch (state.status) {

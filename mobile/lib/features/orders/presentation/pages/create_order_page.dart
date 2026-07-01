@@ -4,10 +4,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/config.dart';
 import '../../../../core/di/injection.dart';
+import '../../../../core/format.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/state_views.dart';
 import '../../../../l10n/l10n_ext.dart';
 import '../../../customers/domain/entities/customer.dart';
 import '../../../products/domain/entities/product.dart';
 import '../cubit/create_order_cubit.dart';
+import '../cubit/outbox_cubit.dart';
 
 String _fmtQty(double q) =>
     q == q.roundToDouble() ? q.toStringAsFixed(0) : '$q';
@@ -95,10 +99,19 @@ class _CreateOrderView extends StatelessWidget {
       listenWhen: (p, c) => p.status != c.status,
       listener: (context, state) {
         if (state.status == CreateOrderStatus.success) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(context.tr('order.sent', {'id': state.createdOrderId})),
-            backgroundColor: Colors.blueGrey,
-          ));
+          if (state.queued) {
+            // Saved to the offline outbox — tell the agent and update the badge.
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              backgroundColor: AppColors.warning,
+              content: Text(context.tr('order.savedOffline')),
+            ));
+            context.read<OutboxCubit>().refresh();
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(context.tr('order.sent', {'id': state.createdOrderId})),
+              backgroundColor: Colors.blueGrey,
+            ));
+          }
           context.read<CreateOrderCubit>().init();
         } else if (state.status == CreateOrderStatus.error && state.error != null) {
           ScaffoldMessenger.of(context)
@@ -108,7 +121,7 @@ class _CreateOrderView extends StatelessWidget {
       builder: (context, state) {
         if (state.status == CreateOrderStatus.loading ||
             state.status == CreateOrderStatus.initial) {
-          return const Center(child: CircularProgressIndicator());
+          return const LoadingView();
         }
         final cubit = context.read<CreateOrderCubit>();
         final selMatch = state.customers.where((c) => c.id == state.customerId);
@@ -120,15 +133,27 @@ class _CreateOrderView extends StatelessWidget {
 
         return Column(
           children: [
-            ListTile(
-              leading: const Icon(Icons.store_outlined),
-              title: Text(selected ?? context.tr('order.selectCustomer')),
-              trailing: const Icon(Icons.search),
-              onTap: () => _pickCustomer(context, state.customers),
-            ),
-            const Divider(height: 1),
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+              child: Card(
+                child: ListTile(
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                  leading: const CircleAvatar(
+                    backgroundColor: Color(0xFFEEF2FF),
+                    child: Icon(Icons.store_outlined, color: AppColors.brand),
+                  ),
+                  title: Text(selected ?? context.tr('order.selectCustomer'),
+                      style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: selected == null ? AppColors.neutral : null)),
+                  trailing: const Icon(Icons.unfold_more),
+                  onTap: () => _pickCustomer(context, state.customers),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
               child: SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
@@ -140,34 +165,48 @@ class _CreateOrderView extends StatelessWidget {
             ),
             Expanded(
               child: positions.isEmpty
-                  ? Center(child: Text(context.tr('order.noPositions')))
-                  : ListView.separated(
+                  ? EmptyView(
+                      message: context.tr('order.noPositions'),
+                      icon: Icons.add_shopping_cart_outlined,
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
                       itemCount: positions.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
                       itemBuilder: (context, i) {
                         final entry = positions[i];
                         final p = byId[entry.key];
                         if (p == null) return const SizedBox.shrink();
-                        final qty = entry.value;
-                        return ListTile(
-                          leading: _ProductThumb(product: p),
-                          title: Text(p.name),
-                          subtitle: Text(
-                              '${_fmtQty(qty)} × ${p.salePrice.toStringAsFixed(2)} ${p.unit}'),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                (qty * p.salePrice).toStringAsFixed(2),
-                                style: const TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.delete_outline),
-                                onPressed: () => cubit.setQuantity(p.id, 0),
-                              ),
-                            ],
+                        final q = entry.value;
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          child: ListTile(
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16)),
+                            leading: _ProductThumb(product: p),
+                            title: Text(p.name,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w600)),
+                            subtitle: Text(
+                                '${_fmtQty(q)} × ${money(p.salePrice)} ${p.unit}',
+                                style: const TextStyle(
+                                    color: AppColors.neutral, fontSize: 13)),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  money(q * p.salePrice),
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline),
+                                  color: AppColors.danger,
+                                  onPressed: () => cubit.setQuantity(p.id, 0),
+                                ),
+                              ],
+                            ),
+                            onTap: () => _editQty(context, cubit, p, q),
                           ),
-                          onTap: () => _editQty(context, cubit, p, qty),
                         );
                       },
                     ),
@@ -221,7 +260,6 @@ class _CustomerPickerState extends State<_CustomerPicker> {
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.search),
                   hintText: context.tr('order.searchCustomer'),
-                  border: const OutlineInputBorder(),
                 ),
                 onChanged: (v) => setState(() => _q = v),
               ),
@@ -286,7 +324,6 @@ class _ProductPickerState extends State<_ProductPicker> {
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.search),
                   hintText: context.tr('order.searchProduct'),
-                  border: const OutlineInputBorder(),
                 ),
                 onChanged: (v) => setState(() => _q = v),
               ),
@@ -358,29 +395,46 @@ class _SubmitBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                '${context.tr('order.total')}: ${total.toStringAsFixed(2)}',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+    return Material(
+      color: Colors.white,
+      elevation: 8,
+      shadowColor: Colors.black26,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(context.tr('order.total'),
+                        style: const TextStyle(
+                            color: AppColors.neutral, fontSize: 12)),
+                    Text(
+                      money(total),
+                      style: const TextStyle(
+                          fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            FilledButton.icon(
-              onPressed: canSubmit ? onSubmit : null,
-              icon: submitting
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.send),
-              label: Text(context.tr('order.submit')),
-            ),
-          ],
+              FilledButton.icon(
+                onPressed: canSubmit ? onSubmit : null,
+                icon: submitting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.send),
+                label: Text(context.tr('order.submit')),
+              ),
+            ],
+          ),
         ),
       ),
     );

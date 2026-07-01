@@ -1,10 +1,11 @@
 import { LANGS, useI18n, type Lang } from "../i18n";
+import * as cls from "../ui/cls";
 
 export default function LanguageSwitcher() {
   const { lang, setLang } = useI18n();
   return (
     <select
-      className="lang-switcher"
+      className={cls.langSwitcher}
       value={lang}
       onChange={(e) => setLang(e.target.value as Lang)}
       aria-label="Language"

@@ -1,4 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
+import * as cls from "../ui/cls";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -116,13 +117,13 @@ export default function CreateOrderPage() {
   }
 
   return (
-    <div className="page">
+    <div className={cls.page}>
       <h1>{t("createOrder.title")}</h1>
       <Card>
         <form onSubmit={submit}>
-          <div className="form-grid">
+          <div className={cls.formGrid}>
             {canPickAgent && (
-              <label className="field">
+              <label className={cls.field}>
                 <span>{t("createOrder.agent")}</span>
                 <select value={agentId} onChange={(e) => setAgentId(e.target.value)}>
                   <option value="">{t("createOrder.selectAgent")}</option>
@@ -134,7 +135,7 @@ export default function CreateOrderPage() {
                 </select>
               </label>
             )}
-            <label className="field">
+            <label className={cls.field}>
               <span>{t("createOrder.customer")}</span>
               <select value={customerId} onChange={(e) => setCustomerId(e.target.value)} required>
                 <option value="">{t("createOrder.selectCustomer")}</option>
@@ -147,10 +148,10 @@ export default function CreateOrderPage() {
             </label>
           </div>
 
-          <h3 className="section-sub">{t("createOrder.lines")}</h3>
-          <div className="order-line-row">
+          <h3 className={cls.sectionSub}>{t("createOrder.lines")}</h3>
+          <div className={cls.orderLineRow}>
             <input
-              className="grow"
+              className={cls.grow}
               placeholder={t("createOrder.searchProduct")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -165,9 +166,9 @@ export default function CreateOrderPage() {
             </select>
           </div>
           {lines.map((l, i) => (
-            <div className="order-line-row" key={i}>
+            <div className={cls.orderLineRow} key={i}>
               <select
-                className="grow"
+                className={cls.grow}
                 value={l.product_id}
                 onChange={(e) => setLine(i, { product_id: e.target.value })}
               >
@@ -179,7 +180,7 @@ export default function CreateOrderPage() {
                 ))}
               </select>
               <input
-                className="qty-input"
+                className={cls.qtyInput}
                 type="number"
                 min="0"
                 step="0.001"
@@ -195,9 +196,9 @@ export default function CreateOrderPage() {
             {t("createOrder.addLine")}
           </Button>
 
-          <div className="form-grid" style={{ marginTop: "1rem" }}>
+          <div className={cls.formGrid} style={{ marginTop: "1rem" }}>
             {canPickAgent && (
-              <label className="field">
+              <label className={cls.field}>
                 <span>{t("createOrder.discount")}</span>
                 <input
                   type="number"
@@ -207,18 +208,18 @@ export default function CreateOrderPage() {
                 />
               </label>
             )}
-            <label className="field full">
+            <label className={cls.cx(cls.field, cls.fieldFull)}>
               <span>{t("orders.note")}</span>
               <input value={note} onChange={(e) => setNote(e.target.value)} />
             </label>
           </div>
 
-          <p className="order-total">
+          <p className={cls.orderTotal}>
             {t("createOrder.total")}: <strong>{money(total)}</strong>
           </p>
 
           {error && <ErrorBox error={error} />}
-          {ok && <div className="ok-box">{ok}</div>}
+          {ok && <div className={cls.okBox}>{ok}</div>}
           <Button type="submit" disabled={create.isPending}>
             {create.isPending ? t("common.saving") : t("createOrder.submit")}
           </Button>

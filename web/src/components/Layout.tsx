@@ -5,6 +5,7 @@ import { useI18n } from "../i18n";
 import LanguageSwitcher from "./LanguageSwitcher";
 import ChangePasswordModal from "./ChangePasswordModal";
 import type { Role } from "../api/types";
+import * as cls from "../ui/cls";
 
 interface NavItem {
   to: string;
@@ -43,43 +44,45 @@ export default function Layout() {
     return !item.roles || role === "admin" || (role && item.roles.includes(role));
   };
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <div className="brand">📦 {t("brand")}</div>
+    <div className={cls.appShell}>
+      <aside className={cls.sidebar}>
+        <div className={cls.brand}>📦 {t("brand")}</div>
         <nav>
           {NAV.filter(canSee).map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               end={item.end}
-              className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}
+              className={({ isActive }) =>
+                cls.cx(cls.navLink, isActive && cls.navLinkActive)
+              }
             >
               {t(item.labelKey)}
             </NavLink>
           ))}
         </nav>
       </aside>
-      <div className="main">
-        <header className="topbar">
+      <div className={cls.main}>
+        <header className={cls.topbar}>
           <div />
-          <div className="topbar-user">
+          <div className={cls.topbarUser}>
             <LanguageSwitcher />
-            <span className="user-name">{user?.full_name}</span>
-            <span className="user-role">{user?.role}</span>
+            <span className={cls.userName}>{user?.full_name}</span>
+            <span className={cls.userRole}>{user?.role}</span>
             <button
-              className="btn btn-ghost"
+              className={cls.btn.ghost}
               onClick={() => setShowChangePw(true)}
               title={t("common.changePassword")}
             >
               🔑
             </button>
-            <button className="btn btn-ghost" onClick={logout}>
+            <button className={cls.btn.ghost} onClick={logout}>
               {t("common.signOut")}
             </button>
           </div>
         </header>
         {showChangePw && <ChangePasswordModal onClose={() => setShowChangePw(false)} />}
-        <main className="content">
+        <main className={cls.content}>
           <Outlet />
         </main>
       </div>

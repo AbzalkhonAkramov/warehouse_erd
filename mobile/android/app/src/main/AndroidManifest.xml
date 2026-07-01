@@ -1,4 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Required for API calls in release builds; ACCESS_NETWORK_STATE is merged
+         in by the connectivity_plus plugin for offline/online detection. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="agent_app"
         android:name="${applicationName}"

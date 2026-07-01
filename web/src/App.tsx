@@ -32,7 +32,7 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="centered-screen">
+      <div className="flex min-h-screen items-center justify-center">
         <Spinner />
       </div>
     );

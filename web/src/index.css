@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+/* Design tokens (map 1:1 to the old CSS variables) so utilities like
+   bg-brand / border-line / text-muted read cleanly. */
+@theme {
+  --color-brand: #2563eb;
+  --color-brand-dark: #1d4ed8;
+  --color-appbg: #f4f6f9;
+  --color-line: #e3e8ef;
+  --color-ink: #1f2937;
+  --color-muted: #6b7280;
+  --color-sidebar: #0f172a;
+  --color-sidebar-active: #1e293b;
+
+  --radius-card: 10px;
+
+  --shadow-card: 0 1px 3px rgba(16, 24, 40, 0.08), 0 1px 2px rgba(16, 24, 40, 0.04);
+  --shadow-modal: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+@layer base {
+  html,
+  body {
+    margin: 0;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+      Arial, sans-serif;
+    background: var(--color-appbg);
+    color: var(--color-ink);
+    font-size: 14px;
+  }
+}

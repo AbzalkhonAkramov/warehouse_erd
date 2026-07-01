@@ -8,11 +8,14 @@ import 'package:printing/printing.dart';
 
 import '../../../../core/branding.dart';
 import '../../../../core/di/injection.dart';
+import '../../../../core/format.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/state_views.dart';
+import '../../../../core/widgets/status_pill.dart';
 import '../../../../l10n/l10n_ext.dart';
 import '../../../customers/domain/repositories/customer_repository.dart';
 import '../../domain/entities/order.dart';
 import '../../domain/repositories/order_repository.dart';
-import 'orders_page.dart';
 
 class ReceiptPage extends StatefulWidget {
   const ReceiptPage({super.key, required this.orderId});
@@ -185,9 +188,9 @@ class _ReceiptPageState extends State<ReceiptPage> {
             _order == null ? context.tr('receipt.title') : '${context.tr('receipt.title')} · #${_order!.orderNo}'),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const LoadingView()
           : _error != null
-              ? Center(child: Text(_error!))
+              ? ErrorView(message: _error!)
               : _ReceiptBody(order: _order!, customer: _customer, company: _company!),
       bottomNavigationBar: _loading || _error != null
           ? null
@@ -245,9 +248,9 @@ class _ReceiptBody extends StatelessWidget {
               Text(company.name,
                   style: const TextStyle(
                       fontSize: 18, fontWeight: FontWeight.bold)),
-            Chip(
-              label: Text(context.tr('status.${order.status}')),
-              backgroundColor: statusColor(order.status).withValues(alpha: 0.15),
+            StatusPill(
+              label: context.tr('status.${order.status}'),
+              color: AppColors.orderStatus(order.status),
             ),
           ],
         ),
@@ -263,16 +266,16 @@ class _ReceiptBody extends StatelessWidget {
               dense: true,
               contentPadding: EdgeInsets.zero,
               title: Text(l.productName),
-              subtitle: Text(
-                  '${l.quantity.toStringAsFixed(0)} × ${l.unitPrice.toStringAsFixed(2)}'),
-              trailing: Text(l.lineTotal.toStringAsFixed(2)),
+              subtitle: Text('${qty(l.quantity)} × ${money(l.unitPrice)}'),
+              trailing: Text(money(l.lineTotal),
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
             )),
         const Divider(),
-        _row(context.tr('receipt.subtotal'), order.subtotal.toStringAsFixed(2)),
-        _row(context.tr('receipt.discount'), order.discount.toStringAsFixed(2)),
+        _row(context.tr('receipt.subtotal'), money(order.subtotal)),
+        _row(context.tr('receipt.discount'), money(order.discount)),
         Align(
           alignment: Alignment.centerRight,
-          child: Text('${context.tr('order.total')}: ${order.total.toStringAsFixed(2)}',
+          child: Text('${context.tr('order.total')}: ${money(order.total)}',
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         ),
       ],

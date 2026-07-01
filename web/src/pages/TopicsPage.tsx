@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import * as cls from "../ui/cls";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createTopic, discoverUpdates, listTopics, updateTopic } from "../api/endpoints";
 import type { TelegramTopic } from "../api/types";
@@ -51,8 +52,8 @@ export default function TopicsPage() {
   }
 
   return (
-    <div className="page">
-      <div className="page-head">
+    <div className={cls.page}>
+      <div className={cls.pageHead}>
         <h1>{t("topics.title")}</h1>
         <div>
           <Button variant="ghost" onClick={() => setShowDiscover(true)}>
@@ -64,7 +65,7 @@ export default function TopicsPage() {
         </div>
       </div>
 
-      <p className="muted" style={{ marginTop: -8, marginBottom: 16 }}>
+      <p className={cls.muted} style={{ marginTop: -8, marginBottom: 16 }}>
         {t("topics.subtitle")}
       </p>
 
@@ -74,12 +75,12 @@ export default function TopicsPage() {
         ) : topics.error ? (
           <ErrorBox error={topics.error} />
         ) : topics.data && topics.data.length > 0 ? (
-          <table className="table">
+          <table className={cls.table}>
             <thead>
               <tr>
                 <th>{t("col.name")}</th>
-                <th className="num">{t("col.chatId")}</th>
-                <th className="num">{t("col.threadId")}</th>
+                <th className={cls.numCell}>{t("col.chatId")}</th>
+                <th className={cls.numCell}>{t("col.threadId")}</th>
                 <th>{t("col.default")}</th>
                 <th>{t("common.status")}</th>
               </tr>
@@ -88,14 +89,14 @@ export default function TopicsPage() {
               {topics.data.map((topic) => (
                 <tr key={topic.id}>
                   <td>{topic.name}</td>
-                  <td className="num mono">{topic.chat_id}</td>
-                  <td className="num mono">{topic.message_thread_id ?? "—"}</td>
+                  <td className={cls.cx(cls.numCell, cls.mono)}>{topic.chat_id}</td>
+                  <td className={cls.cx(cls.numCell, cls.mono)}>{topic.message_thread_id ?? "—"}</td>
                   <td>
                     {topic.is_default ? (
-                      <span className="badge badge-blue">{t("topics.defaultBadge")}</span>
+                      <span className={cls.badge.blue}>{t("topics.defaultBadge")}</span>
                     ) : (
                       <button
-                        className="chip"
+                        className={cls.chip}
                         onClick={() => toggle.mutate({ id: topic.id, patch: { is_default: true } })}
                       >
                         {t("topics.setDefault")}
@@ -104,7 +105,7 @@ export default function TopicsPage() {
                   </td>
                   <td>
                     <button
-                      className={`chip${topic.is_active ? " active" : ""}`}
+                      className={cls.cx(cls.chip, topic.is_active && cls.chipActive)}
                       onClick={() =>
                         toggle.mutate({ id: topic.id, patch: { is_active: !topic.is_active } })
                       }
@@ -124,7 +125,7 @@ export default function TopicsPage() {
       {creating && (
         <Modal title={t("topics.newTitle")} onClose={() => setCreating(false)}>
           <form onSubmit={submit}>
-            <label className="field">
+            <label className={cls.field}>
               <span>{t("field.topicName")}</span>
               <input
                 value={form.name}
@@ -133,8 +134,8 @@ export default function TopicsPage() {
                 required
               />
             </label>
-            <div className="form-grid">
-              <label className="field">
+            <div className={cls.formGrid}>
+              <label className={cls.field}>
                 <span>{t("field.chatId")}</span>
                 <input
                   value={form.chat_id}
@@ -143,7 +144,7 @@ export default function TopicsPage() {
                   required
                 />
               </label>
-              <label className="field">
+              <label className={cls.field}>
                 <span>{t("field.threadId")}</span>
                 <input
                   value={form.message_thread_id}
@@ -152,7 +153,7 @@ export default function TopicsPage() {
                 />
               </label>
             </div>
-            <label className="checkbox-field">
+            <label className={cls.checkboxField}>
               <input
                 type="checkbox"
                 checked={form.is_default}
@@ -160,8 +161,8 @@ export default function TopicsPage() {
               />
               {t("topics.makeDefault")}
             </label>
-            {formError && <div className="error-box">{formError}</div>}
-            <div className="modal-actions">
+            {formError && <div className={cls.errorBox}>{formError}</div>}
+            <div className={cls.modalActions}>
               <Button type="button" variant="ghost" onClick={() => setCreating(false)}>
                 {t("common.cancel")}
               </Button>
@@ -175,18 +176,18 @@ export default function TopicsPage() {
 
       {showDiscover && (
         <Modal title={t("topics.discoverTitle")} onClose={() => setShowDiscover(false)}>
-          <p className="muted">{t("topics.discoverHelp")}</p>
+          <p className={cls.muted}>{t("topics.discoverHelp")}</p>
           {discover.isLoading ? (
             <Spinner />
           ) : discover.error ? (
             <ErrorBox error={discover.error} />
           ) : discover.data && discover.data.length > 0 ? (
-            <table className="table">
+            <table className={cls.table}>
               <thead>
                 <tr>
                   <th>{t("topics.colChat")}</th>
-                  <th className="num">{t("col.chatId")}</th>
-                  <th className="num">{t("col.threadId")}</th>
+                  <th className={cls.numCell}>{t("col.chatId")}</th>
+                  <th className={cls.numCell}>{t("col.threadId")}</th>
                   <th>{t("topics.colTopicText")}</th>
                 </tr>
               </thead>
@@ -194,8 +195,8 @@ export default function TopicsPage() {
                 {discover.data.map((u, i) => (
                   <tr key={i}>
                     <td>{u.chat_title ?? u.chat_type ?? "—"}</td>
-                    <td className="num mono">{u.chat_id ?? "—"}</td>
-                    <td className="num mono">{u.message_thread_id ?? "—"}</td>
+                    <td className={cls.cx(cls.numCell, cls.mono)}>{u.chat_id ?? "—"}</td>
+                    <td className={cls.cx(cls.numCell, cls.mono)}>{u.message_thread_id ?? "—"}</td>
                     <td>{u.topic_name ?? u.text ?? "—"}</td>
                   </tr>
                 ))}
@@ -204,7 +205,7 @@ export default function TopicsPage() {
           ) : (
             <Empty>{t("topics.noUpdates")}</Empty>
           )}
-          <div className="modal-actions">
+          <div className={cls.modalActions}>
             <Button variant="ghost" onClick={() => discover.refetch()}>
               {t("topics.refresh")}
             </Button>

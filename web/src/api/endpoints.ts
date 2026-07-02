@@ -2,6 +2,8 @@ import { api, downloadFile } from "./client";
 import type {
   ActivityEntry,
   AgentSalesRow,
+  AgentCash,
+  CashRemittance,
   Category,
   CommissionRow,
   Company,
@@ -190,8 +192,25 @@ export interface RefundFilters {
 }
 
 export const getCompany = () => api<Company>("/meta/company");
-export const updateCompany = (body: { name?: string; display_mode?: string }) =>
-  api<Company>("/meta/company", { method: "PATCH", body });
+export const updateCompany = (body: {
+  name?: string;
+  display_mode?: string;
+  cash_handover_mode?: string;
+}) => api<Company>("/meta/company", { method: "PATCH", body });
+
+// --- Cash custody / handovers ---
+export const listAgentsCash = () => api<AgentCash[]>("/cash/agents");
+export const receiveCash = (agent_id: number, amount: string, note?: string) =>
+  api<CashRemittance>("/cash/receive", {
+    method: "POST",
+    body: { agent_id, amount, note },
+  });
+export const listRemittances = (agentId?: number) =>
+  api<CashRemittance[]>(`/cash/remittances${agentId ? `?agent_id=${agentId}` : ""}`);
+export const confirmRemittance = (id: number) =>
+  api<CashRemittance>(`/cash/remittances/${id}/confirm`, { method: "POST" });
+export const rejectRemittance = (id: number) =>
+  api<unknown>(`/cash/remittances/${id}/reject`, { method: "POST" });
 export const uploadCompanyLogo = (file: File) => {
   const form = new FormData();
   form.append("file", file);

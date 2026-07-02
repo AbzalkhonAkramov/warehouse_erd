@@ -5,6 +5,7 @@ import '../../core/theme/app_colors.dart';
 import '../../l10n/l10n_ext.dart';
 import '../../l10n/language_switcher.dart';
 import '../auth/presentation/bloc/auth_bloc.dart';
+import '../cash/presentation/pages/cash_page.dart';
 import '../customers/presentation/pages/customers_page.dart';
 import '../finance/presentation/pages/invoices_page.dart';
 import '../orders/presentation/cubit/outbox_cubit.dart';
@@ -98,6 +99,7 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
+      drawer: _AppDrawer(agentName: agent?.fullName),
       body: Column(
         children: [
           const _OfflineBanner(),
@@ -122,6 +124,74 @@ class _HomePageState extends State<HomePage> {
           NavigationDestination(
               icon: const Icon(Icons.camera_alt_outlined), label: context.tr('tab.photos')),
         ],
+      ),
+    );
+  }
+}
+
+/// Hamburger drawer: quick access to the agent's cash handover page + settings.
+class _AppDrawer extends StatelessWidget {
+  const _AppDrawer({this.agentName});
+
+  final String? agentName;
+
+  @override
+  Widget build(BuildContext context) {
+    return Drawer(
+      child: SafeArea(
+        child: Column(
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(18, 22, 18, 20),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [AppColors.brand, AppColors.brandDark],
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.warehouse_rounded, color: Colors.white, size: 30),
+                  const SizedBox(height: 10),
+                  Text(agentName ?? 'Agent',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.account_balance_wallet_outlined),
+              title: Text(context.tr('cash.drawer')),
+              onTap: () {
+                Navigator.of(context).pop(); // close drawer
+                Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const CashPage()));
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.settings_outlined),
+              title: Text(context.tr('settings.title')),
+              onTap: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const SettingsPage()));
+              },
+            ),
+            const Spacer(),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.logout),
+              title: Text(context.tr('common.signOut')),
+              onTap: () =>
+                  context.read<AuthBloc>().add(const AuthLogoutRequested()),
+            ),
+          ],
+        ),
       ),
     );
   }

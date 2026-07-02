@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/server_url_dialog.dart';
 import '../../../../l10n/l10n_ext.dart';
 import '../../../../l10n/language_switcher.dart';
 import '../bloc/auth_bloc.dart';
@@ -39,11 +40,18 @@ class _LoginPageState extends State<LoginPage> {
       body: SafeArea(
         child: Column(
           children: [
-            const Align(
-              alignment: Alignment.centerRight,
-              child: Padding(
-                padding: EdgeInsets.only(right: 8, top: 4),
-                child: LanguageSwitcher(),
+            Padding(
+              padding: const EdgeInsets.only(right: 8, top: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.dns_outlined),
+                    tooltip: context.tr('server.title'),
+                    onPressed: () => showServerUrlDialog(context),
+                  ),
+                  const LanguageSwitcher(),
+                ],
               ),
             ),
             Expanded(

@@ -39,6 +39,11 @@ import '../../features/finance/data/datasources/finance_remote_data_source.dart'
 import '../../features/finance/data/repositories/finance_repository_impl.dart';
 import '../../features/finance/domain/repositories/finance_repository.dart';
 import '../../features/finance/presentation/cubit/invoices_cubit.dart';
+// Cash custody
+import '../../features/cash/data/datasources/cash_remote_data_source.dart';
+import '../../features/cash/data/repositories/cash_repository_impl.dart';
+import '../../features/cash/domain/repositories/cash_repository.dart';
+import '../../features/cash/presentation/cubit/cash_cubit.dart';
 
 final GetIt sl = GetIt.instance;
 
@@ -87,4 +92,9 @@ void configureDependencies() {
   sl.registerLazySingleton(() => FinanceRemoteDataSource(sl()));
   sl.registerLazySingleton<FinanceRepository>(() => FinanceRepositoryImpl(sl()));
   sl.registerFactory(() => InvoicesCubit(sl(), sl()));
+
+  // Cash custody
+  sl.registerLazySingleton(() => CashRemoteDataSource(sl()));
+  sl.registerLazySingleton<CashRepository>(() => CashRepositoryImpl(sl()));
+  sl.registerFactory(() => CashCubit(sl()));
 }

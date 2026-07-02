@@ -60,3 +60,8 @@ class PhotoReportStatus(str, enum.Enum):
     PENDING = "pending"   # saved, not yet sent to Telegram
     SENT = "sent"         # all images delivered to the topic
     FAILED = "failed"     # Telegram send failed; can be retried
+
+
+class CashRemittanceStatus(str, enum.Enum):
+    PENDING = "pending"    # agent declared a handover, awaiting manager confirmation
+    RECEIVED = "received"  # manager confirmed receipt (money now with manager)

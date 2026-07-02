@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/config.dart';
 import '../../../../core/settings/settings_cubit.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/server_url_dialog.dart';
 import '../../../../l10n/l10n_ext.dart';
 import '../../../../l10n/locale_cubit.dart';
 import '../../../../l10n/messages.dart';
@@ -39,6 +41,18 @@ class SettingsPage extends StatelessWidget {
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          _SectionTitle(context.tr('server.section')),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.dns_outlined),
+              title: Text(context.tr('server.title')),
+              subtitle: Text(AppConfig.baseUrl,
+                  style: const TextStyle(color: AppColors.neutral, fontSize: 12)),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => showServerUrlDialog(context),
             ),
           ),
           const SizedBox(height: 16),

@@ -31,6 +31,10 @@ class ApiClient {
   final Dio _dio;
   final TokenStorage _tokenStorage;
 
+  /// Point the client at a different backend at runtime (after the user edits
+  /// the server URL). New requests use the new base immediately.
+  void setBaseUrl(String url) => _dio.options.baseUrl = url;
+
   Future<dynamic> get(String path, {Map<String, dynamic>? query}) async {
     return _wrap(() => _dio.get(path, queryParameters: query));
   }

@@ -4,7 +4,7 @@ from sqlalchemy import DateTime, Enum, ForeignKey, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
-from app.models.enums import InvoiceStatus, PaymentMethod
+from app.models.enums import CashRemittanceStatus, InvoiceStatus, PaymentMethod
 
 
 class Invoice(Base, TimestampMixin):
@@ -48,3 +48,26 @@ class Payment(Base, TimestampMixin):
     image_path: Mapped[str | None] = mapped_column(String(255))
 
     invoice: Mapped["Invoice"] = relationship(back_populates="payments")
+
+
+class CashRemittance(Base, TimestampMixin):
+    """A handover of collected cash from an agent to a manager.
+
+    The agent's outstanding balance = (all payments they collected) − (remittances
+    received from them). In "agent_submits" mode a row starts PENDING (declared by
+    the agent) and a manager confirms it; in "manager_records" mode the manager
+    creates it already RECEIVED."""
+
+    __tablename__ = "cash_remittances"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    agent_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    amount: Mapped[float] = mapped_column(Numeric(14, 2), nullable=False)
+    status: Mapped[CashRemittanceStatus] = mapped_column(
+        Enum(CashRemittanceStatus), default=CashRemittanceStatus.PENDING, nullable=False
+    )
+    note: Mapped[str | None] = mapped_column(Text)
+    # Who created the row (agent in agent_submits, manager in manager_records).
+    created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    received_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    received_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))

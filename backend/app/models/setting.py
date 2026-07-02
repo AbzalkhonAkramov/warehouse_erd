@@ -14,3 +14,8 @@ class CompanySettings(Base, TimestampMixin):
     logo_path: Mapped[str | None] = mapped_column(String(255))
     # How branding is shown: "text" (name only), "logo" (logo only), "both".
     display_mode: Mapped[str] = mapped_column(String(8), nullable=False, default="both")
+    # Cash handover flow: "manager_records" (manager records what they received) or
+    # "agent_submits" (agent declares a handover, manager confirms). Admin toggles.
+    cash_handover_mode: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="manager_records"
+    )

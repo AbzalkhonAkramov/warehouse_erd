@@ -102,6 +102,28 @@ export interface Company {
   name: string;
   logo_url?: string | null;
   display_mode: "text" | "logo" | "both";
+  cash_handover_mode?: "manager_records" | "agent_submits";
+}
+
+export interface AgentCash {
+  agent_id: number;
+  agent_name: string;
+  collected: Money;
+  received: Money;
+  pending: Money;
+  outstanding: Money;
+}
+
+export interface CashRemittance {
+  id: number;
+  agent_id: number;
+  agent_name?: string | null;
+  amount: Money;
+  status: "pending" | "received";
+  note?: string | null;
+  created_at: string;
+  received_at?: string | null;
+  received_by_name?: string | null;
 }
 
 export interface SalesOrder {

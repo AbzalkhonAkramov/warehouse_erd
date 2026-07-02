@@ -64,8 +64,11 @@ class SalesOrder(Base, TimestampMixin):
     discount: Mapped[float] = mapped_column(Numeric(14, 2), default=0, nullable=False)
     total: Mapped[float] = mapped_column(Numeric(14, 2), default=0, nullable=False)
     note: Mapped[str | None] = mapped_column(Text)
-    # Free-text name of the person who delivers the order (set by a manager).
+    # The person who delivers the order (set by a manager). ``deliverer`` keeps a
+    # display name (for receipts/history); ``deliverer_id`` links a deliverer
+    # account so they can see "my deliveries" and collect cash against them.
     deliverer: Mapped[str | None] = mapped_column(String(200))
+    deliverer_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
     # Finished orders (delivered/cancelled/refund) are archived nightly. Archived
     # orders drop out of the active list; changing their status un-archives them.
     archived: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

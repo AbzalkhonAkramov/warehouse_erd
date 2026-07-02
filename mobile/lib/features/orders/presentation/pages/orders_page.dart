@@ -8,6 +8,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/state_views.dart';
 import '../../../../core/widgets/status_pill.dart';
 import '../../../../l10n/l10n_ext.dart';
+import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../photo_report/presentation/pages/photo_report_page.dart';
 import '../../domain/entities/order.dart';
 import '../../domain/entities/pending_order.dart';
@@ -153,6 +154,9 @@ class _OrderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final df = DateFormat('d MMM, HH:mm');
+    // Only deliverers attach before/after photos (agents view read-only).
+    final isDeliverer =
+        context.select((AuthBloc b) => b.state.agent?.role) == 'deliverer';
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       child: InkWell(
@@ -183,11 +187,30 @@ class _OrderCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${customer ?? '#${order.customerId}'} · ${df.format(order.createdAt)}',
+                      '${order.customerName ?? customer ?? '#${order.customerId}'} · ${df.format(order.createdAt)}',
                       style: const TextStyle(
                           color: AppColors.neutral, fontSize: 13),
                       overflow: TextOverflow.ellipsis,
                     ),
+                    // Deliverers see where to deliver (market address).
+                    if (isDeliverer &&
+                        (order.customerAddress?.isNotEmpty ?? false))
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.location_on_outlined,
+                                size: 14, color: AppColors.neutral),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(order.customerAddress!,
+                                  style: const TextStyle(
+                                      color: AppColors.neutral, fontSize: 12),
+                                  overflow: TextOverflow.ellipsis),
+                            ),
+                          ],
+                        ),
+                      ),
                     if (order.shipped)
                       Padding(
                         padding: const EdgeInsets.only(top: 6),
@@ -214,7 +237,7 @@ class _OrderCard extends StatelessWidget {
                   Text(money(order.total),
                       style: const TextStyle(
                           fontWeight: FontWeight.bold, fontSize: 15)),
-                  if (_canAttachPhoto)
+                  if (_canAttachPhoto && isDeliverer)
                     Padding(
                       padding: const EdgeInsets.only(top: 2),
                       child: IconButton(

@@ -5,14 +5,11 @@ import '../../core/theme/app_colors.dart';
 import '../../l10n/l10n_ext.dart';
 import '../../l10n/language_switcher.dart';
 import '../auth/presentation/bloc/auth_bloc.dart';
-import '../cash/presentation/pages/cash_page.dart';
 import '../customers/presentation/pages/customers_page.dart';
-import '../finance/presentation/pages/invoices_page.dart';
 import '../orders/presentation/cubit/outbox_cubit.dart';
 import '../orders/presentation/pages/create_order_page.dart';
 import '../orders/presentation/pages/orders_page.dart';
 import '../products/presentation/pages/catalog_page.dart';
-import '../photo_report/presentation/pages/photo_report_page.dart';
 import '../settings/presentation/pages/settings_page.dart';
 
 class HomePage extends StatefulWidget {
@@ -29,9 +26,7 @@ class _HomePageState extends State<HomePage> {
     CustomersPage(),
     CreateOrderPage(),
     OrdersPage(),
-    InvoicesPage(),
     CatalogPage(),
-    PhotoReportPage(),
   ];
 
   @override
@@ -41,9 +36,7 @@ class _HomePageState extends State<HomePage> {
       context.tr('home.customers'),
       context.tr('home.order'),
       context.tr('home.orders'),
-      context.tr('home.finance'),
       context.tr('home.catalog'),
-      context.tr('home.photos'),
     ];
     return Scaffold(
       appBar: AppBar(
@@ -117,12 +110,7 @@ class _HomePageState extends State<HomePage> {
           NavigationDestination(
               icon: const Icon(Icons.receipt_long_outlined), label: context.tr('tab.orders')),
           NavigationDestination(
-              icon: const Icon(Icons.account_balance_wallet_outlined),
-              label: context.tr('tab.finance')),
-          NavigationDestination(
               icon: const Icon(Icons.inventory_2_outlined), label: context.tr('tab.catalog')),
-          NavigationDestination(
-              icon: const Icon(Icons.camera_alt_outlined), label: context.tr('tab.photos')),
         ],
       ),
     );
@@ -163,15 +151,6 @@ class _AppDrawer extends StatelessWidget {
                           fontWeight: FontWeight.bold)),
                 ],
               ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.account_balance_wallet_outlined),
-              title: Text(context.tr('cash.drawer')),
-              onTap: () {
-                Navigator.of(context).pop(); // close drawer
-                Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const CashPage()));
-              },
             ),
             ListTile(
               leading: const Icon(Icons.settings_outlined),

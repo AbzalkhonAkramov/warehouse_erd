@@ -32,10 +32,15 @@ async def list_invoices(
     user: User = Depends(get_current_user),
 ) -> list[Invoice]:
     stmt = select(Invoice).order_by(Invoice.id.desc())
-    # Agents only see invoices for their own orders.
+    # Agents see invoices for their own orders; deliverers for orders assigned to
+    # them (so they can collect payment on delivery).
     if user.role == UserRole.AGENT:
         stmt = stmt.join(SalesOrder, SalesOrder.id == Invoice.sales_order_id).where(
             SalesOrder.agent_id == user.id
+        )
+    elif user.role == UserRole.DELIVERER:
+        stmt = stmt.join(SalesOrder, SalesOrder.id == Invoice.sales_order_id).where(
+            SalesOrder.deliverer_id == user.id
         )
     return list(await db.scalars(stmt))
 
@@ -59,9 +64,10 @@ async def get_invoice(
     if invoice is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Invoice not found")
 
-    if user.role == UserRole.AGENT:
+    if user.role in (UserRole.AGENT, UserRole.DELIVERER):
         order = await db.get(SalesOrder, invoice.sales_order_id)
-        if order is None or order.agent_id != user.id:
+        owner = order.agent_id if user.role == UserRole.AGENT else order.deliverer_id
+        if order is None or owner != user.id:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Invoice not found")
 
     # Resolve collector names so the UI doesn't need a separate users query.

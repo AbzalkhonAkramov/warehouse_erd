@@ -4,6 +4,10 @@ An ERP for a **single-warehouse distribution business** where **field sales agen
 visit shops, take orders on a mobile app, and **managers** approve them. The system
 tracks inventory, sales orders, customer debt, and reports — with Telegram notifications.
 
+> 📚 **[DOCUMENTATION.md](DOCUMENTATION.md)** — full project documentation: what it
+> does, architecture, **ERD diagrams**, all business **workflows**, the complete
+> feature set, API surface, and repo layout.
+>
 > 📖 **[docs/WORKFLOW.md](docs/WORKFLOW.md)** — how the whole process works end to end
 > (roles, the order lifecycle, agent/manager/warehouse/finance flows, photo reporting,
 > permissions matrix).

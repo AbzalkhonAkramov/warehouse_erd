@@ -27,6 +27,8 @@ class SalesOrderUpdate(BaseModel):
     """Manager-only edit of an order's deliverer / note (not the status)."""
 
     deliverer: str | None = None
+    # Assign a deliverer account (its name is copied into `deliverer`).
+    deliverer_id: int | None = None
     note: str | None = None
     # Manager waive/require before-after photos for this single order.
     photo_required: bool | None = None
@@ -63,6 +65,9 @@ class SalesOrderOut(BaseModel):
     order_no: str | None = None
     invoice_number: str | None = None
     customer_id: int
+    # Market (shop) the goods go to — so a deliverer sees where to deliver.
+    customer_name: str | None = None
+    customer_address: str | None = None
     agent_id: int
     agent_name: str | None = None
     created_by_id: int | None
@@ -75,6 +80,7 @@ class SalesOrderOut(BaseModel):
     total: Decimal
     note: str | None
     deliverer: str | None
+    deliverer_id: int | None = None
     archived: bool
     photo_required: bool = True
     # Whether the agent is flagged "important" (photos matter for their orders).

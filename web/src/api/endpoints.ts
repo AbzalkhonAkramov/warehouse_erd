@@ -168,6 +168,7 @@ export interface CreateOrderInput {
 }
 export interface UpdateOrderInput {
   deliverer?: string;
+  deliverer_id?: number;
   note?: string;
   photo_required?: boolean;
 }

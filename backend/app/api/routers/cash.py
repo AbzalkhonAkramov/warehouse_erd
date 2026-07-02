@@ -84,9 +84,14 @@ async def agents_cash(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(require_roles(UserRole.MANAGER, UserRole.ACCOUNTANT)),
 ) -> list[AgentCashOut]:
-    """Every agent's cash position (for the manager's 'receive money' page)."""
+    """Cash position of everyone who collects money — agents and deliverers
+    (for the manager's 'receive money' page)."""
     agents = list(
-        await db.scalars(select(User).where(User.role == UserRole.AGENT).order_by(User.full_name))
+        await db.scalars(
+            select(User)
+            .where(User.role.in_([UserRole.AGENT, UserRole.DELIVERER]))
+            .order_by(User.full_name)
+        )
     )
     out: list[AgentCashOut] = []
     for a in agents:
@@ -142,8 +147,8 @@ async def receive_cash(
 ) -> RemittanceOut:
     """Manager records cash received from an agent (reduces the agent's balance)."""
     agent = await db.get(User, data.agent_id)
-    if agent is None or agent.role != UserRole.AGENT:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Agent not found")
+    if agent is None or agent.role not in (UserRole.AGENT, UserRole.DELIVERER):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Collector not found")
     t = await _totals(db, agent.id)
     if Decimal(data.amount) > t["available"]:
         raise HTTPException(

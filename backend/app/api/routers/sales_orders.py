@@ -66,27 +66,32 @@ async def list_orders(
     owner = aliased(User)
     creator = aliased(User)
     stmt = (
-        select(SalesOrder, owner.full_name, creator.full_name)
+        select(SalesOrder, owner.full_name, creator.full_name, Customer.name, Customer.address)
         .outerjoin(owner, owner.id == SalesOrder.agent_id)
         .outerjoin(creator, creator.id == SalesOrder.created_by_id)
+        .outerjoin(Customer, Customer.id == SalesOrder.customer_id)
         .options(selectinload(SalesOrder.lines))
         .where(SalesOrder.archived.is_(archived))
         .order_by(SalesOrder.id.desc())
     )
-    # Agents only ever see their own orders; managers/admins see everyone's, with
-    # the owner and creator name attached.
+    # Agents only ever see their own orders; deliverers only see orders assigned
+    # to them; managers/admins see everyone's.
     if user.role == UserRole.AGENT:
         stmt = stmt.where(SalesOrder.agent_id == user.id)
+    elif user.role == UserRole.DELIVERER:
+        stmt = stmt.where(SalesOrder.deliverer_id == user.id)
     if status_filter is not None:
         stmt = stmt.where(SalesOrder.status == status_filter)
 
     fork_no = _order_nos(await _parent_chain(db))
 
     out: list[SalesOrderOut] = []
-    for order, owner_name, creator_name in (await db.execute(stmt)).all():
+    for order, owner_name, creator_name, cust_name, cust_addr in (await db.execute(stmt)).all():
         row = SalesOrderOut.model_validate(order)
         row.agent_name = owner_name
         row.created_by_name = creator_name
+        row.customer_name = cust_name
+        row.customer_address = cust_addr
         row.order_no = fork_no.get(order.id, str(order.id))
         out.append(row)
     return out
@@ -193,6 +198,8 @@ async def get_order(
     order, owner_name, creator_name = row
     if user.role == UserRole.AGENT and order.agent_id != user.id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Not your order")
+    if user.role == UserRole.DELIVERER and order.deliverer_id != user.id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not your delivery")
 
     fork_no = _order_nos(await _parent_chain(db))
     invoice = await db.scalar(select(Invoice.number).where(Invoice.sales_order_id == order.id))
@@ -210,9 +217,13 @@ async def get_order(
         select(User.photo_required).where(User.id == order.agent_id)
     )
 
+    customer = await db.get(Customer, order.customer_id)
+
     out = SalesOrderOut.model_validate(order)
     out.agent_name = owner_name
     out.created_by_name = creator_name
+    out.customer_name = customer.name if customer else None
+    out.customer_address = customer.address if customer else None
     out.order_no = fork_no.get(order.id, str(order.id))
     out.invoice_number = invoice
     out.agent_photo_required = bool(agent_important)

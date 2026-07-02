@@ -1,7 +1,13 @@
 // Decimal fields are serialised as strings by the backend (Pydantic).
 export type Money = string;
 
-export type Role = "admin" | "manager" | "agent" | "warehouse" | "accountant";
+export type Role =
+  | "admin"
+  | "manager"
+  | "agent"
+  | "warehouse"
+  | "accountant"
+  | "deliverer";
 
 export interface User {
   id: number;
@@ -143,6 +149,7 @@ export interface SalesOrder {
   total: Money;
   note?: string | null;
   deliverer?: string | null;
+  deliverer_id?: number | null;
   archived: boolean;
   /** Manager per-order switch: require before/after photos for this order. */
   photo_required?: boolean;

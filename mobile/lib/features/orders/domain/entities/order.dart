@@ -29,6 +29,8 @@ class Order extends Equatable {
     required this.discount,
     required this.total,
     required this.createdAt,
+    this.customerName,
+    this.customerAddress,
     this.deliverer,
     this.invoiceNumber,
     this.lines = const [],
@@ -38,6 +40,8 @@ class Order extends Equatable {
   final String orderNo;
   final String status; // new | shipped | delivered | refund | cancelled
   final int customerId;
+  final String? customerName; // market (shop) name
+  final String? customerAddress; // where to deliver
   final double subtotal;
   final double discount;
   final double total;

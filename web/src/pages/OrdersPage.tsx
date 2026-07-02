@@ -55,7 +55,7 @@ export default function OrdersPage() {
 
   const [filter, setFilter] = useState("new");
   const [expanded, setExpanded] = useState<number | null>(null);
-  const [editDeliverer, setEditDeliverer] = useState("");
+  const [editDelivererId, setEditDelivererId] = useState<number | "">("");
   const [moveSel, setMoveSel] = useState<SalesOrderStatus>("shipped");
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -74,6 +74,10 @@ export default function OrdersPage() {
   });
   const customers = useQuery({ queryKey: ["customers"], queryFn: listCustomers });
   const agents = useQuery({ queryKey: ["users", "agent"], queryFn: () => listUsers("agent") });
+  const deliverers = useQuery({
+    queryKey: ["users", "deliverer"],
+    queryFn: () => listUsers("deliverer"),
+  });
   const products = useQuery({ queryKey: ["products"], queryFn: listProducts });
 
   // Full detail (incl. pinned before/after photos) for the expanded order only.
@@ -102,7 +106,7 @@ export default function OrdersPage() {
   function openRow(o: SalesOrder) {
     if (expanded === o.id) return setExpanded(null);
     setExpanded(o.id);
-    setEditDeliverer(o.deliverer ?? "");
+    setEditDelivererId(o.deliverer_id ?? "");
     setMoveSel("shipped");
     setActionError(null);
   }
@@ -116,7 +120,8 @@ export default function OrdersPage() {
     setActionError(e instanceof Error ? e.message : t("common.somethingWrong"));
 
   const saveDeliverer = useMutation({
-    mutationFn: (o: SalesOrder) => updateOrder(o.id, { deliverer: editDeliverer }),
+    mutationFn: (o: SalesOrder) =>
+      updateOrder(o.id, { deliverer_id: editDelivererId === "" ? undefined : editDelivererId }),
     onSuccess: refresh,
     onError,
   });
@@ -366,16 +371,22 @@ export default function OrdersPage() {
                             <div className={cls.orderEditor} onClick={(e) => e.stopPropagation()}>
                               <label className={cls.field}>
                                 <span>{t("orders.deliWho")}</span>
-                                <input
-                                  value={editDeliverer}
+                                <select
+                                  value={editDelivererId}
                                   disabled={o.status !== "new"}
-                                  onChange={(e) => setEditDeliverer(e.target.value)}
-                                  placeholder={
-                                    o.status === "new"
-                                      ? t("orders.deliPlaceholder")
-                                      : t("orders.deliLocked")
+                                  onChange={(e) =>
+                                    setEditDelivererId(
+                                      e.target.value === "" ? "" : Number(e.target.value),
+                                    )
                                   }
-                                />
+                                >
+                                  <option value="">{t("orders.deliPlaceholder")}</option>
+                                  {deliverers.data?.map((d) => (
+                                    <option key={d.id} value={d.id}>
+                                      {d.full_name}
+                                    </option>
+                                  ))}
+                                </select>
                               </label>
                               <Button
                                 variant="ghost"

@@ -197,7 +197,20 @@ async def update_order(
     while the order is still NEW; status changes go through move_order()."""
     order = await _get_order_with_lines(db, order_id)
 
-    if data.deliverer is not None and data.deliverer != (order.deliverer or ""):
+    # Assign a deliverer account (preferred) — copies the account's name into the
+    # display field so receipts/history keep showing a name.
+    if data.deliverer_id is not None and data.deliverer_id != order.deliverer_id:
+        if order.status != SalesOrderStatus.NEW:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                "The deliverer can only be edited while the order is New",
+            )
+        deliverer = await db.get(User, data.deliverer_id)
+        if deliverer is None or deliverer.role != UserRole.DELIVERER:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid deliverer")
+        order.deliverer_id = deliverer.id
+        order.deliverer = deliverer.full_name
+    elif data.deliverer is not None and data.deliverer != (order.deliverer or ""):
         if order.status != SalesOrderStatus.NEW:
             raise HTTPException(
                 status.HTTP_409_CONFLICT,

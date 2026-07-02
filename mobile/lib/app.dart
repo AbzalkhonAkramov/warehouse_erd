@@ -7,6 +7,7 @@ import 'core/theme/app_theme.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
 import 'features/auth/presentation/pages/login_page.dart';
 import 'features/home/home_page.dart';
+import 'features/home/deliverer_home_page.dart';
 import 'features/orders/presentation/cubit/outbox_cubit.dart';
 import 'l10n/locale_cubit.dart';
 import 'l10n/messages.dart';
@@ -35,7 +36,10 @@ class AgentApp extends StatelessWidget {
               builder: (context, state) {
                 switch (state.status) {
                   case AuthStatus.authenticated:
-                    return const HomePage();
+                    // Deliverers get their own app; everyone else the agent app.
+                    return state.agent?.role == 'deliverer'
+                        ? const DelivererHomePage()
+                        : const HomePage();
                   case AuthStatus.initial:
                   case AuthStatus.loading:
                     return const Scaffold(

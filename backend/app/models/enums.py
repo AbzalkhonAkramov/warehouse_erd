@@ -7,6 +7,7 @@ class UserRole(str, enum.Enum):
     AGENT = "agent"
     WAREHOUSE = "warehouse"
     ACCOUNTANT = "accountant"
+    DELIVERER = "deliverer"
 
 
 class SalesOrderStatus(str, enum.Enum):

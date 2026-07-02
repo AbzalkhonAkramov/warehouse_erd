@@ -7,7 +7,7 @@ import { useAuth } from "../auth/AuthContext";
 import { useI18n } from "../i18n";
 import { Button, Card, Empty, ErrorBox, Modal, Spinner } from "../components/ui";
 
-const ROLES: Role[] = ["admin", "manager", "accountant", "warehouse", "agent"];
+const ROLES: Role[] = ["admin", "manager", "accountant", "warehouse", "agent", "deliverer"];
 
 export default function AccountsPage() {
   const { t } = useI18n();

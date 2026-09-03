@@ -15,6 +15,8 @@ class CustomerBase(BaseModel):
     phone: str | None = None
     address: str | None = None
     city: str | None = None
+    # Comma-separated weekday codes the agent may visit, e.g. "mon,wed,fri".
+    visit_days: str | None = None
     latitude: Decimal | None = None
     longitude: Decimal | None = None
     credit_limit: Decimal = Decimal("0")
@@ -31,6 +33,7 @@ class CustomerUpdate(BaseModel):
     phone: str | None = None
     address: str | None = None
     city: str | None = None
+    visit_days: str | None = None
     latitude: Decimal | None = None
     longitude: Decimal | None = None
     credit_limit: Decimal | None = None
@@ -47,6 +50,12 @@ class CustomerOut(CustomerBase):
     agents: list[AgentBrief] = []
     # Convenience: ids only, so the web doesn't have to map.
     agent_ids: list[int] = []
+
+
+class VisitDaysUpdate(BaseModel):
+    """Set the days an agent may visit a market (comma-separated weekday codes)."""
+
+    visit_days: str | None = None
 
 
 class AgentShopsUpdate(BaseModel):

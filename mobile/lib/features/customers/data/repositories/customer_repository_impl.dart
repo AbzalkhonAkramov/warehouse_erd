@@ -21,6 +21,7 @@ class CustomerRepositoryImpl implements CustomerRepository {
     String? address,
     String? city,
     int? regionId,
+    List<String> visitDays = const [],
   }) =>
       _remote.createCustomer(
         name: name,
@@ -28,5 +29,10 @@ class CustomerRepositoryImpl implements CustomerRepository {
         address: address,
         city: city,
         regionId: regionId,
+        visitDays: visitDays,
       );
+
+  @override
+  Future<Customer> updateVisitDays(int id, List<String> days) =>
+      _remote.updateVisitDays(id, days);
 }

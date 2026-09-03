@@ -66,3 +66,9 @@ class PhotoReportStatus(str, enum.Enum):
 class CashRemittanceStatus(str, enum.Enum):
     PENDING = "pending"    # agent declared a handover, awaiting manager confirmation
     RECEIVED = "received"  # manager confirmed receipt (money now with manager)
+
+
+class ReturnRequestStatus(str, enum.Enum):
+    PENDING = "pending"    # agent submitted a product return, awaiting manager
+    APPROVED = "approved"  # manager approved -> refund applied (debt cut, restock/hold)
+    REJECTED = "rejected"  # manager declined

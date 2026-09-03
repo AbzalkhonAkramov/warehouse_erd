@@ -51,6 +51,10 @@ class ApiClient {
     );
   }
 
+  Future<dynamic> patch(String path, {Object? data}) async {
+    return _wrap(() => _dio.patch(path, data: data));
+  }
+
   Future<dynamic> postMultipart(String path, FormData data) async {
     return _wrap(() => _dio.post(path, data: data));
   }

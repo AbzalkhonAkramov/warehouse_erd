@@ -31,7 +31,10 @@ const EMPTY_SHOP = {
   region_id: "",
   credit_limit: "0",
   agent_id: "",
+  visit_days: "",
 };
+
+const WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
 export default function CreatePage() {
   const { t } = useI18n();
@@ -269,6 +272,7 @@ function ShopForm({ showAgentPicker }: { showAgentPicker: boolean }) {
         city: form.city || undefined,
         region_id: form.region_id ? Number(form.region_id) : null,
         credit_limit: form.credit_limit,
+        visit_days: form.visit_days || null,
         agent_ids: form.agent_id ? [Number(form.agent_id)] : undefined,
       }),
     onSuccess: (shop) => {
@@ -288,6 +292,12 @@ function ShopForm({ showAgentPicker }: { showAgentPicker: boolean }) {
 
   const agentName = agents.data?.find((a) => String(a.id) === form.agent_id)?.full_name;
   const regionName = regions.data?.find((r) => String(r.id) === form.region_id)?.name;
+
+  const days = new Set(form.visit_days.split(",").filter(Boolean));
+  const toggleDay = (d: string) => {
+    days.has(d) ? days.delete(d) : days.add(d);
+    setForm({ ...form, visit_days: WEEKDAYS.filter((x) => days.has(x)).join(",") });
+  };
 
   return (
     <Card title={t("create.shopSection")}>
@@ -343,6 +353,21 @@ function ShopForm({ showAgentPicker }: { showAgentPicker: boolean }) {
             <input type="number" step="0.01" value={form.credit_limit}
               onChange={(e) => setForm({ ...form, credit_limit: e.target.value })} />
           </label>
+          <div className={cls.cx(cls.field, cls.fieldFull)}>
+            <span>{t("customers.visitDays")}</span>
+            <div className={cls.filterRow}>
+              {WEEKDAYS.map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  className={cls.cx(cls.chip, days.has(d) && cls.chipActive)}
+                  onClick={() => toggleDay(d)}
+                >
+                  {t(`day.${d}`)}
+                </button>
+              ))}
+            </div>
+          </div>
           {showAgentPicker && (
             <label className={cls.field}>
               <span>{t("field.assignedAgent")}</span>

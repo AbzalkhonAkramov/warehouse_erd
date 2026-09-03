@@ -15,6 +15,7 @@ from app.api.routers import (
     purchasing,
     regions,
     reports,
+    returns,
     sales_orders,
     telegram_topics,
     users,
@@ -33,6 +34,7 @@ api_router.include_router(purchasing.router)
 api_router.include_router(sales_orders.router)
 api_router.include_router(finance.router)
 api_router.include_router(cash.router)
+api_router.include_router(returns.router)
 api_router.include_router(agents.router)
 api_router.include_router(telegram_topics.router)
 api_router.include_router(photo_reports.router)

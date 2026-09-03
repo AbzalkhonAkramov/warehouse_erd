@@ -15,6 +15,7 @@ from app.schemas.customer import (
     CustomerCreate,
     CustomerOut,
     CustomerUpdate,
+    VisitDaysUpdate,
 )
 
 router = APIRouter(prefix="/customers", tags=["customers"])
@@ -123,5 +124,19 @@ async def update_customer(
         customer.agents = list(
             await db.scalars(select(User).where(User.id.in_(set(data.agent_ids))))
         )
+    await db.flush()
+    return _to_out(await _load(db, customer.id))
+
+
+@router.patch("/{customer_id}/visit-days", response_model=CustomerOut)
+async def update_visit_days(
+    customer_id: int,
+    data: VisitDaysUpdate,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_roles(UserRole.MANAGER)),
+) -> CustomerOut:
+    """Set the market's visit days. Managers/admins only (agents see it read‑only)."""
+    customer = await _load(db, customer_id)
+    customer.visit_days = data.visit_days
     await db.flush()
     return _to_out(await _load(db, customer.id))

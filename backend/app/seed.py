@@ -110,8 +110,14 @@ async def seed() -> None:
                 "credit_limit": Decimal("1000"),
             },
         )
-        corner.agents = [agent]
-        mini.agents = [agent]
+        # Assigning a many-to-many relationship on a persistent row forces
+        # SQLAlchemy to load the current collection; under async that lazy load
+        # raises MissingGreenlet, so refresh it explicitly first, then append
+        # idempotently (keeps re-seeding an existing DB safe).
+        for shop in (corner, mini):
+            await db.refresh(shop, attribute_names=["agents"])
+            if agent not in shop.agents:
+                shop.agents.append(agent)
 
         await db.commit()
 

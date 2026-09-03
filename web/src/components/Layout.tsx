@@ -19,6 +19,7 @@ const NAV: NavItem[] = [
   { to: "/", labelKey: "nav.dashboard", end: true, exclude: ["agent"] },
   { to: "/orders", labelKey: "nav.orders" },
   { to: "/orders/new", labelKey: "nav.createOrder" },
+  { to: "/returns", labelKey: "nav.returns", roles: ["manager", "accountant"] },
   { to: "/refunds", labelKey: "nav.refunds", roles: ["manager", "accountant"] },
   { to: "/order-history", labelKey: "nav.history", roles: ["manager", "accountant"] },
   { to: "/create", labelKey: "nav.create" },

@@ -20,7 +20,7 @@ class CreateOrderCubit extends Cubit<CreateOrderState> {
   final ProductRepository _products;
   final CustomerRepository _customers;
 
-  Future<void> init() async {
+  Future<void> init({int? initialCustomerId}) async {
     emit(state.copyWith(status: CreateOrderStatus.loading));
     try {
       final products = await _products.fetchProducts();
@@ -31,6 +31,8 @@ class CreateOrderCubit extends Cubit<CreateOrderState> {
         products: products,
         customers: customers,
         categories: categories,
+        // Preselect the market when opened from its profile.
+        customerId: initialCustomerId ?? state.customerId,
       ));
     } on ApiException catch (e) {
       emit(state.copyWith(status: CreateOrderStatus.error, error: e.message));

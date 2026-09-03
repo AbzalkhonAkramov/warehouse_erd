@@ -14,6 +14,8 @@ import { useAuth } from "../auth/AuthContext";
 import { useI18n } from "../i18n";
 import { money } from "../lib/format";
 
+const WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+
 export default function CustomerDetailPage() {
   const { id } = useParams();
   const cid = Number(id);
@@ -35,6 +37,7 @@ export default function CustomerDetailPage() {
     region_id: "",
   });
   const [agentIds, setAgentIds] = useState<Set<number>>(new Set());
+  const [visitDays, setVisitDays] = useState<Set<string>>(new Set());
   const [newRegion, setNewRegion] = useState("");
   const [ok, setOk] = useState(false);
   const [seeded, setSeeded] = useState(false);
@@ -51,6 +54,9 @@ export default function CustomerDetailPage() {
         region_id: c.region_id ? String(c.region_id) : "",
       });
       setAgentIds(new Set(c.agent_ids ?? []));
+      setVisitDays(
+        new Set((c.visit_days ?? "").split(",").map((d) => d.trim()).filter(Boolean)),
+      );
       setSeeded(true);
     }
   }, [customer.data, seeded]);
@@ -71,6 +77,7 @@ export default function CustomerDetailPage() {
         phone: form.phone || undefined,
         address: form.address || undefined,
         city: form.city || undefined,
+        visit_days: WEEKDAYS.filter((d) => visitDays.has(d)).join(",") || null,
         credit_limit: form.credit_limit,
         region_id: form.region_id ? Number(form.region_id) : null,
         agent_ids: [...agentIds],
@@ -87,6 +94,14 @@ export default function CustomerDetailPage() {
     setAgentIds((prev) => {
       const next = new Set(prev);
       next.has(aid) ? next.delete(aid) : next.add(aid);
+      return next;
+    });
+  }
+
+  function toggleDay(day: string) {
+    setVisitDays((prev) => {
+      const next = new Set(prev);
+      next.has(day) ? next.delete(day) : next.add(day);
       return next;
     });
   }
@@ -156,6 +171,21 @@ export default function CustomerDetailPage() {
               </div>
             </label>
           )}
+        </div>
+
+        <h3 className={cls.sectionSub}>{t("customers.visitDays")}</h3>
+        <div className={cls.filterRow}>
+          {WEEKDAYS.map((d) => (
+            <button
+              key={d}
+              type="button"
+              disabled={!canEdit}
+              className={cls.cx(cls.chip, visitDays.has(d) && cls.chipActive)}
+              onClick={() => toggleDay(d)}
+            >
+              {t(`day.${d}`)}
+            </button>
+          ))}
         </div>
 
         <h3 className={cls.sectionSub}>{t("customers.agents")}</h3>

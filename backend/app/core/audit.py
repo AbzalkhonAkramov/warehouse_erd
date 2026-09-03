@@ -80,6 +80,13 @@ def action_label(method: str, path: str) -> str:
         return method
     resource, last = seg[0], seg[-1]
 
+    if resource == "returns":
+        if last == "approve":
+            return "Approved product return"
+        if last == "reject":
+            return "Rejected product return"
+        if method == "POST":
+            return "Submitted product return"
     if resource == "cash":
         if last == "receive":
             return "Received cash from agent"

@@ -5,7 +5,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.associations import customer_agents
 from app.models.base import Base, TimestampMixin
-from app.models.enums import SalesOrderStatus
+from app.models.enums import ReturnRequestStatus, SalesOrderStatus
 
 
 class Region(Base, TimestampMixin):
@@ -30,6 +30,9 @@ class Customer(Base, TimestampMixin):
     phone: Mapped[str | None] = mapped_column(String(32))
     address: Mapped[str | None] = mapped_column(Text)
     city: Mapped[str | None] = mapped_column(String(120))
+    # Days the agent may visit this market — comma-separated codes,
+    # e.g. "mon,wed,fri" (empty/null = any day).
+    visit_days: Mapped[str | None] = mapped_column(String(64))
     # Geolocation of the shop (for the agent's route map).
     latitude: Mapped[float | None] = mapped_column(Numeric(10, 7))
     longitude: Mapped[float | None] = mapped_column(Numeric(10, 7))
@@ -153,6 +156,39 @@ class OrderStatusHistory(Base, TimestampMixin):
     detail: Mapped[str | None] = mapped_column(Text)
     # The other order in a fork event (the fork, or the parent).
     related_order_id: Mapped[int | None] = mapped_column(ForeignKey("sales_orders.id"))
+
+
+class ReturnRequest(Base, TimestampMixin):
+    """A product return an agent submits from a market against one of its orders.
+    A manager approves it (which applies the refund via move_order) or rejects it."""
+
+    __tablename__ = "return_requests"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    customer_id: Mapped[int] = mapped_column(ForeignKey("customers.id"), nullable=False)
+    sales_order_id: Mapped[int] = mapped_column(ForeignKey("sales_orders.id"), nullable=False)
+    agent_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    status: Mapped[ReturnRequestStatus] = mapped_column(
+        Enum(ReturnRequestStatus), default=ReturnRequestStatus.PENDING, nullable=False
+    )
+    note: Mapped[str | None] = mapped_column(Text)
+    reviewed_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    lines: Mapped[list["ReturnRequestLine"]] = relationship(
+        back_populates="request", cascade="all, delete-orphan"
+    )
+
+
+class ReturnRequestLine(Base):
+    __tablename__ = "return_request_lines"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    request_id: Mapped[int] = mapped_column(ForeignKey("return_requests.id"), nullable=False)
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id"), nullable=False)
+    quantity: Mapped[float] = mapped_column(Numeric(14, 3), nullable=False)
+
+    request: Mapped["ReturnRequest"] = relationship(back_populates="lines")
 
 
 class Visit(Base, TimestampMixin):

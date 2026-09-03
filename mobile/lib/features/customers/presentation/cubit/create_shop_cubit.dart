@@ -27,6 +27,7 @@ class CreateShopCubit extends Cubit<CreateShopState> {
     String? address,
     String? city,
     int? regionId,
+    List<String> visitDays = const [],
   }) async {
     emit(state.copyWith(status: CreateShopStatus.submitting));
     try {
@@ -36,6 +37,7 @@ class CreateShopCubit extends Cubit<CreateShopState> {
         address: address,
         city: city,
         regionId: regionId,
+        visitDays: visitDays,
       );
       emit(state.copyWith(status: CreateShopStatus.success));
     } on ApiException catch (e) {

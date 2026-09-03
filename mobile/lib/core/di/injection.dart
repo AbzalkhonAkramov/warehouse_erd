@@ -44,6 +44,10 @@ import '../../features/cash/data/datasources/cash_remote_data_source.dart';
 import '../../features/cash/data/repositories/cash_repository_impl.dart';
 import '../../features/cash/domain/repositories/cash_repository.dart';
 import '../../features/cash/presentation/cubit/cash_cubit.dart';
+// Product returns
+import '../../features/returns/data/returns_remote_data_source.dart';
+import '../../features/returns/data/returns_repository_impl.dart';
+import '../../features/returns/domain/repositories/returns_repository.dart';
 
 final GetIt sl = GetIt.instance;
 
@@ -97,4 +101,8 @@ void configureDependencies() {
   sl.registerLazySingleton(() => CashRemoteDataSource(sl()));
   sl.registerLazySingleton<CashRepository>(() => CashRepositoryImpl(sl()));
   sl.registerFactory(() => CashCubit(sl()));
+
+  // Product returns
+  sl.registerLazySingleton(() => ReturnsRemoteDataSource(sl()));
+  sl.registerLazySingleton<ReturnsRepository>(() => ReturnsRepositoryImpl(sl()));
 }

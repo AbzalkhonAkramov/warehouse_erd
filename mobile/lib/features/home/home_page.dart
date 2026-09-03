@@ -25,7 +25,6 @@ class _HomePageState extends State<HomePage> {
   static const _pages = [
     CustomersPage(),
     CreateOrderPage(),
-    OrdersPage(),
     CatalogPage(),
   ];
 
@@ -35,7 +34,6 @@ class _HomePageState extends State<HomePage> {
     final titles = [
       context.tr('home.customers'),
       context.tr('home.order'),
-      context.tr('home.orders'),
       context.tr('home.catalog'),
     ];
     return Scaffold(
@@ -108,8 +106,6 @@ class _HomePageState extends State<HomePage> {
           NavigationDestination(
               icon: const Icon(Icons.add_shopping_cart_outlined), label: context.tr('tab.order')),
           NavigationDestination(
-              icon: const Icon(Icons.receipt_long_outlined), label: context.tr('tab.orders')),
-          NavigationDestination(
               icon: const Icon(Icons.inventory_2_outlined), label: context.tr('tab.catalog')),
         ],
       ),
@@ -151,6 +147,19 @@ class _AppDrawer extends StatelessWidget {
                           fontWeight: FontWeight.bold)),
                 ],
               ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.receipt_long_outlined),
+              title: Text(context.tr('orders.drawerTitle')),
+              onTap: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => Scaffold(
+                    appBar: AppBar(title: Text(context.tr('orders.drawerTitle'))),
+                    body: const OrdersPage(),
+                  ),
+                ));
+              },
             ),
             ListTile(
               leading: const Icon(Icons.settings_outlined),

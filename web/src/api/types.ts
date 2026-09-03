@@ -77,6 +77,7 @@ export interface Customer {
   phone?: string | null;
   address?: string | null;
   city?: string | null;
+  visit_days?: string | null;
   latitude?: Money | null;
   longitude?: Money | null;
   credit_limit: Money;
@@ -109,6 +110,26 @@ export interface Company {
   logo_url?: string | null;
   display_mode: "text" | "logo" | "both";
   cash_handover_mode?: "manager_records" | "agent_submits";
+}
+
+export interface ReturnLine {
+  product_id: number;
+  product_name?: string | null;
+  quantity: Money;
+}
+
+export interface ReturnRequest {
+  id: number;
+  customer_id: number;
+  customer_name?: string | null;
+  sales_order_id: number;
+  order_no?: string | null;
+  agent_id?: number | null;
+  agent_name?: string | null;
+  status: "pending" | "approved" | "rejected";
+  note?: string | null;
+  created_at: string;
+  lines: ReturnLine[];
 }
 
 export interface AgentCash {

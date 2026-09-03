@@ -16,6 +16,7 @@ import CustomerDetailPage from "./pages/CustomerDetailPage";
 import InvoicesPage from "./pages/InvoicesPage";
 import InvoiceDetailPage from "./pages/InvoiceDetailPage";
 import CashPage from "./pages/CashPage";
+import ReturnsPage from "./pages/ReturnsPage";
 import ReportsPage from "./pages/ReportsPage";
 import PhotoReportsPage from "./pages/PhotoReportsPage";
 import TopicsPage from "./pages/TopicsPage";
@@ -86,6 +87,10 @@ export default function App() {
         <Route
           path="cash"
           element={isAgent ? <Navigate to="/invoices" replace /> : <CashPage />}
+        />
+        <Route
+          path="returns"
+          element={isAgent ? <Navigate to="/orders" replace /> : <ReturnsPage />}
         />
         <Route path="photos" element={<PhotoReportsPage />} />
         <Route

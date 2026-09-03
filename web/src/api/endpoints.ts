@@ -4,6 +4,7 @@ import type {
   AgentSalesRow,
   AgentCash,
   CashRemittance,
+  ReturnRequest,
   Category,
   CommissionRow,
   Company,
@@ -131,6 +132,7 @@ export interface CustomerInput {
   phone?: string;
   address?: string;
   city?: string;
+  visit_days?: string | null;
   credit_limit?: string;
   region_id?: number | null;
   agent_ids?: number[];
@@ -198,6 +200,14 @@ export const updateCompany = (body: {
   display_mode?: string;
   cash_handover_mode?: string;
 }) => api<Company>("/meta/company", { method: "PATCH", body });
+
+// --- Product returns (agent submits, manager approves) ---
+export const listReturns = (status?: string) =>
+  api<ReturnRequest[]>(`/returns${status ? `?status_filter=${status}` : ""}`);
+export const approveReturn = (id: number, restock: boolean) =>
+  api<ReturnRequest>(`/returns/${id}/approve`, { method: "POST", body: { restock } });
+export const rejectReturn = (id: number) =>
+  api<ReturnRequest>(`/returns/${id}/reject`, { method: "POST" });
 
 // --- Cash custody / handovers ---
 export const listAgentsCash = () => api<AgentCash[]>("/cash/agents");

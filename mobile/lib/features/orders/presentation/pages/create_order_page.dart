@@ -17,13 +17,26 @@ String _fmtQty(double q) =>
     q == q.roundToDouble() ? q.toStringAsFixed(0) : '$q';
 
 class CreateOrderPage extends StatelessWidget {
-  const CreateOrderPage({super.key});
+  const CreateOrderPage({super.key, this.initialCustomerId, this.standalone = false});
+
+  /// Preselect a market (when opened from its profile).
+  final int? initialCustomerId;
+
+  /// When true, provides its own Scaffold/AppBar (pushed as a route) instead of
+  /// running inside the home tab.
+  final bool standalone;
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => sl<CreateOrderCubit>()..init(),
+    final view = BlocProvider(
+      create: (_) =>
+          sl<CreateOrderCubit>()..init(initialCustomerId: initialCustomerId),
       child: const _CreateOrderView(),
+    );
+    if (!standalone) return view;
+    return Scaffold(
+      appBar: AppBar(title: Text(context.tr('home.order'))),
+      body: view,
     );
   }
 }

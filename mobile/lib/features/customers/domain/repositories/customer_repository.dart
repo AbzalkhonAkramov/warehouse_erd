@@ -6,12 +6,16 @@ abstract class CustomerRepository {
 
   Future<List<Region>> fetchRegions();
 
-  /// Creates a shop. When called by an agent the backend auto-assigns it to them.
+  /// Creates a market. When called by an agent the backend auto-assigns it to them.
   Future<void> createCustomer({
     required String name,
     String? phone,
     String? address,
     String? city,
     int? regionId,
+    List<String> visitDays,
   });
+
+  /// Updates the days the agent may visit a market.
+  Future<Customer> updateVisitDays(int id, List<String> days);
 }

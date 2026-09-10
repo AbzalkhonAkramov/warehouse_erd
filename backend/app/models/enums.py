@@ -25,6 +25,14 @@ class SalesOrderStatus(str, enum.Enum):
     PICKING = "picking"
 
 
+class SaleMode(str, enum.Enum):
+    """How a product may be sold. Set by a manager; agents only see it."""
+
+    BOX = "box"      # only as a full box (complect)
+    PIECE = "piece"  # only one-by-one
+    BOTH = "both"    # either a box or single units
+
+
 class PurchaseOrderStatus(str, enum.Enum):
     DRAFT = "draft"
     ORDERED = "ordered"

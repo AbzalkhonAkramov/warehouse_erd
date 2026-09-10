@@ -6,6 +6,7 @@ from app.api.routers import (
     auth,
     cash,
     catalog,
+    currencies,
     customers,
     finance,
     inventory,
@@ -26,6 +27,7 @@ api_router.include_router(meta.router)
 api_router.include_router(auth.router)
 api_router.include_router(users.router)
 api_router.include_router(catalog.router)
+api_router.include_router(currencies.router)
 api_router.include_router(products.router)
 api_router.include_router(customers.router)
 api_router.include_router(regions.router)

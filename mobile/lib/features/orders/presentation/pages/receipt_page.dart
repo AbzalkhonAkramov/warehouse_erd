@@ -271,7 +271,12 @@ class _ReceiptBody extends StatelessWidget {
               dense: true,
               contentPadding: EdgeInsets.zero,
               title: Text(l.productName),
-              subtitle: Text('${qty(l.quantity)} × ${money(l.unitPrice)}'),
+              subtitle: Text(
+                  l.boxCount > 0
+                      ? '${l.boxCount} ${context.tr('order.box')} × ${l.boxSize}'
+                          '${l.loosePieces > 0 ? " + ${qty(l.loosePieces)}" : ""}'
+                          ' = ${qty(l.quantity)} × ${money(l.unitPrice)}'
+                      : '${qty(l.quantity)} × ${money(l.unitPrice)}'),
               trailing: Text(money(l.lineTotal),
                   style: const TextStyle(fontWeight: FontWeight.w600)),
             )),

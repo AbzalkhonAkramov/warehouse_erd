@@ -185,7 +185,9 @@ export default function ProductsPage() {
                   <div className={cls.cx(cls.productSku, cls.mono)}>{p.sku}</div>
                   <div className={cls.productName}>{p.name}</div>
                   <div className={cls.productRow}>
-                    <span className={cls.productPrice}>{money(p.sale_price)}</span>
+                    <span className={cls.productPrice}>
+                      {money(p.sale_price)}{p.currency_symbol ? ` ${p.currency_symbol}` : ""}
+                    </span>
                     <span className={s?.low ? cls.productStockWarn : cls.productStock}>
                       {t("col.onHand")}: {s ? qty(s.quantity) : "0"} {p.unit}
                     </span>

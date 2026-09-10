@@ -2,7 +2,7 @@
 
 from app.models.base import Base
 from app.models.user import User
-from app.models.catalog import Category, Product, Supplier, Warehouse
+from app.models.catalog import Category, Currency, Product, Supplier, Warehouse
 from app.models.inventory import Stock, StockMovement
 from app.models.purchasing import PurchaseOrder, PurchaseOrderLine
 from app.models.sales import (
@@ -33,6 +33,7 @@ __all__ = [
     "ActivityLog",
     "CompanySettings",
     "Category",
+    "Currency",
     "Product",
     "Supplier",
     "Warehouse",

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
@@ -233,9 +234,14 @@ class _PhotoTile extends StatelessWidget {
             color: Colors.grey.shade100,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: Colors.grey.shade300),
+            // On web the picked path is a blob URL (no dart:io File); on
+            // mobile it is a real filesystem path.
             image: path != null
                 ? DecorationImage(
-                    image: FileImage(File(path!)), fit: BoxFit.cover)
+                    image: kIsWeb
+                        ? NetworkImage(path!)
+                        : FileImage(File(path!)) as ImageProvider,
+                    fit: BoxFit.cover)
                 : null,
           ),
           child: path == null

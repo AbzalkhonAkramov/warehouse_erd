@@ -12,7 +12,7 @@ from sqlalchemy import select
 from app.core.database import AsyncSessionLocal, engine
 from app.core.security import hash_password
 from app.models import Base
-from app.models.catalog import Category, Product, Warehouse
+from app.models.catalog import Category, Currency, Product, Warehouse
 from app.models.enums import UserRole
 from app.models.inventory import Stock
 from app.models.sales import Customer
@@ -65,6 +65,15 @@ async def seed() -> None:
             db, Warehouse, name="Main Warehouse", defaults={"is_default": True}
         )
 
+        uzs, _ = await _get_or_create(
+            db, Currency, code="UZS",
+            defaults={"name": "Uzbek som", "symbol": "so'm", "is_active": True},
+        )
+        await _get_or_create(
+            db, Currency, code="USD",
+            defaults={"name": "US dollar", "symbol": "$", "is_active": True},
+        )
+
         drinks, _ = await _get_or_create(db, Category, name="Drinks")
         snacks, _ = await _get_or_create(db, Category, name="Snacks")
 
@@ -83,6 +92,7 @@ async def seed() -> None:
                     "cost_price": Decimal(cost),
                     "sale_price": Decimal(price),
                     "min_stock": Decimal("10"),
+                    "currency_id": uzs.id,
                 },
             )
             if created:

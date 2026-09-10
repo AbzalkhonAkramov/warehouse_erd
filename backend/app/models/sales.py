@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Numeric, String, Text
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.associations import customer_agents
@@ -109,6 +109,14 @@ class SalesOrderLine(Base):
     quantity: Mapped[float] = mapped_column(Numeric(14, 3), nullable=False)
     unit_price: Mapped[float] = mapped_column(Numeric(14, 2), nullable=False)
     line_total: Mapped[float] = mapped_column(Numeric(14, 2), nullable=False)
+    # Whether the agent sold this line as single pieces or as a box. Derived
+    # label for display; the real math lives in `quantity` (total single goods).
+    sell_as: Mapped[str] = mapped_column(String(8), default="piece", nullable=False)
+    # Breakdown of the entry: how many full boxes, and the box size at sale time.
+    # `quantity` already includes box_count * box_size; these let a receipt show
+    # "N boxes + M pieces" without depending on the product's current box size.
+    box_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    box_size: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     # How much of this line has been refunded (supports partial refunds).
     refunded_quantity: Mapped[float] = mapped_column(Numeric(14, 3), default=0, nullable=False)
 

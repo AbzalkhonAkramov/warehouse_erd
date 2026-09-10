@@ -38,7 +38,7 @@ services:
       DATABASE_URL: postgresql+asyncpg://postgres:abzal7727@db:5432/lh_warehouse
       SECRET_KEY: ${SECRET_KEY:-dev-only-change-me-to-a-long-random-string}
       ENVIRONMENT: production
-      BACKEND_CORS_ORIGINS: http://localhost:5173,http://localhost
+      BACKEND_CORS_ORIGINS: http://localhost:5173,http://localhost,http://localhost:3000
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_MANAGER_CHAT_ID: ${TELEGRAM_MANAGER_CHAT_ID:-}
       COMPANY_NAME: ${COMPANY_NAME:-Warehouse ERP}

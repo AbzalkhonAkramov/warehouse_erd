@@ -9,14 +9,27 @@ export function cx(...parts: (string | false | null | undefined)[]): string {
 
 // --- Layout ---
 export const appShell = "flex min-h-screen";
-export const sidebar = "w-60 bg-sidebar text-slate-300 shrink-0 py-[18px] px-3";
-export const brand = "font-bold text-base text-white px-3 pt-2 pb-[18px]";
+export const sidebar =
+  "w-60 bg-sidebar text-slate-300 shrink-0 py-[18px] px-3 " +
+  "sticky top-0 self-start h-screen overflow-y-auto";
+export const brand =
+  "flex items-center gap-2.5 text-white px-3 pt-1 pb-[18px] min-w-0";
+export const brandLogo = "h-7 w-7 rounded-md object-cover shrink-0 bg-white/10";
+export const brandName = "font-bold text-base truncate";
+export const navGroup = "mt-4 first:mt-1";
+export const navGroupLabel =
+  "px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500";
 export const navLink =
-  "block py-2.5 px-3 rounded-lg text-slate-300 no-underline mb-0.5 font-medium hover:bg-sidebar-active hover:text-white";
+  "flex items-center gap-2.5 py-2.5 px-3 rounded-lg text-slate-300 no-underline mb-0.5 font-medium " +
+  "transition-colors duration-150 hover:bg-sidebar-active hover:text-white " +
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/60";
 export const navLinkActive = "bg-brand text-white hover:bg-brand hover:text-white";
+export const navIcon = "shrink-0 [&>svg]:h-[18px] [&>svg]:w-[18px]";
 export const main = "flex-1 flex flex-col min-w-0";
 export const topbar =
-  "h-[60px] bg-white border-b border-line flex items-center justify-between px-6";
+  "h-[60px] bg-white border-b border-line flex items-center justify-between px-6 " +
+  "sticky top-0 z-20";
+export const topbarTitle = "text-[15px] font-semibold text-ink";
 export const topbarUser = "flex items-center gap-3";
 export const langSwitcher =
   "py-1.5 px-2 border border-line rounded-lg bg-white text-[13px] font-[inherit] cursor-pointer";
@@ -44,19 +57,24 @@ export const plainLink = "no-underline text-inherit block";
 // --- Tables (styled via arbitrary child variants so markup stays clean) ---
 export const table =
   "w-full border-collapse " +
+  "[&_thead_th]:sticky [&_thead_th]:top-[60px] [&_thead_th]:z-10 [&_thead_th]:bg-white " +
   "[&_th]:text-left [&_th]:px-3 [&_th]:py-2.5 [&_th]:border-b [&_th]:border-line " +
   "[&_th]:text-xs [&_th]:uppercase [&_th]:tracking-wide [&_th]:text-muted [&_th]:font-semibold " +
   "[&_td]:text-left [&_td]:px-3 [&_td]:py-2.5 [&_td]:border-b [&_td]:border-line " +
+  "[&_tbody_tr]:transition-colors [&_tbody_tr:nth-child(even)>td]:bg-appbg/40 " +
   "[&_tbody_tr:last-child>td]:border-b-0";
-export const tableSub = table + " !w-auto min-w-[420px]";
+export const tableSub =
+  table + " !w-auto min-w-[420px] [&_thead_th]:!static [&_tbody_tr:nth-child(even)>td]:!bg-transparent";
 export const confirmTable =
   table +
-  " [&_th]:normal-case [&_th]:tracking-normal [&_th]:font-medium [&_th]:w-[42%] [&_th]:text-[13px]";
+  " [&_thead_th]:!static [&_tbody_tr:nth-child(even)>td]:!bg-transparent " +
+  "[&_th]:normal-case [&_th]:tracking-normal [&_th]:font-medium [&_th]:w-[42%] [&_th]:text-[13px]";
 export const numCell = "text-right tabular-nums";
 export const strong = "font-semibold";
 export const warn = "text-red-700";
 export const mono = "font-mono text-[13px]";
-export const clickable = "cursor-pointer hover:bg-gray-50";
+export const clickable =
+  "cursor-pointer transition-colors [&:hover>td]:bg-brand/[0.04]";
 export const actionsCol = "text-right whitespace-nowrap [&>*]:ml-1.5";
 export const detailRowTd = "[&>td]:bg-gray-50";
 export const orderDetail = "py-1.5 px-1";
@@ -65,7 +83,8 @@ export const noteWarn = "text-red-700 mt-2";
 
 // --- Buttons ---
 const btnBase =
-  "inline-flex items-center gap-1.5 border border-transparent rounded-lg py-[7px] px-3.5 text-[13px] font-semibold cursor-pointer disabled:opacity-55 disabled:cursor-not-allowed";
+  "inline-flex items-center gap-1.5 border border-transparent rounded-lg py-[7px] px-3.5 text-[13px] font-semibold cursor-pointer disabled:opacity-55 disabled:cursor-not-allowed " +
+  "transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus-visible:ring-offset-1 active:translate-y-px";
 export const btn: Record<string, string> = {
   primary: cx(btnBase, "bg-brand text-white hover:bg-brand-dark"),
   ghost: cx(btnBase, "bg-white text-ink !border-line hover:bg-appbg"),
@@ -88,7 +107,8 @@ export const badge: Record<string, string> = {
 // --- Filters / chips / inputs ---
 export const filterRow = "flex gap-2 mb-4 flex-wrap items-center";
 export const chip =
-  "h-9 border border-line bg-white rounded-full py-1.5 px-3.5 cursor-pointer text-[13px] font-medium";
+  "h-9 border border-line bg-white rounded-full py-1.5 px-3.5 cursor-pointer text-[13px] font-medium " +
+  "transition-colors duration-150 hover:border-brand/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40";
 export const chipActive = "!bg-brand !text-white !border-brand";
 export const searchInput =
   "h-9 py-2 px-3 border border-line rounded-lg text-sm min-w-[240px] focus:outline-none focus:border-brand";
@@ -173,7 +193,7 @@ export const productPhotoImg = "w-full h-full object-cover block";
 export const productPhotoEmpty =
   "w-full h-full flex items-center justify-center text-muted text-[13px]";
 export const productSku = "text-xs text-muted px-3 pt-2.5";
-export const productName = "font-semibold px-3 pt-0.5";
+export const productName = "font-semibold px-3 pt-0.5 break-words line-clamp-2";
 export const productRow =
   "flex items-baseline justify-between px-3 pt-1.5 pb-3.5 gap-2";
 export const productPrice = "text-[17px] font-bold";
@@ -208,7 +228,10 @@ export const tgLink = "no-underline";
 // --- Orders: status editor + create-order form ---
 export const orderEditor =
   "flex flex-wrap items-end gap-3 mt-3 pt-3 border-t border-line [&_.fld]:min-w-[180px]";
-export const orderLineRow = "flex items-center gap-2.5 mb-2";
+export const orderLineRow =
+  "flex items-center gap-2.5 mb-2 " +
+  "[&_input]:h-9 [&_input]:py-2 [&_input]:px-[11px] [&_input]:border [&_input]:border-line [&_input]:rounded-lg [&_input]:text-sm [&_input]:bg-white [&_input]:box-border [&_input:focus]:outline-none [&_input:focus]:border-brand [&_input:focus]:ring-[3px] [&_input:focus]:ring-brand/15 " +
+  "[&_select]:h-9 [&_select]:py-1.5 [&_select]:px-2 [&_select]:border [&_select]:border-line [&_select]:rounded-lg [&_select]:text-sm [&_select]:bg-white [&_select]:box-border [&_select:focus]:outline-none [&_select:focus]:border-brand";
 export const grow = "flex-1 min-w-0";
 export const qtyInput = "w-[110px]";
 export const sectionSub = "mt-[18px] mb-2 text-[0.95rem] text-muted";

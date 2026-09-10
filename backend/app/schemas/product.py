@@ -3,8 +3,14 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict
 
+from app.models.enums import SaleMode
+
 
 class ProductBase(BaseModel):
+    # use_enum_values so sale_mode round-trips as its string value ("piece"),
+    # matching the plain-text column, both when dumping to the model and to JSON.
+    model_config = ConfigDict(use_enum_values=True)
+
     sku: str
     name: str
     barcode: str | None = None
@@ -15,12 +21,21 @@ class ProductBase(BaseModel):
     sale_price: Decimal = Decimal("0")
     min_stock: Decimal = Decimal("0")
 
+    # Money type + packaging + sale mode. Manager-editable; agents read-only.
+    currency_id: int | None = None
+    box_qty: int | None = None
+    box_weight: Decimal | None = None
+    box_dimensions: str | None = None
+    sale_mode: SaleMode = SaleMode.PIECE
+
 
 class ProductCreate(ProductBase):
     pass
 
 
 class ProductUpdate(BaseModel):
+    model_config = ConfigDict(use_enum_values=True)
+
     sku: str | None = None
     name: str | None = None
     barcode: str | None = None
@@ -31,10 +46,15 @@ class ProductUpdate(BaseModel):
     sale_price: Decimal | None = None
     min_stock: Decimal | None = None
     is_active: bool | None = None
+    currency_id: int | None = None
+    box_qty: int | None = None
+    box_weight: Decimal | None = None
+    box_dimensions: str | None = None
+    sale_mode: SaleMode | None = None
 
 
 class ProductOut(ProductBase):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, use_enum_values=True)
 
     id: int
     is_active: bool
@@ -43,6 +63,9 @@ class ProductOut(ProductBase):
     on_hand: Decimal | None = None  # filled by the endpoint when stock is joined
     # Purchase price — hidden (None) for agents, who only see the retail price.
     cost_price: Decimal | None = None
+    # Convenience currency fields, filled by the endpoint from the relationship.
+    currency_code: str | None = None
+    currency_symbol: str | None = None
 
 
 class ProductHistoryEntry(BaseModel):

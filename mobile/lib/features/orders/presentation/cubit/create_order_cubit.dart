@@ -40,7 +40,7 @@ class CreateOrderCubit extends Cubit<CreateOrderState> {
   }
 
   /// Pull-to-refresh: refetch products/customers/categories but keep the order
-  /// the agent is building (selected customer + quantities).
+  /// the agent is building (selected customer + entered amounts).
   Future<void> reload() async {
     try {
       final products = await _products.fetchProducts();
@@ -58,23 +58,38 @@ class CreateOrderCubit extends Cubit<CreateOrderState> {
 
   void selectCustomer(int? id) => emit(state.copyWith(customerId: id));
 
-  void setQuantity(int productId, double qty) {
-    final next = Map<int, double>.from(state.quantities);
-    if (qty <= 0) {
-      next.remove(productId);
+  /// Set a line's two independent amounts. Removing both clears the position.
+  void setLine(int productId, {required double pieces, required int boxes}) {
+    final p = Map<int, double>.from(state.pieces);
+    final b = Map<int, int>.from(state.boxes);
+    if (pieces <= 0) {
+      p.remove(productId);
     } else {
-      next[productId] = qty;
+      p[productId] = pieces;
     }
-    emit(state.copyWith(quantities: next));
+    if (boxes <= 0) {
+      b.remove(productId);
+    } else {
+      b[productId] = boxes;
+    }
+    emit(state.copyWith(pieces: p, boxes: b));
   }
 
   Future<void> submit({String? note}) async {
-    if (state.customerId == null || state.quantities.isEmpty) return;
+    if (!state.canSubmit) return;
     emit(state.copyWith(status: CreateOrderStatus.submitting));
     try {
-      final lines = state.quantities.entries
-          .map((e) => OrderLineInput(productId: e.key, quantity: e.value))
-          .toList();
+      final byId = {for (final p in state.products) p.id: p};
+      final lines = state.positionIds.map((id) {
+        final p = byId[id]!;
+        // quantity = loose pieces + boxes * box size (total single goods);
+        // box_count keeps the box breakdown for the receipt.
+        return OrderLineInput(
+          productId: id,
+          quantity: state.unitsFor(p),
+          boxCount: state.boxes[id] ?? 0,
+        );
+      }).toList();
       // Sends immediately when online; saves to the offline outbox otherwise.
       final res = await _orders.submitOrder(
         customerId: state.customerId!,

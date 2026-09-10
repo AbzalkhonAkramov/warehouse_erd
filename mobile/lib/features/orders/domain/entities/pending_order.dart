@@ -34,7 +34,11 @@ class PendingOrder extends Equatable {
         'note': note,
         'created_at': createdAt.toIso8601String(),
         'lines': lines
-            .map((l) => {'product_id': l.productId, 'quantity': l.quantity})
+            .map((l) => {
+                  'product_id': l.productId,
+                  'quantity': l.quantity,
+                  'box_count': l.boxCount,
+                })
             .toList(),
       };
 
@@ -47,6 +51,7 @@ class PendingOrder extends Equatable {
             .map((l) => OrderLineInput(
                   productId: l['product_id'] as int,
                   quantity: (l['quantity'] as num).toDouble(),
+                  boxCount: (l['box_count'] as num?)?.toInt() ?? 0,
                 ))
             .toList(),
       );

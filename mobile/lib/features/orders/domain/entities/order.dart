@@ -7,16 +7,24 @@ class OrderItem extends Equatable {
     required this.quantity,
     required this.unitPrice,
     required this.lineTotal,
+    this.boxCount = 0,
+    this.boxSize = 0,
   });
 
   final int productId;
   final String productName;
-  final double quantity;
+  final double quantity;   // total single goods
   final double unitPrice;
   final double lineTotal;
+  final int boxCount;      // how many full boxes are inside `quantity`
+  final int boxSize;       // units per box at sale time (for the breakdown)
+
+  /// Loose (non-boxed) single goods on this line.
+  double get loosePieces => quantity - boxCount * boxSize;
 
   @override
-  List<Object?> get props => [productId, productName, quantity, unitPrice, lineTotal];
+  List<Object?> get props =>
+      [productId, productName, quantity, unitPrice, lineTotal, boxCount, boxSize];
 }
 
 class Order extends Equatable {

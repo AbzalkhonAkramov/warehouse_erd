@@ -11,6 +11,7 @@ import '../../../../l10n/l10n_ext.dart';
 import '../../domain/entities/category.dart';
 import '../../domain/entities/product.dart';
 import '../../domain/repositories/product_repository.dart';
+import 'product_detail_page.dart';
 
 class CatalogPage extends StatefulWidget {
   const CatalogPage({super.key});
@@ -26,11 +27,18 @@ class _CatalogPageState extends State<CatalogPage> {
   String? _error;
   String _q = '';
   int? _cat;
+  final _search = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -83,37 +91,44 @@ class _CatalogPageState extends State<CatalogPage> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
           child: TextField(
+            controller: _search,
+            textInputAction: TextInputAction.search,
+            style: const TextStyle(
+                color: Color(0xFF0F172A), fontWeight: FontWeight.w500),
             decoration: InputDecoration(
-              prefixIcon: const Icon(Icons.search),
+              prefixIcon: const Icon(Icons.search, color: AppColors.neutral),
               hintText: context.tr('catalog.search'),
+              suffixIcon: _q.isEmpty
+                  ? null
+                  : IconButton(
+                      icon: const Icon(Icons.close, color: AppColors.neutral),
+                      onPressed: () {
+                        _search.clear();
+                        setState(() => _q = '');
+                      },
+                    ),
             ),
             onChanged: (v) => setState(() => _q = v),
           ),
         ),
         if (categories.isNotEmpty)
           SizedBox(
-            height: 46,
+            height: 50,
             child: ListView(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               children: [
-                Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: ChoiceChip(
-                    label: Text(context.tr('order.allCategories')),
-                    selected: _cat == null,
-                    onSelected: (_) => setState(() => _cat = null),
-                  ),
+                _CategoryChip(
+                  label: context.tr('order.allCategories'),
+                  selected: _cat == null,
+                  onTap: () => setState(() => _cat = null),
                 ),
-                ...categories.map((c) => Padding(
-                      padding: const EdgeInsets.only(right: 6),
-                      child: ChoiceChip(
-                        label: Text(c.name),
-                        selected: _cat == c.id,
-                        onSelected: (_) => setState(() => _cat = c.id),
-                      ),
+                ...categories.map((c) => _CategoryChip(
+                      label: c.name,
+                      selected: _cat == c.id,
+                      onTap: () => setState(() => _cat = c.id),
                     )),
               ],
             ),
@@ -156,7 +171,12 @@ class _ProductCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       clipBehavior: Clip.antiAlias,
-      child: Column(
+      child: InkWell(
+        onTap: () => Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) =>
+              ProductDetailPage(product: product, showStock: showStock),
+        )),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SizedBox(height: 138, child: _Photo(product: product)),
@@ -175,7 +195,9 @@ class _ProductCard extends StatelessWidget {
                   ),
                   const Spacer(),
                   Text(
-                    money(product.salePrice),
+                    product.currencySymbol != null
+                        ? '${money(product.salePrice)} ${product.currencySymbol}'
+                        : money(product.salePrice),
                     style: const TextStyle(
                         color: AppColors.brand,
                         fontWeight: FontWeight.bold,
@@ -205,6 +227,53 @@ class _ProductCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+      ),
+    );
+  }
+}
+
+/// Modern, high-contrast category filter pill: solid brand when selected,
+/// white with a hairline border and readable dark text when not.
+class _CategoryChip extends StatelessWidget {
+  const _CategoryChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: Center(
+        child: Material(
+          color: selected ? AppColors.brand : Colors.white,
+          shape: StadiumBorder(
+            side: BorderSide(
+              color: selected ? AppColors.brand : AppColors.line,
+            ),
+          ),
+          child: InkWell(
+            customBorder: const StadiumBorder(),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: selected ? Colors.white : const Color(0xFF0F172A),
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

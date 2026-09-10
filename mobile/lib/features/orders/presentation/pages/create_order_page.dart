@@ -65,45 +65,91 @@ class _CreateOrderView extends StatelessWidget {
       ),
     );
     if (product != null && context.mounted) {
-      await _editQty(context, cubit, product, state.quantities[product.id] ?? 0);
+      await _editLine(context, cubit, product, state);
     }
   }
 
-  Future<void> _editQty(
-      BuildContext context, CreateOrderCubit cubit, Product p, double current) async {
-    final controller =
-        TextEditingController(text: current > 0 ? _fmtQty(current) : '');
-    final qty = await showDialog<double>(
+  /// Two independent fields — loose pieces and whole boxes (the boxes field
+  /// only shows when the product has a box size). The effective amount and
+  /// line total update live below the inputs.
+  Future<void> _editLine(BuildContext context, CreateOrderCubit cubit, Product p,
+      CreateOrderState state) async {
+    final hasBox = p.boxQty != null && p.boxQty! > 0;
+    final pieceCtrl = TextEditingController(
+        text: (state.pieces[p.id] ?? 0) > 0 ? _fmtQty(state.pieces[p.id]!) : '');
+    final boxCtrl = TextEditingController(
+        text: (state.boxes[p.id] ?? 0) > 0 ? '${state.boxes[p.id]}' : '');
+
+    final result = await showDialog<({double pieces, int boxes})>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(p.name),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          inputFormatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-          ],
-          decoration: InputDecoration(
-            labelText: ctx.tr('order.quantity'),
-            suffixText: p.unit,
-          ),
-          onSubmitted: (_) => Navigator.of(ctx).pop(
-              double.tryParse(controller.text.replaceAll(',', '.')) ?? 0),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: Text(ctx.tr('common.cancel'))),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(
-                double.tryParse(controller.text.replaceAll(',', '.')) ?? 0),
-            child: Text(ctx.tr('order.add')),
-          ),
-        ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) {
+          double parsePieces() =>
+              double.tryParse(pieceCtrl.text.replaceAll(',', '.')) ?? 0;
+          int parseBoxes() => int.tryParse(boxCtrl.text.trim()) ?? 0;
+          final units = parsePieces() + parseBoxes() * (p.boxQty ?? 0);
+          return AlertDialog(
+            title: Text(p.name),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: pieceCtrl,
+                  autofocus: true,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                  ],
+                  decoration: InputDecoration(
+                    labelText: ctx.tr('order.pieces'),
+                    suffixText: p.unit,
+                  ),
+                  onChanged: (_) => setLocal(() {}),
+                ),
+                if (hasBox) ...[
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: boxCtrl,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                    ],
+                    decoration: InputDecoration(
+                      labelText: ctx.tr('order.boxes'),
+                      suffixText: '× ${p.boxQty}',
+                    ),
+                    onChanged: (_) => setLocal(() {}),
+                  ),
+                ],
+                const SizedBox(height: 14),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '${_fmtQty(units)} ${p.unit}  ·  ${money(units * p.salePrice)}',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w600, color: AppColors.brand),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: Text(ctx.tr('common.cancel'))),
+              FilledButton(
+                onPressed: () => Navigator.of(ctx)
+                    .pop((pieces: parsePieces(), boxes: parseBoxes())),
+                child: Text(ctx.tr('order.add')),
+              ),
+            ],
+          );
+        },
       ),
     );
-    if (qty != null) cubit.setQuantity(p.id, qty);
+    if (result != null) {
+      cubit.setLine(p.id, pieces: result.pieces, boxes: result.boxes);
+    }
   }
 
   @override
@@ -141,8 +187,8 @@ class _CreateOrderView extends StatelessWidget {
         final selected = selMatch.isEmpty ? null : selMatch.first.name;
 
         // The order being built — one row per added product (position).
-        final positions = state.quantities.entries.toList();
         final byId = {for (final p in state.products) p.id: p};
+        final positions = state.positionIds;
 
         return Column(
           children: [
@@ -190,10 +236,18 @@ class _CreateOrderView extends StatelessWidget {
                       padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
                       itemCount: positions.length,
                       itemBuilder: (context, i) {
-                        final entry = positions[i];
-                        final p = byId[entry.key];
+                        final p = byId[positions[i]];
                         if (p == null) return const SizedBox.shrink();
-                        final q = entry.value;
+                        final loose = state.pieces[p.id] ?? 0;
+                        final boxes = state.boxes[p.id] ?? 0;
+                        final units = state.unitsFor(p);
+                        final lineTotal = state.lineTotalFor(p);
+                        // "2 кор × 24 + 3 шт" / "2 кор × 24" / "3 шт"
+                        final parts = <String>[
+                          if (boxes > 0)
+                            '$boxes ${context.tr('order.box')} × ${p.boxQty}',
+                          if (loose > 0) '${_fmtQty(loose)} ${p.unit}',
+                        ];
                         return Card(
                           margin: const EdgeInsets.only(bottom: 8),
                           child: ListTile(
@@ -204,25 +258,26 @@ class _CreateOrderView extends StatelessWidget {
                                 style: const TextStyle(
                                     fontWeight: FontWeight.w600)),
                             subtitle: Text(
-                                '${_fmtQty(q)} × ${money(p.salePrice)} ${p.unit}',
+                                '${parts.join(' + ')} = ${_fmtQty(units)} ${p.unit} × ${money(p.salePrice)}',
                                 style: const TextStyle(
                                     color: AppColors.neutral, fontSize: 13)),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
-                                  money(q * p.salePrice),
+                                  money(lineTotal),
                                   style: const TextStyle(
                                       fontWeight: FontWeight.bold),
                                 ),
                                 IconButton(
                                   icon: const Icon(Icons.delete_outline),
                                   color: AppColors.danger,
-                                  onPressed: () => cubit.setQuantity(p.id, 0),
+                                  onPressed: () =>
+                                      cubit.setLine(p.id, pieces: 0, boxes: 0),
                                 ),
                               ],
                             ),
-                            onTap: () => _editQty(context, cubit, p, q),
+                            onTap: () => _editLine(context, cubit, p, state),
                           ),
                         );
                       },

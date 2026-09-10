@@ -140,12 +140,17 @@ async def create_order(db: AsyncSession, creator: User, data: SalesOrderCreate) 
         line_total = (unit_price * line.quantity).quantize(Decimal("0.01"))
         subtotal += line_total
         created_items.append((product.name, line.quantity))
+        box_count = max(line.box_count, 0)
+        box_size = int(product.box_qty or 0) if box_count > 0 else 0
         order.lines.append(
             SalesOrderLine(
                 product_id=product.id,
                 quantity=line.quantity,
                 unit_price=unit_price,
                 line_total=line_total,
+                sell_as="box" if box_count > 0 else "piece",
+                box_count=box_count,
+                box_size=box_size,
             )
         )
 

@@ -28,6 +28,8 @@ Order _parseOrder(Map<String, dynamic> j) {
               quantity: _toDouble(l['quantity']),
               unitPrice: _toDouble(l['unit_price']),
               lineTotal: _toDouble(l['line_total']),
+              boxCount: (l['box_count'] as num?)?.toInt() ?? 0,
+              boxSize: (l['box_size'] as num?)?.toInt() ?? 0,
             ))
         .toList(),
   );
@@ -57,7 +59,11 @@ class OrderRemoteDataSource {
       'customer_id': customerId,
       if (note != null && note.isNotEmpty) 'note': note,
       'lines': lines
-          .map((l) => {'product_id': l.productId, 'quantity': l.quantity})
+          .map((l) => {
+                'product_id': l.productId,
+                'quantity': l.quantity,
+                'box_count': l.boxCount,
+              })
           .toList(),
     };
     final data = await _client.post('/sales-orders', data: body);

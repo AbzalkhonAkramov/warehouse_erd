@@ -8,8 +8,12 @@ from app.models.enums import SalesOrderStatus
 
 class SalesOrderLineCreate(BaseModel):
     product_id: int
+    # Total single goods on this line (loose pieces + boxes * box size). The
+    # mobile app computes this from its two entry fields; web sends it directly.
     quantity: Decimal = Field(gt=0)
     unit_price: Decimal | None = None  # falls back to product.sale_price
+    # How many of the goods above were entered as full boxes (0 = pieces only).
+    box_count: int = 0
 
 
 class SalesOrderCreate(BaseModel):
@@ -55,6 +59,9 @@ class SalesOrderLineOut(BaseModel):
     unit_price: Decimal
     line_total: Decimal
     refunded_quantity: Decimal
+    sell_as: str = "piece"
+    box_count: int = 0
+    box_size: int = 0
 
 
 class SalesOrderOut(BaseModel):

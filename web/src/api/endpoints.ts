@@ -8,6 +8,7 @@ import type {
   Category,
   CommissionRow,
   Company,
+  Currency,
   Customer,
   DashboardData,
   DebtRow,
@@ -89,6 +90,16 @@ export const setAgentTopics = (agentId: number, topic_ids: number[]) =>
     method: "PUT",
     body: { topic_ids },
   });
+
+// --- Currencies (money types) — read for all, write is admin-only ---
+export const listCurrencies = (activeOnly = false) =>
+  api<Currency[]>(`/currencies${activeOnly ? "?active_only=true" : ""}`);
+export const createCurrency = (body: Partial<Currency>) =>
+  api<Currency>("/currencies", { method: "POST", body });
+export const updateCurrency = (id: number, body: Partial<Currency>) =>
+  api<Currency>(`/currencies/${id}`, { method: "PATCH", body });
+export const deleteCurrency = (id: number) =>
+  api<void>(`/currencies/${id}`, { method: "DELETE" });
 
 // --- Products & stock ---
 export const listProducts = () => api<Product[]>("/products");

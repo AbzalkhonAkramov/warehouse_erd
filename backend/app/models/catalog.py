@@ -1,7 +1,21 @@
-from sqlalchemy import Boolean, ForeignKey, Numeric, String, Text
+from sqlalchemy import Boolean, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
+from app.models.enums import SaleMode
+
+
+class Currency(Base, TimestampMixin):
+    """A money type (e.g. UZS, USD). Managed by an admin on a dedicated page;
+    each product references one. Agents only ever read it."""
+
+    __tablename__ = "currencies"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    code: Mapped[str] = mapped_column(String(8), unique=True, nullable=False)  # UZS, USD
+    name: Mapped[str] = mapped_column(String(64), nullable=False)  # Uzbek som
+    symbol: Mapped[str] = mapped_column(String(8), nullable=False)  # so'm, $
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
 
 class Category(Base, TimestampMixin):
@@ -29,6 +43,22 @@ class Product(Base, TimestampMixin):
     # Default cost (purchase) and sale price; per-line price can still override.
     cost_price: Mapped[float] = mapped_column(Numeric(14, 2), default=0)
     sale_price: Mapped[float] = mapped_column(Numeric(14, 2), default=0)
+
+    # Money type for this product's prices. Manager-editable, agent read-only.
+    currency_id: Mapped[int | None] = mapped_column(ForeignKey("currencies.id"))
+    currency: Mapped["Currency | None"] = relationship(lazy="selectin")
+
+    # Box (packaging) info — optional; a product may have no box at all.
+    box_qty: Mapped[int | None] = mapped_column(Integer)  # units per box; None = no box
+    box_weight: Mapped[float | None] = mapped_column(Numeric(10, 3))  # kg per box
+    box_dimensions: Mapped[str | None] = mapped_column(String(64))  # e.g. "40x30x25 cm"
+
+    # Whether the good is sold as a box, one-by-one, or both. Manager-editable.
+    # Stored as text (not a native enum) so it can be added to existing DBs with a
+    # plain ALTER; validated against SaleMode at the schema layer.
+    sale_mode: Mapped[str] = mapped_column(
+        String(8), default=SaleMode.PIECE.value, nullable=False
+    )
 
     # Reorder threshold for low-stock alerts.
     min_stock: Mapped[float] = mapped_column(Numeric(14, 3), default=0)

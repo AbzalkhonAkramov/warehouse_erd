@@ -22,6 +22,16 @@ export interface User {
   photo_required?: boolean;
 }
 
+export type SaleMode = "box" | "piece" | "both";
+
+export interface Currency {
+  id: number;
+  code: string;   // UZS, USD
+  name: string;   // Uzbek som
+  symbol: string; // so'm, $
+  is_active: boolean;
+}
+
 export interface Product {
   id: number;
   sku: string;
@@ -37,6 +47,17 @@ export interface Product {
   image_path?: string | null;
   image_back_path?: string | null;
   on_hand?: Money | null;
+  // Money type (manager-editable, agent read-only). *_code/_symbol are read-only
+  // conveniences filled by the API from the currency relationship.
+  currency_id?: number | null;
+  currency_code?: string | null;
+  currency_symbol?: string | null;
+  // Box (packaging) info — optional; a product may have no box.
+  box_qty?: number | null;
+  box_weight?: Money | null;
+  box_dimensions?: string | null;
+  // How the good is sold: box / piece / both.
+  sale_mode: SaleMode;
 }
 
 export interface ActivityEntry {

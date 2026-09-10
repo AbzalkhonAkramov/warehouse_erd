@@ -28,6 +28,7 @@ import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import AccountsPage from "./pages/AccountsPage";
 import ActivityLogPage from "./pages/ActivityLogPage";
 import BrandingPage from "./pages/BrandingPage";
+import CurrenciesPage from "./pages/CurrenciesPage";
 
 export default function App() {
   const { user, loading } = useAuth();
@@ -100,6 +101,10 @@ export default function App() {
         <Route path="accounts" element={<AccountsPage />} />
         <Route path="activity" element={<ActivityLogPage />} />
         <Route path="branding" element={<BrandingPage />} />
+        <Route
+          path="currencies"
+          element={isAgent ? <Navigate to="/products" replace /> : <CurrenciesPage />}
+        />
         <Route path="topics" element={<TopicsPage />} />
       </Route>
       <Route path="/login" element={<Navigate to="/" replace />} />

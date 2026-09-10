@@ -7,6 +7,7 @@ import {
   getProduct,
   getProductHistory,
   listCategories,
+  listCurrencies,
   updateProduct,
   uploadProductImage,
   uploadUrl,
@@ -168,11 +169,33 @@ function ProductDetail({ product, canManage }: { product: Product; canManage: bo
           )}
           <div className={cls.cx(cls.statGrid, cls.detailStats)}>
             <Stat label={t("col.sku")} value={<span className={cls.mono}>{product.sku}</span>} />
-            <Stat label={t("col.sale")} value={money(product.sale_price)} />
+            <Stat
+              label={t("col.sale")}
+              value={`${money(product.sale_price)}${product.currency_symbol ? " " + product.currency_symbol : ""}`}
+            />
             {product.cost_price != null && (
-              <Stat label={t("col.cost")} value={money(product.cost_price)} />
+              <Stat
+                label={t("col.cost")}
+                value={`${money(product.cost_price)}${product.currency_symbol ? " " + product.currency_symbol : ""}`}
+              />
             )}
             <Stat label={t("col.onHand")} value={`${qty(product.on_hand ?? 0)} ${product.unit}`} />
+            <Stat label={t("field.currency")} value={product.currency_code ?? "—"} />
+            <Stat label={t("field.saleMode")} value={t(`saleMode.${product.sale_mode}`)} />
+            <Stat
+              label={t("products.box")}
+              value={
+                product.box_qty
+                  ? [
+                      `${product.box_qty} ${product.unit}`,
+                      product.box_weight ? `${money(product.box_weight)} kg` : null,
+                      product.box_dimensions,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")
+                  : t("products.noBox")
+              }
+            />
           </div>
         </div>
       </Card>
@@ -305,6 +328,7 @@ function ProductEditModal({ product, onClose }: { product: Product; onClose: () 
   const { t } = useI18n();
   const qc = useQueryClient();
   const categories = useQuery({ queryKey: ["categories"], queryFn: listCategories });
+  const currencies = useQuery({ queryKey: ["currencies", "active"], queryFn: () => listCurrencies(true) });
   const [form, setForm] = useState({
     sku: product.sku,
     name: product.name,
@@ -313,6 +337,11 @@ function ProductEditModal({ product, onClose }: { product: Product; onClose: () 
     sale_price: String(product.sale_price),
     min_stock: String(product.min_stock),
     category_id: product.category_id ? String(product.category_id) : "",
+    currency_id: product.currency_id ? String(product.currency_id) : "",
+    box_qty: product.box_qty != null ? String(product.box_qty) : "",
+    box_weight: product.box_weight != null ? String(product.box_weight) : "",
+    box_dimensions: product.box_dimensions ?? "",
+    sale_mode: (product.sale_mode ?? "piece") as "box" | "piece" | "both",
   });
   const [frontFile, setFrontFile] = useState<File | null>(null);
   const [backFile, setBackFile] = useState<File | null>(null);
@@ -328,6 +357,11 @@ function ProductEditModal({ product, onClose }: { product: Product; onClose: () 
         sale_price: form.sale_price,
         min_stock: form.min_stock,
         category_id: form.category_id ? Number(form.category_id) : null,
+        currency_id: form.currency_id ? Number(form.currency_id) : null,
+        box_qty: form.box_qty ? Number(form.box_qty) : null,
+        box_weight: form.box_weight ? form.box_weight : null,
+        box_dimensions: form.box_dimensions ? form.box_dimensions : null,
+        sale_mode: form.sale_mode,
       });
       if (frontFile) await uploadProductImage(product.id, frontFile, "front");
       if (backFile) await uploadProductImage(product.id, backFile, "back");
@@ -376,6 +410,40 @@ function ProductEditModal({ product, onClose }: { product: Product; onClose: () 
             <span>{t("field.minStock")}</span>
             <input type="number" step="0.001" value={form.min_stock}
               onChange={(e) => setForm({ ...form, min_stock: e.target.value })} />
+          </label>
+          <label className={cls.field}>
+            <span>{t("field.currency")}</span>
+            <select value={form.currency_id}
+              onChange={(e) => setForm({ ...form, currency_id: e.target.value })}>
+              <option value="">{t("create.noCurrency")}</option>
+              {currencies.data?.map((c) => (
+                <option key={c.id} value={c.id}>{c.code} ({c.symbol})</option>
+              ))}
+            </select>
+          </label>
+          <label className={cls.field}>
+            <span>{t("field.saleMode")}</span>
+            <select value={form.sale_mode}
+              onChange={(e) => setForm({ ...form, sale_mode: e.target.value as typeof form.sale_mode })}>
+              {(["piece", "box", "both"] as const).map((m) => (
+                <option key={m} value={m}>{t(`saleMode.${m}`)}</option>
+              ))}
+            </select>
+          </label>
+          <label className={cls.field}>
+            <span>{t("field.boxQty")}</span>
+            <input type="number" step="1" min="0" value={form.box_qty}
+              onChange={(e) => setForm({ ...form, box_qty: e.target.value })} />
+          </label>
+          <label className={cls.field}>
+            <span>{t("field.boxWeight")}</span>
+            <input type="number" step="0.001" min="0" value={form.box_weight}
+              onChange={(e) => setForm({ ...form, box_weight: e.target.value })} />
+          </label>
+          <label className={cls.cx(cls.field, cls.fieldFull)}>
+            <span>{t("field.boxDimensions")}</span>
+            <input value={form.box_dimensions} placeholder="40x30x25 cm"
+              onChange={(e) => setForm({ ...form, box_dimensions: e.target.value })} />
           </label>
           <label className={cls.cx(cls.field, cls.fieldFull)}>
             <span>{t("field.category")}</span>

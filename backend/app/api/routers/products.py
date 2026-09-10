@@ -72,6 +72,9 @@ async def list_products(
     for p in products:
         item = ProductOut.model_validate(p)
         item.on_hand = qty_map.get(p.id, Decimal("0"))
+        if p.currency is not None:
+            item.currency_code = p.currency.code
+            item.currency_symbol = p.currency.symbol
         if is_agent:
             item.cost_price = None  # agents never see the purchase price
         out.append(item)
@@ -92,6 +95,9 @@ async def get_product(
     )
     item = ProductOut.model_validate(product)
     item.on_hand = Decimal(total or 0)
+    if product.currency is not None:
+        item.currency_code = product.currency.code
+        item.currency_symbol = product.currency.symbol
     if user.role == UserRole.AGENT:
         item.cost_price = None
     return item

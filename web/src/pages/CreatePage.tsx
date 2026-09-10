@@ -6,6 +6,7 @@ import {
   createCustomer,
   createProduct,
   listCategories,
+  listCurrencies,
   listRegions,
   listUsers,
   uploadProductImage,
@@ -22,7 +23,14 @@ const EMPTY_PRODUCT = {
   sale_price: "0",
   min_stock: "0",
   category_id: "",
+  currency_id: "",
+  box_qty: "",
+  box_weight: "",
+  box_dimensions: "",
+  sale_mode: "piece" as "box" | "piece" | "both",
 };
+
+const SALE_MODES = ["piece", "box", "both"] as const;
 const EMPTY_SHOP = {
   name: "",
   phone: "",
@@ -69,6 +77,8 @@ function ProductForm() {
 
   const categories = useQuery({ queryKey: ["categories"], queryFn: listCategories });
   const categoryName = categories.data?.find((c) => String(c.id) === form.category_id)?.name;
+  const currencies = useQuery({ queryKey: ["currencies", "active"], queryFn: () => listCurrencies(true) });
+  const currencyName = currencies.data?.find((c) => String(c.id) === form.currency_id)?.code;
 
   const create = useMutation({
     mutationFn: async () => {
@@ -80,6 +90,11 @@ function ProductForm() {
         sale_price: form.sale_price,
         min_stock: form.min_stock,
         category_id: form.category_id ? Number(form.category_id) : undefined,
+        currency_id: form.currency_id ? Number(form.currency_id) : undefined,
+        box_qty: form.box_qty ? Number(form.box_qty) : null,
+        box_weight: form.box_weight ? form.box_weight : null,
+        box_dimensions: form.box_dimensions ? form.box_dimensions : null,
+        sale_mode: form.sale_mode,
       });
       if (file) await uploadProductImage(product.id, file, "front");
       if (backFile) await uploadProductImage(product.id, backFile, "back");
@@ -115,6 +130,9 @@ function ProductForm() {
             { label: t("field.costPrice"), value: form.cost_price },
             { label: t("field.salePrice"), value: form.sale_price },
             { label: t("field.minStock"), value: form.min_stock },
+            { label: t("field.currency"), value: currencyName ?? "—" },
+            { label: t("field.saleMode"), value: t(`saleMode.${form.sale_mode}`) },
+            { label: t("field.boxQty"), value: form.box_qty || "—" },
             { label: t("field.category"), value: categoryName ?? t("create.noCategory") },
             { label: t("create.image"), value: file?.name ?? "—" },
             { label: t("create.imageBack"), value: backFile?.name ?? "—" },
@@ -154,6 +172,40 @@ function ProductForm() {
             <span>{t("field.minStock")}</span>
             <input type="number" step="0.001" value={form.min_stock}
               onChange={(e) => setForm({ ...form, min_stock: e.target.value })} />
+          </label>
+          <label className={cls.field}>
+            <span>{t("field.currency")}</span>
+            <select value={form.currency_id}
+              onChange={(e) => setForm({ ...form, currency_id: e.target.value })}>
+              <option value="">{t("create.noCurrency")}</option>
+              {currencies.data?.map((c) => (
+                <option key={c.id} value={c.id}>{c.code} ({c.symbol})</option>
+              ))}
+            </select>
+          </label>
+          <label className={cls.field}>
+            <span>{t("field.saleMode")}</span>
+            <select value={form.sale_mode}
+              onChange={(e) => setForm({ ...form, sale_mode: e.target.value as typeof form.sale_mode })}>
+              {SALE_MODES.map((m) => (
+                <option key={m} value={m}>{t(`saleMode.${m}`)}</option>
+              ))}
+            </select>
+          </label>
+          <label className={cls.field}>
+            <span>{t("field.boxQty")}</span>
+            <input type="number" step="1" min="0" value={form.box_qty}
+              onChange={(e) => setForm({ ...form, box_qty: e.target.value })} />
+          </label>
+          <label className={cls.field}>
+            <span>{t("field.boxWeight")}</span>
+            <input type="number" step="0.001" min="0" value={form.box_weight}
+              onChange={(e) => setForm({ ...form, box_weight: e.target.value })} />
+          </label>
+          <label className={cls.cx(cls.field, cls.fieldFull)}>
+            <span>{t("field.boxDimensions")}</span>
+            <input value={form.box_dimensions} placeholder="40x30x25 cm"
+              onChange={(e) => setForm({ ...form, box_dimensions: e.target.value })} />
           </label>
           <label className={cls.cx(cls.field, cls.fieldFull)}>
             <span>{t("field.category")}</span>

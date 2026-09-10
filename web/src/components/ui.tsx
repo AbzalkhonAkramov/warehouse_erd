@@ -74,7 +74,15 @@ export function ExcelButton({ onClick }: { onClick: () => void }) {
 
 export function Spinner({ label }: { label?: string }) {
   const { t } = useI18n();
-  return <div className={cls.spinner}>{label ?? t("common.loading")}</div>;
+  return (
+    <div className={cls.spinner}>
+      <span
+        className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-line border-t-brand align-[-3px] mr-2"
+        aria-hidden
+      />
+      {label ?? t("common.loading")}
+    </div>
+  );
 }
 
 export function ErrorBox({ error }: { error: unknown }) {

@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import * as cls from "../ui/cls";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   downloadStockTemplate,
   importStock,
@@ -17,16 +17,38 @@ import { money, qty } from "../lib/format";
 import { exportExcel } from "../lib/excel";
 
 type Sort = "name" | "price_desc" | "price_asc" | "stock_desc";
+type Layout = "card" | "list";
+
+function initialLayout(): Layout {
+  try {
+    const v = localStorage.getItem("productsLayout");
+    if (v === "card" || v === "list") return v;
+  } catch {
+    /* storage may be unavailable */
+  }
+  return "card";
+}
 
 export default function ProductsPage() {
   const { t } = useI18n();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const role = user?.role;
   const canManage = role === "admin" || role === "manager" || role === "warehouse";
 
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<string>("");
   const [sort, setSort] = useState<Sort>("name");
+  const [layout, setLayout] = useState<Layout>(initialLayout);
+
+  function changeLayout(v: Layout) {
+    setLayout(v);
+    try {
+      localStorage.setItem("productsLayout", v);
+    } catch {
+      /* ignore */
+    }
+  }
   const [importMsg, setImportMsg] = useState<string | null>(null);
   const [importErr, setImportErr] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -162,12 +184,65 @@ export default function ProductsPage() {
             <option value="stock_desc">{t("sort.stockDesc")}</option>
           </select>
         </label>
+        <label className={cls.inlineField}>
+          {t("products.view")}
+          <select value={layout} onChange={(e) => changeLayout(e.target.value as Layout)}>
+            <option value="card">{t("products.viewCard")}</option>
+            <option value="list">{t("products.viewList")}</option>
+          </select>
+        </label>
       </div>
 
       {products.isLoading ? (
         <Spinner />
       ) : products.error ? (
         <ErrorBox error={products.error} />
+      ) : layout === "list" ? (
+        <Card>
+          <table className={cls.table}>
+            <thead>
+              <tr>
+                <th />
+                <th>{t("col.sku")}</th>
+                <th>{t("col.name")}</th>
+                <th className={cls.numCell}>{t("col.sale")}</th>
+                <th className={cls.numCell}>{t("col.onHand")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {view.map((p) => {
+                const s = onHand.get(p.id);
+                return (
+                  <tr
+                    key={p.id}
+                    className={cls.clickable}
+                    onClick={() => navigate(`/products/${p.id}`)}
+                  >
+                    <td>
+                      {p.image_path ? (
+                        <img
+                          className={cls.listThumb}
+                          src={uploadUrl(p.image_path)}
+                          alt={p.name}
+                        />
+                      ) : (
+                        <span className={cls.listThumbEmpty}>📦</span>
+                      )}
+                    </td>
+                    <td className={cls.mono}>{p.sku}</td>
+                    <td>{p.name}</td>
+                    <td className={cls.cx(cls.numCell, cls.strong)}>
+                      {money(p.sale_price)}{p.currency_symbol ? ` ${p.currency_symbol}` : ""}
+                    </td>
+                    <td className={cls.cx(cls.numCell, s?.low ? cls.warn : undefined)}>
+                      {s ? qty(s.quantity) : "0"} {p.unit}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </Card>
       ) : (
         <div className={cls.productGrid}>
           {view.map((p) => {

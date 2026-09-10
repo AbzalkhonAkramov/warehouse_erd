@@ -5,11 +5,18 @@ import {
   createCategory,
   createCustomer,
   createProduct,
+  downloadCategoriesTemplate,
+  downloadMarketsTemplate,
+  downloadProductsTemplate,
+  importCategories,
+  importMarkets,
+  importProducts,
   listCategories,
   listCurrencies,
   listRegions,
   listUsers,
   uploadProductImage,
+  type BulkImportResult,
 } from "../api/endpoints";
 import { useAuth } from "../auth/AuthContext";
 import { useI18n } from "../i18n";
@@ -18,7 +25,7 @@ import { Button, Card, ConfirmDialog, ErrorBox } from "../components/ui";
 const EMPTY_PRODUCT = {
   sku: "",
   name: "",
-  unit: "pcs",
+  unit: "шт",
   cost_price: "0",
   sale_price: "0",
   min_stock: "0",
@@ -28,6 +35,7 @@ const EMPTY_PRODUCT = {
   box_weight: "",
   box_dimensions: "",
   sale_mode: "piece" as "box" | "piece" | "both",
+  integer_qty: "1", // "1" = whole units, "0" = fractional
 };
 
 const SALE_MODES = ["piece", "box", "both"] as const;
@@ -59,6 +67,67 @@ export default function CreatePage() {
         {canProduct && <CategoryForm />}
         <ShopForm showAgentPicker={isManager} />
       </div>
+    </div>
+  );
+}
+
+/** Download-template + import-Excel controls shared by the create cards. */
+function ExcelImport({
+  onTemplate,
+  doImport,
+  invalidateKeys,
+}: {
+  onTemplate: () => void;
+  doImport: (f: File) => Promise<BulkImportResult>;
+  invalidateKeys: string[];
+}) {
+  const { t } = useI18n();
+  const qc = useQueryClient();
+  const ref = useRef<HTMLInputElement>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  const imp = useMutation({
+    mutationFn: doImport,
+    onSuccess: (r) => {
+      invalidateKeys.forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
+      setErr(null);
+      setMsg(
+        t("import.done", { created: r.created, skipped: r.skipped }) +
+          (r.errors.length ? ` · ${r.errors.length} ${t("import.errs")}` : ""),
+      );
+    },
+    onError: (e) => setErr(e instanceof Error ? e.message : t("common.somethingWrong")),
+  });
+
+  return (
+    <div className={cls.excelImport}>
+      <div className={cls.rowGap}>
+        <Button type="button" variant="ghost" onClick={onTemplate}>
+          ⬇ {t("import.template")}
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          disabled={imp.isPending}
+          onClick={() => ref.current?.click()}
+        >
+          ⬆ {imp.isPending ? t("common.saving") : t("import.excel")}
+        </Button>
+        <input
+          ref={ref}
+          type="file"
+          accept=".xlsx"
+          style={{ display: "none" }}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) imp.mutate(f);
+            if (ref.current) ref.current.value = "";
+          }}
+        />
+      </div>
+      {msg && <div className={cls.okBox}>{msg}</div>}
+      {err && <div className={cls.errorBox}>{err}</div>}
     </div>
   );
 }
@@ -95,6 +164,7 @@ function ProductForm() {
         box_weight: form.box_weight ? form.box_weight : null,
         box_dimensions: form.box_dimensions ? form.box_dimensions : null,
         sale_mode: form.sale_mode,
+        integer_qty: form.integer_qty === "1",
       });
       if (file) await uploadProductImage(product.id, file, "front");
       if (backFile) await uploadProductImage(product.id, backFile, "back");
@@ -132,6 +202,7 @@ function ProductForm() {
             { label: t("field.minStock"), value: form.min_stock },
             { label: t("field.currency"), value: currencyName ?? "—" },
             { label: t("field.saleMode"), value: t(`saleMode.${form.sale_mode}`) },
+            { label: t("field.qtyType"), value: t(form.integer_qty === "1" ? "qtyType.integer" : "qtyType.fractional") },
             { label: t("field.boxQty"), value: form.box_qty || "—" },
             { label: t("field.category"), value: categoryName ?? t("create.noCategory") },
             { label: t("create.image"), value: file?.name ?? "—" },
@@ -193,6 +264,14 @@ function ProductForm() {
             </select>
           </label>
           <label className={cls.field}>
+            <span>{t("field.qtyType")}</span>
+            <select value={form.integer_qty}
+              onChange={(e) => setForm({ ...form, integer_qty: e.target.value })}>
+              <option value="1">{t("qtyType.integer")}</option>
+              <option value="0">{t("qtyType.fractional")}</option>
+            </select>
+          </label>
+          <label className={cls.field}>
             <span>{t("field.boxQty")}</span>
             <input type="number" step="1" min="0" value={form.box_qty}
               onChange={(e) => setForm({ ...form, box_qty: e.target.value })} />
@@ -243,6 +322,11 @@ function ProductForm() {
         <Button type="submit" disabled={create.isPending}>
           {create.isPending ? t("common.saving") : t("products.create")}
         </Button>
+        <ExcelImport
+          onTemplate={downloadProductsTemplate}
+          doImport={importProducts}
+          invalidateKeys={["products", "stock", "categories"]}
+        />
       </form>
     </Card>
   );
@@ -295,6 +379,11 @@ function CategoryForm() {
         <Button type="submit" disabled={create.isPending || !name.trim()}>
           {create.isPending ? t("common.saving") : t("create.createCategory")}
         </Button>
+        <ExcelImport
+          onTemplate={downloadCategoriesTemplate}
+          doImport={importCategories}
+          invalidateKeys={["categories"]}
+        />
       </form>
     </Card>
   );
@@ -437,6 +526,11 @@ function ShopForm({ showAgentPicker }: { showAgentPicker: boolean }) {
         <Button type="submit" disabled={create.isPending}>
           {create.isPending ? t("common.saving") : t("customers.create")}
         </Button>
+        <ExcelImport
+          onTemplate={downloadMarketsTemplate}
+          doImport={importMarkets}
+          invalidateKeys={["customers"]}
+        />
       </form>
     </Card>
   );

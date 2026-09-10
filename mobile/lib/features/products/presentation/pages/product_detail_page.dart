@@ -79,6 +79,8 @@ class ProductDetailPage extends StatelessWidget {
                         p.currencyCode!),
                   _row(Icons.local_shipping_outlined, context.tr('product.saleMode'),
                       context.tr('saleMode.${p.saleMode}')),
+                  _row(Icons.numbers_outlined, context.tr('product.qtyType'),
+                      context.tr(p.integerQty ? 'qtyType.integer' : 'qtyType.fractional')),
                   _row(Icons.inbox_outlined, context.tr('product.box'),
                       _box(context, p)),
                   _row(Icons.straighten_outlined, context.tr('product.unit'),

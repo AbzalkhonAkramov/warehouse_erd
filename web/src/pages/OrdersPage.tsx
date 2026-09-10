@@ -3,7 +3,6 @@ import * as cls from "../ui/cls";
 import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  getOrder,
   listCustomers,
   listOrders,
   listProducts,
@@ -54,6 +53,11 @@ export default function OrdersPage() {
   const isManager = user?.role === "admin" || user?.role === "manager";
 
   const [filter, setFilter] = useState("new");
+  const [agentFilter, setAgentFilter] = useState<number | "">("");
+  const [customerFilter, setCustomerFilter] = useState<number | "">("");
+  const [idFilter, setIdFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [expanded, setExpanded] = useState<number | null>(null);
   const [editDelivererId, setEditDelivererId] = useState<number | "">("");
   const [moveSel, setMoveSel] = useState<SalesOrderStatus>("shipped");
@@ -80,13 +84,6 @@ export default function OrdersPage() {
   });
   const products = useQuery({ queryKey: ["products"], queryFn: listProducts });
 
-  // Full detail (incl. pinned before/after photos) for the expanded order only.
-  const detail = useQuery({
-    queryKey: ["order", expanded],
-    queryFn: () => getOrder(expanded as number),
-    enabled: expanded != null,
-  });
-
   const customerName = useMemo(() => {
     const m = new Map<number, string>();
     customers.data?.forEach((c) => m.set(c.id, c.name));
@@ -102,6 +99,20 @@ export default function OrdersPage() {
     products.data?.forEach((p) => m.set(p.id, p.name));
     return (id: number) => m.get(id) ?? `#${id}`;
   }, [products.data]);
+
+  // Client-side filters over the loaded list: agent, customer, order id, date.
+  const shownOrders = useMemo(() => {
+    const idq = idFilter.trim();
+    return (orders.data ?? []).filter((o) => {
+      if (agentFilter !== "" && o.agent_id !== agentFilter) return false;
+      if (customerFilter !== "" && o.customer_id !== customerFilter) return false;
+      if (idq && !String(o.order_no ?? o.id).includes(idq)) return false;
+      const day = (o.created_at ?? "").slice(0, 10); // YYYY-MM-DD
+      if (dateFrom && day < dateFrom) return false;
+      if (dateTo && day > dateTo) return false;
+      return true;
+    });
+  }, [orders.data, agentFilter, customerFilter, idFilter, dateFrom, dateTo]);
 
   function openRow(o: SalesOrder) {
     if (expanded === o.id) return setExpanded(null);
@@ -123,16 +134,6 @@ export default function OrdersPage() {
     mutationFn: (o: SalesOrder) =>
       updateOrder(o.id, { deliverer_id: editDelivererId === "" ? undefined : editDelivererId }),
     onSuccess: refresh,
-    onError,
-  });
-
-  const togglePhotos = useMutation({
-    mutationFn: (v: { id: number; required: boolean }) =>
-      updateOrder(v.id, { photo_required: v.required }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["order"] });
-      refresh();
-    },
     onError,
   });
 
@@ -171,11 +172,11 @@ export default function OrdersPage() {
   });
 
   function exportOrders() {
-    if (!orders.data) return;
+    if (!shownOrders.length) return;
     exportExcel(
       "orders",
       ["#", t("col.customer"), t("col.agent"), t("col.created"), t("col.total"), t("common.status"), t("orders.deliverer")],
-      orders.data.map((o) => [
+      shownOrders.map((o) => [
         o.order_no ?? o.id,
         customerName(o.customer_id),
         o.agent_name ?? agentName(o.agent_id),
@@ -211,6 +212,55 @@ export default function OrdersPage() {
             {t(f.labelKey)}
           </button>
         ))}
+        <label className={cls.inlineField}>
+          {t("col.agent")}
+          <select
+            value={agentFilter}
+            onChange={(e) =>
+              setAgentFilter(e.target.value === "" ? "" : Number(e.target.value))
+            }
+          >
+            <option value="">{t("orders.allAgents")}</option>
+            {agents.data?.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.full_name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className={cls.inlineField}>
+          {t("col.customer")}
+          <select
+            value={customerFilter}
+            onChange={(e) =>
+              setCustomerFilter(e.target.value === "" ? "" : Number(e.target.value))
+            }
+          >
+            <option value="">{t("orders.allCustomers")}</option>
+            {customers.data?.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className={cls.inlineField}>
+          #
+          <input
+            className={cls.qtyInput}
+            value={idFilter}
+            onChange={(e) => setIdFilter(e.target.value)}
+            placeholder={t("orders.idPlaceholder")}
+          />
+        </label>
+        <label className={cls.inlineField}>
+          {t("field.dateFrom")}
+          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+        </label>
+        <label className={cls.inlineField}>
+          {t("field.dateTo")}
+          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+        </label>
       </div>
 
       {actionError && <div className={cls.errorBox}>{actionError}</div>}
@@ -220,7 +270,7 @@ export default function OrdersPage() {
           <Spinner />
         ) : orders.error ? (
           <ErrorBox error={orders.error} />
-        ) : orders.data && orders.data.length > 0 ? (
+        ) : shownOrders.length > 0 ? (
           <table className={cls.table}>
             <thead>
               <tr>
@@ -234,7 +284,7 @@ export default function OrdersPage() {
               </tr>
             </thead>
             <tbody>
-              {orders.data.map((o) => (
+              {shownOrders.map((o) => (
                 <Fragment key={o.id}>
                   <tr className={cls.clickable} onClick={() => openRow(o)}>
                     <td className={cls.mono}>{o.order_no ?? o.id}</td>
@@ -285,63 +335,6 @@ export default function OrdersPage() {
                             <p className={cls.note}>
                               {t("orders.createdBy")}: {o.created_by_name}
                             </p>
-                          )}
-
-                          {detail.data?.id === o.id && (
-                            <div className={cls.orderPhotos} onClick={(e) => e.stopPropagation()}>
-                              <div className={cls.orderPhotosHead}>
-                                <strong>{t("orders.photos")}</strong>
-                                {isManager && (
-                                  <label className={cls.inlineCheck}>
-                                    <input
-                                      type="checkbox"
-                                      checked={detail.data.photo_required ?? true}
-                                      disabled={togglePhotos.isPending}
-                                      onChange={(e) =>
-                                        togglePhotos.mutate({
-                                          id: o.id,
-                                          required: e.target.checked,
-                                        })
-                                      }
-                                    />
-                                    {t("orders.requirePhotos")}
-                                  </label>
-                                )}
-                              </div>
-                              {detail.data.photos && detail.data.photos.length > 0 ? (
-                                <div className={cls.tgLinks}>
-                                  {detail.data.photos.map((ph, i) =>
-                                    ph.link ? (
-                                      <a
-                                        key={i}
-                                        className={cls.cx(cls.btn.ghost, cls.tgLink)}
-                                        href={ph.link}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                      >
-                                        ✈ {t(`photo.${ph.stage}`)} · {t("photo.viewInTelegram")}
-                                      </a>
-                                    ) : (
-                                      <span key={i} className={cls.note}>
-                                        {t(`photo.${ph.stage}`)}: {t("photo.notSent")}
-                                      </span>
-                                    ),
-                                  )}
-                                </div>
-                              ) : (
-                                <p
-                                  className={
-                                    detail.data.photo_required && detail.data.agent_photo_required
-                                      ? cls.noteWarn
-                                      : cls.note
-                                  }
-                                >
-                                  {detail.data.photo_required && detail.data.agent_photo_required
-                                    ? t("orders.photosRequiredWarn")
-                                    : t("orders.photosNone")}
-                                </p>
-                              )}
-                            </div>
                           )}
 
                           {(o.status === "shipped" || o.status === "delivered") && (

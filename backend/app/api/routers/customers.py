@@ -1,4 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from decimal import Decimal, InvalidOperation
+from io import BytesIO
+
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    HTTPException,
+    Response,
+    UploadFile,
+    status,
+)
+from openpyxl import Workbook, load_workbook
 from sqlalchemy import delete, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -7,7 +19,7 @@ from app.api.deps import get_current_user, require_roles
 from app.core.database import get_db
 from app.models.associations import customer_agents
 from app.models.enums import UserRole
-from app.models.sales import Customer
+from app.models.sales import Customer, Region
 from app.models.user import User
 from app.schemas.customer import (
     AgentBrief,
@@ -17,8 +29,15 @@ from app.schemas.customer import (
     CustomerUpdate,
     VisitDaysUpdate,
 )
+from app.schemas.imports import BulkImportResult
 
 router = APIRouter(prefix="/customers", tags=["customers"])
+
+_XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+_CUSTOMER_COLUMNS = [
+    "Name", "Phone", "Address", "City", "Region", "Credit limit",
+    "Visit days (mon,wed,fri)", "Agent (name or email)",
+]
 
 _EAGER = (selectinload(Customer.agents), selectinload(Customer.region))
 
@@ -53,6 +72,106 @@ async def list_customers(
     if user.role == UserRole.AGENT:
         stmt = stmt.where(Customer.agents.any(User.id == user.id))
     return [_to_out(c) for c in await db.scalars(stmt)]
+
+
+@router.get("/template")
+async def customers_template(
+    _: User = Depends(require_roles(UserRole.MANAGER)),
+) -> Response:
+    """Blank market-creation sheet. Region is matched by name (created if new);
+    Agent is matched by full name or email. Declared before /{customer_id}."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Markets"
+    ws.append(_CUSTOMER_COLUMNS)
+    ws.append(["Corner Shop", "+998901234567", "12 Market St", "Tashkent",
+               "Center", 500, "mon,wed,fri", "agent@erp.local"])
+    buf = BytesIO()
+    wb.save(buf)
+    return Response(
+        content=buf.getvalue(),
+        media_type=_XLSX_MIME,
+        headers={"Content-Disposition": 'attachment; filename="markets-template.xlsx"'},
+    )
+
+
+@router.post("/import", response_model=BulkImportResult)
+async def customers_import(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_roles(UserRole.MANAGER)),
+) -> BulkImportResult:
+    """Bulk-create markets. A row needs a Name (unique — existing names skip).
+    Region is matched by name (created if new); Agent by full name or email."""
+    try:
+        wb = load_workbook(BytesIO(await file.read()), data_only=True)
+    except Exception:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "Could not read the Excel file (.xlsx expected)"
+        ) from None
+    ws = wb.worksheets[0]
+
+    existing = {(n or "").strip().lower() for n in await db.scalars(select(Customer.name))}
+    regions = {(n or "").lower(): rid for rid, n in (
+        await db.execute(select(Region.id, Region.name))).all()}
+    users = list(await db.scalars(
+        select(User).where(User.role == UserRole.AGENT)))
+    agent_by = {}
+    for u in users:
+        agent_by[u.full_name.lower()] = u.id
+        agent_by[u.email.lower()] = u.id
+
+    created = skipped = 0
+    errors: list[str] = []
+    seen: set[str] = set()
+    for idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+        cell = lambda i: row[i] if row and len(row) > i else None  # noqa: E731
+        name = (str(cell(0)).strip() if cell(0) not in (None, "") else "")
+        if not name:
+            continue
+        key = name.lower()
+        if key in existing or key in seen:
+            skipped += 1
+            continue
+
+        region_name = (str(cell(4)).strip() if cell(4) not in (None, "") else "")
+        region_id = None
+        if region_name:
+            region_id = regions.get(region_name.lower())
+            if region_id is None:
+                r = Region(name=region_name)
+                db.add(r)
+                await db.flush()
+                region_id = r.id
+                regions[region_name.lower()] = region_id
+
+        try:
+            credit = Decimal(str(cell(5))) if cell(5) not in (None, "") else Decimal("0")
+        except (InvalidOperation, ValueError):
+            credit = Decimal("0")
+
+        customer = Customer(
+            name=name,
+            phone=(str(cell(1)).strip() if cell(1) not in (None, "") else None),
+            address=(str(cell(2)).strip() if cell(2) not in (None, "") else None),
+            city=(str(cell(3)).strip() if cell(3) not in (None, "") else None),
+            region_id=region_id,
+            credit_limit=credit,
+            visit_days=(str(cell(6)).strip() if cell(6) not in (None, "") else None),
+        )
+        agent_ref = (str(cell(7)).strip() if cell(7) not in (None, "") else "")
+        if agent_ref:
+            aid = agent_by.get(agent_ref.lower())
+            if aid is not None:
+                customer.agents = [u for u in users if u.id == aid]
+            else:
+                errors.append(f"Row {idx}: agent '{agent_ref}' not found (market created without it)")
+        db.add(customer)
+        seen.add(key)
+        created += 1
+
+    await db.flush()
+    return BulkImportResult(created=created, skipped=skipped, errors=errors[:50])
 
 
 @router.get("/{customer_id}", response_model=CustomerOut)

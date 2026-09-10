@@ -12,7 +12,7 @@ Product _fromJson(Map<String, dynamic> j) => Product(
       id: j['id'] as int,
       sku: j['sku'] as String,
       name: j['name'] as String,
-      unit: (j['unit'] as String?) ?? 'pcs',
+      unit: (j['unit'] as String?) ?? 'шт',
       salePrice: _toDouble(j['sale_price']),
       categoryId: j['category_id'] as int?,
       imagePath: j['image_path'] as String?,
@@ -23,6 +23,7 @@ Product _fromJson(Map<String, dynamic> j) => Product(
       boxWeight: _toDoubleOrNull(j['box_weight']),
       boxDimensions: j['box_dimensions'] as String?,
       saleMode: (j['sale_mode'] as String?) ?? 'piece',
+      integerQty: (j['integer_qty'] as bool?) ?? true,
     );
 
 class ProductRemoteDataSource {

@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from io import BytesIO
+
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
+from openpyxl import Workbook, load_workbook
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,8 +17,21 @@ from app.schemas.catalog import (
     SupplierOut,
     SupplierUpdate,
 )
+from app.schemas.imports import BulkImportResult
 
 router = APIRouter(tags=["catalog"])
+
+_XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+def _xlsx_response(wb: Workbook, filename: str) -> Response:
+    buf = BytesIO()
+    wb.save(buf)
+    return Response(
+        content=buf.getvalue(),
+        media_type=_XLSX_MIME,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get("/categories", response_model=list[CategoryOut])
@@ -39,6 +55,56 @@ async def create_category(
     db.add(cat)
     await db.flush()
     return cat
+
+
+@router.get("/categories/template")
+async def categories_template(
+    _: User = Depends(require_roles(UserRole.MANAGER, UserRole.WAREHOUSE)),
+) -> Response:
+    """Blank .xlsx to bulk-create categories: one 'Name' column."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Categories"
+    ws.append(["Name"])
+    ws.append(["Drinks"])  # example row — replace with your categories
+    return _xlsx_response(wb, "categories-template.xlsx")
+
+
+@router.post("/categories/import", response_model=BulkImportResult)
+async def categories_import(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_roles(UserRole.MANAGER, UserRole.WAREHOUSE)),
+) -> BulkImportResult:
+    """Create a category per row (column A = Name). Blank or existing names skip."""
+    try:
+        wb = load_workbook(BytesIO(await file.read()), data_only=True)
+    except Exception:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "Could not read the Excel file (.xlsx expected)"
+        ) from None
+    ws = wb.worksheets[0]
+    existing = {
+        (n or "").strip().lower() for n in await db.scalars(select(Category.name))
+    }
+
+    created = skipped = 0
+    errors: list[str] = []
+    seen: set[str] = set()
+    for idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+        name = (str(row[0]).strip() if row and row[0] not in (None, "") else "")
+        if not name:
+            continue
+        key = name.lower()
+        if key in existing or key in seen:
+            skipped += 1
+            continue
+        db.add(Category(name=name))
+        seen.add(key)
+        created += 1
+
+    await db.flush()
+    return BulkImportResult(created=created, skipped=skipped, errors=errors[:50])
 
 
 @router.get("/suppliers", response_model=list[SupplierOut])

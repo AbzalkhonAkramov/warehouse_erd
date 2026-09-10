@@ -15,7 +15,7 @@ class ProductBase(BaseModel):
     name: str
     barcode: str | None = None
     description: str | None = None
-    unit: str = "pcs"
+    unit: str = "шт"
     category_id: int | None = None
     cost_price: Decimal = Decimal("0")
     sale_price: Decimal = Decimal("0")
@@ -27,6 +27,7 @@ class ProductBase(BaseModel):
     box_weight: Decimal | None = None
     box_dimensions: str | None = None
     sale_mode: SaleMode = SaleMode.PIECE
+    integer_qty: bool = True  # whole units only vs fractional (kg/litres)
 
 
 class ProductCreate(ProductBase):
@@ -51,6 +52,7 @@ class ProductUpdate(BaseModel):
     box_weight: Decimal | None = None
     box_dimensions: str | None = None
     sale_mode: SaleMode | None = None
+    integer_qty: bool | None = None
 
 
 class ProductOut(ProductBase):

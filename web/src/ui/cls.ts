@@ -172,6 +172,7 @@ export const backLink =
   "inline-block mb-3 text-brand no-underline text-sm hover:underline";
 export const headActions = "flex gap-2 items-center";
 export const rowGap = "flex items-center gap-2.5";
+export const excelImport = "mt-3.5 pt-3.5 border-t border-line flex flex-col gap-2";
 
 // --- Create page / grids ---
 export const createGrid =
@@ -250,3 +251,9 @@ export const receiptTotals = "mt-3 text-right grid gap-1";
 export const receiptCell = "flex items-center gap-2";
 export const receiptThumb =
   "w-[38px] h-[38px] object-cover rounded-md border border-line";
+
+// Small product thumbnail for the products/stock list view.
+export const listThumb =
+  "w-9 h-9 rounded-md object-cover border border-line bg-appbg block";
+export const listThumbEmpty =
+  "w-9 h-9 rounded-md border border-line bg-appbg flex items-center justify-center text-muted text-[15px]";

@@ -183,6 +183,10 @@ function ProductDetail({ product, canManage }: { product: Product; canManage: bo
             <Stat label={t("field.currency")} value={product.currency_code ?? "—"} />
             <Stat label={t("field.saleMode")} value={t(`saleMode.${product.sale_mode}`)} />
             <Stat
+              label={t("field.qtyType")}
+              value={t(product.integer_qty === false ? "qtyType.fractional" : "qtyType.integer")}
+            />
+            <Stat
               label={t("products.box")}
               value={
                 product.box_qty
@@ -342,6 +346,7 @@ function ProductEditModal({ product, onClose }: { product: Product; onClose: () 
     box_weight: product.box_weight != null ? String(product.box_weight) : "",
     box_dimensions: product.box_dimensions ?? "",
     sale_mode: (product.sale_mode ?? "piece") as "box" | "piece" | "both",
+    integer_qty: product.integer_qty === false ? "0" : "1",
   });
   const [frontFile, setFrontFile] = useState<File | null>(null);
   const [backFile, setBackFile] = useState<File | null>(null);
@@ -362,6 +367,7 @@ function ProductEditModal({ product, onClose }: { product: Product; onClose: () 
         box_weight: form.box_weight ? form.box_weight : null,
         box_dimensions: form.box_dimensions ? form.box_dimensions : null,
         sale_mode: form.sale_mode,
+        integer_qty: form.integer_qty === "1",
       });
       if (frontFile) await uploadProductImage(product.id, frontFile, "front");
       if (backFile) await uploadProductImage(product.id, backFile, "back");
@@ -428,6 +434,14 @@ function ProductEditModal({ product, onClose }: { product: Product; onClose: () 
               {(["piece", "box", "both"] as const).map((m) => (
                 <option key={m} value={m}>{t(`saleMode.${m}`)}</option>
               ))}
+            </select>
+          </label>
+          <label className={cls.field}>
+            <span>{t("field.qtyType")}</span>
+            <select value={form.integer_qty}
+              onChange={(e) => setForm({ ...form, integer_qty: e.target.value })}>
+              <option value="1">{t("qtyType.integer")}</option>
+              <option value="0">{t("qtyType.fractional")}</option>
             </select>
           </label>
           <label className={cls.field}>

@@ -58,6 +58,8 @@ export interface Product {
   box_dimensions?: string | null;
   // How the good is sold: box / piece / both.
   sale_mode: SaleMode;
+  // true = whole units only (integer qty); false = fractional allowed (kg/litres).
+  integer_qty: boolean;
 }
 
 export interface ActivityEntry {

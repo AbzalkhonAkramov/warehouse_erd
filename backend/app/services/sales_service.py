@@ -136,6 +136,12 @@ async def create_order(db: AsyncSession, creator: User, data: SalesOrderCreate) 
                 status.HTTP_403_FORBIDDEN,
                 f"Product {product.id} is not in your assigned categories",
             )
+        # Whole-unit products may only be ordered in integer quantities.
+        if product.integer_qty and Decimal(line.quantity) % 1 != 0:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                f"{product.name}: quantity must be a whole number",
+            )
         unit_price = line.unit_price if line.unit_price is not None else Decimal(product.sale_price)
         line_total = (unit_price * line.quantity).quantize(Decimal("0.01"))
         subtotal += line_total
@@ -349,19 +355,8 @@ async def move_order(
         await db.refresh(order, attribute_names=["lines"])
         return order
 
-    # Before/after photo gate: an order can only be delivered once its before+after
-    # photos are pinned — but only when the agent is flagged "important" (admin) AND
-    # the order itself still requires photos (manager can waive a single order).
-    if target == SalesOrderStatus.DELIVERED and order.photo_required:
-        agent_important = await db.scalar(
-            select(User.photo_required).where(User.id == order.agent_id)
-        )
-        if agent_important and not await _photos_pinned(db, order.id):
-            raise HTTPException(
-                status.HTTP_400_BAD_REQUEST,
-                "Before/after photos must be attached to this order before it can be "
-                "marked delivered.",
-            )
+    # Photo reports are a standalone feature and no longer gate the order flow —
+    # an order can move to any status regardless of before/after photos.
 
     # Plan which goods move (all lines, or the requested subset).
     by_product = {line.product_id: line for line in order.lines}

@@ -35,7 +35,7 @@ class Product(Base, TimestampMixin):
     barcode: Mapped[str | None] = mapped_column(String(64), index=True)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
-    unit: Mapped[str] = mapped_column(String(16), default="pcs", nullable=False)  # pcs/box/kg
+    unit: Mapped[str] = mapped_column(String(16), default="шт", nullable=False)  # шт/box/kg
 
     category_id: Mapped[int | None] = mapped_column(ForeignKey("categories.id"))
     category: Mapped["Category | None"] = relationship(back_populates="products")
@@ -59,6 +59,10 @@ class Product(Base, TimestampMixin):
     sale_mode: Mapped[str] = mapped_column(
         String(8), default=SaleMode.PIECE.value, nullable=False
     )
+
+    # True  -> quantities are whole units only (pieces): validated as integers.
+    # False -> fractional quantities allowed (e.g. kg, litres). Manager-editable.
+    integer_qty: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     # Reorder threshold for low-stock alerts.
     min_stock: Mapped[float] = mapped_column(Numeric(14, 3), default=0)

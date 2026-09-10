@@ -1,23 +1,26 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import uuid
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
+from io import BytesIO
 from pathlib import Path
 
 from fastapi import File, Form, UploadFile
+from openpyxl import Workbook, load_workbook
 from sqlalchemy import func
 
 from app.api.deps import get_current_user, require_roles
 from app.core.config import settings
 from app.core.database import get_db
 from app.models.associations import agent_categories
-from app.models.enums import SalesOrderStatus, UserRole
-from app.models.catalog import Product
+from app.models.enums import SaleMode, SalesOrderStatus, StockMovementType, UserRole
+from app.models.catalog import Category, Currency, Product, Warehouse
 from app.models.inventory import Stock, StockMovement
 from app.models.sales import SalesOrder, SalesOrderLine
 from app.models.user import User
+from app.schemas.imports import BulkImportResult
 from app.schemas.product import (
     ProductCreate,
     ProductHistoryEntry,
@@ -28,6 +31,30 @@ from app.schemas.product import (
 router = APIRouter(prefix="/products", tags=["products"])
 
 _IMAGE_SUBDIR = "products"
+_XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+def _xlsx_response(wb: Workbook, filename: str) -> Response:
+    buf = BytesIO()
+    wb.save(buf)
+    return Response(
+        content=buf.getvalue(),
+        media_type=_XLSX_MIME,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+# Column order shared by the product template and importer.
+_PRODUCT_COLUMNS = [
+    "SKU", "Name", "Category", "Unit", "Cost price", "Sale price", "Min stock",
+    "Currency", "Sale mode (piece/box/both)", "Box qty", "Box weight",
+    "Box dimensions", "Initial stock", "Whole units? (yes/no)",
+]
+
+
+def _parse_bool(v: object, default: bool = True) -> bool:
+    if v in (None, ""):
+        return default
+    return str(v).strip().lower() in ("yes", "y", "true", "1", "да", "ha")
 
 
 @router.get("", response_model=list[ProductOut])
@@ -79,6 +106,38 @@ async def list_products(
             item.cost_price = None  # agents never see the purchase price
         out.append(item)
     return out
+
+
+@router.get("/template")
+async def products_template(
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_roles(UserRole.MANAGER, UserRole.WAREHOUSE)),
+) -> Response:
+    """Blank product-creation sheet plus a 'Guide' sheet listing the categories,
+    currency codes and sale modes that are valid to type in. Declared before the
+    /{product_id} route so the literal 'template' path isn't captured as an id."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Products"
+    ws.append(_PRODUCT_COLUMNS)
+    ws.append([
+        "SKU-100", "Example product", "Drinks", "шт", 5, 9, 10, "UZS",
+        "piece", 24, 7.5, "40x30x25", 100, "yes",
+    ])
+
+    guide = wb.create_sheet("Guide")
+    cats = list(await db.scalars(select(Category.name).order_by(Category.name)))
+    curs = list(await db.scalars(
+        select(Currency.code).where(Currency.is_active.is_(True)).order_by(Currency.code)
+    ))
+    guide.append(["Categories", "Currencies", "Sale modes"])
+    for i in range(max(len(cats), len(curs), 3)):
+        guide.append([
+            cats[i] if i < len(cats) else None,
+            curs[i] if i < len(curs) else None,
+            ["piece", "box", "both"][i] if i < 3 else None,
+        ])
+    return _xlsx_response(wb, "products-template.xlsx")
 
 
 @router.get("/{product_id}", response_model=ProductOut)
@@ -139,6 +198,132 @@ async def update_product(
         setattr(product, field, value)
     await db.flush()
     return product
+
+
+def _dec(v: object, default: Decimal | None = Decimal("0")) -> Decimal | None:
+    if v in (None, ""):
+        return default
+    try:
+        return Decimal(str(v))
+    except (InvalidOperation, ValueError):
+        raise ValueError(f"bad number '{v}'") from None
+
+
+def _int_or_none(v: object) -> int | None:
+    if v in (None, ""):
+        return None
+    return int(float(v))
+
+
+@router.post("/import", response_model=BulkImportResult)
+async def products_import(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_roles(UserRole.MANAGER, UserRole.WAREHOUSE)),
+) -> BulkImportResult:
+    """Bulk-create products from the template. A row needs at least SKU + Name.
+    Category is matched by name (created if new); currency by code (must exist);
+    an 'Initial stock' > 0 is added to the default warehouse."""
+    try:
+        wb = load_workbook(BytesIO(await file.read()), data_only=True)
+    except Exception:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "Could not read the Excel file (.xlsx expected)"
+        ) from None
+    ws = wb.worksheets[0]
+
+    existing_skus = {s for s in await db.scalars(select(Product.sku))}
+    cats = {(n or "").lower(): cid for cid, n in (
+        await db.execute(select(Category.id, Category.name))).all()}
+    curs = {(c or "").upper(): cid for cid, c in (
+        await db.execute(select(Currency.id, Currency.code))).all()}
+    base_currency = await db.scalar(
+        select(Currency.id).where(Currency.code == "UZS")
+    ) or await db.scalar(select(Currency.id).order_by(Currency.id))
+    warehouse_id = await db.scalar(
+        select(Warehouse.id).where(Warehouse.is_default.is_(True))
+    ) or await db.scalar(select(Warehouse.id).order_by(Warehouse.id))
+    valid_modes = {m.value for m in SaleMode}
+
+    created = skipped = 0
+    errors: list[str] = []
+    for idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+        cell = lambda i: row[i] if row and len(row) > i else None  # noqa: E731
+        sku = (str(cell(0)).strip() if cell(0) not in (None, "") else "")
+        name = (str(cell(1)).strip() if cell(1) not in (None, "") else "")
+        if not sku and not name:
+            continue
+        if not sku or not name:
+            errors.append(f"Row {idx}: SKU and Name are both required")
+            continue
+        if sku in existing_skus:
+            skipped += 1
+            continue
+
+        # Category — reuse by name, or create it.
+        cat_name = (str(cell(2)).strip() if cell(2) not in (None, "") else "")
+        category_id = None
+        if cat_name:
+            category_id = cats.get(cat_name.lower())
+            if category_id is None:
+                new_cat = Category(name=cat_name)
+                db.add(new_cat)
+                await db.flush()
+                category_id = new_cat.id
+                cats[cat_name.lower()] = category_id
+
+        # Currency — must exist; blank falls back to the base currency.
+        cur_code = (str(cell(7)).strip().upper() if cell(7) not in (None, "") else "")
+        currency_id = curs.get(cur_code, base_currency) if cur_code else base_currency
+        if cur_code and cur_code not in curs:
+            errors.append(f"Row {idx}: unknown currency '{cur_code}', used default")
+
+        mode = (str(cell(8)).strip().lower() if cell(8) not in (None, "") else "piece")
+        if mode not in valid_modes:
+            mode = "piece"
+
+        try:
+            product = Product(
+                sku=sku,
+                name=name,
+                category_id=category_id,
+                unit=(str(cell(3)).strip() if cell(3) not in (None, "") else "шт"),
+                cost_price=_dec(cell(4)),
+                sale_price=_dec(cell(5)),
+                min_stock=_dec(cell(6)),
+                currency_id=currency_id,
+                sale_mode=mode,
+                box_qty=_int_or_none(cell(9)),
+                box_weight=_dec(cell(10), None),
+                box_dimensions=(str(cell(11)).strip() if cell(11) not in (None, "") else None),
+                integer_qty=_parse_bool(cell(13)),
+            )
+        except ValueError as e:
+            errors.append(f"Row {idx}: {e}")
+            continue
+        db.add(product)
+        await db.flush()
+        existing_skus.add(sku)
+        created += 1
+
+        # Optional opening stock.
+        try:
+            init = _dec(cell(12), Decimal("0"))
+        except ValueError:
+            init = Decimal("0")
+        if init and init > 0 and warehouse_id is not None:
+            db.add(Stock(product_id=product.id, warehouse_id=warehouse_id, quantity=init))
+            db.add(StockMovement(
+                product_id=product.id,
+                warehouse_id=warehouse_id,
+                type=StockMovementType.RECEIPT,
+                quantity=init,
+                note="excel import",
+                created_by_id=user.id,
+            ))
+
+    await db.flush()
+    return BulkImportResult(created=created, skipped=skipped, errors=errors[:50])
 
 
 @router.post("/{product_id}/image", response_model=ProductOut)

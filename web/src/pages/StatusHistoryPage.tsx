@@ -12,8 +12,10 @@ export default function StatusHistoryPage() {
   const [orderId, setOrderId] = useState("");
 
   const history = useQuery({
+    // tree=true so filtering by a root order (e.g. "1") also returns its forks
+    // (1.1, 1.2, …), which are separate orders sharing the same root.
     queryKey: ["status-history", orderId],
-    queryFn: () => listStatusHistory(orderId ? Number(orderId) : undefined),
+    queryFn: () => listStatusHistory(orderId ? Number(orderId) : undefined, true),
   });
 
   const label = (s?: string | null) => (s ? t(`status.${s}`) : "—");

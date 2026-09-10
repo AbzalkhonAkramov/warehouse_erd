@@ -137,6 +137,27 @@ export const addStock = (product_id: number, quantity: string, note?: string) =>
     body: { product_id, quantity, type: "receipt", note },
   });
 
+// --- Excel bulk-create (template download + import) ---
+export interface BulkImportResult {
+  created: number;
+  skipped: number;
+  errors: string[];
+}
+const importXlsx = (path: string, file: File) => {
+  const form = new FormData();
+  form.append("file", file);
+  return api<BulkImportResult>(path, { method: "POST", body: form });
+};
+export const downloadProductsTemplate = () =>
+  downloadFile("/products/template", "products-template.xlsx");
+export const importProducts = (file: File) => importXlsx("/products/import", file);
+export const downloadCategoriesTemplate = () =>
+  downloadFile("/categories/template", "categories-template.xlsx");
+export const importCategories = (file: File) => importXlsx("/categories/import", file);
+export const downloadMarketsTemplate = () =>
+  downloadFile("/customers/template", "markets-template.xlsx");
+export const importMarkets = (file: File) => importXlsx("/customers/import", file);
+
 // --- Customers ---
 export interface CustomerInput {
   name?: string;

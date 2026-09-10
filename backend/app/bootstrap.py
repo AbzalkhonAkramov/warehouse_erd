@@ -25,6 +25,7 @@ _PRODUCT_COLUMN_MIGRATIONS = (
     "ALTER TABLE products ADD COLUMN IF NOT EXISTS box_weight NUMERIC(10,3)",
     "ALTER TABLE products ADD COLUMN IF NOT EXISTS box_dimensions VARCHAR(64)",
     "ALTER TABLE products ADD COLUMN IF NOT EXISTS sale_mode VARCHAR(8) NOT NULL DEFAULT 'piece'",
+    "ALTER TABLE products ADD COLUMN IF NOT EXISTS integer_qty BOOLEAN NOT NULL DEFAULT TRUE",
     # Per-line sell-as label + box breakdown on order lines.
     "ALTER TABLE sales_order_lines ADD COLUMN IF NOT EXISTS sell_as VARCHAR(8) NOT NULL DEFAULT 'piece'",
     "ALTER TABLE sales_order_lines ADD COLUMN IF NOT EXISTS box_count INTEGER NOT NULL DEFAULT 0",

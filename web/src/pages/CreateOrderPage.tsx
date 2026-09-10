@@ -65,6 +65,13 @@ export default function CreateOrderPage() {
     return (id: string) => map.get(Number(id)) ?? 0;
   }, [products.data]);
 
+  // Whole-unit products take integer quantities only (used to hint the input).
+  const intQtyOf = useMemo(() => {
+    const map = new Map<number, boolean>();
+    products.data?.forEach((p) => map.set(p.id, p.integer_qty !== false));
+    return (id: string) => map.get(Number(id)) ?? true;
+  }, [products.data]);
+
   const total = useMemo(() => {
     const sub = lines.reduce(
       (acc, l) => acc + priceOf(l.product_id) * (parseFloat(l.quantity) || 0),
@@ -183,9 +190,14 @@ export default function CreateOrderPage() {
                 className={cls.qtyInput}
                 type="number"
                 min="0"
-                step="0.001"
+                step={intQtyOf(l.product_id) ? "1" : "0.001"}
                 value={l.quantity}
-                onChange={(e) => setLine(i, { quantity: e.target.value })}
+                onChange={(e) => {
+                  let v = e.target.value;
+                  // Whole-unit product: keep only the integer part.
+                  if (intQtyOf(l.product_id) && v.includes(".")) v = v.split(".")[0];
+                  setLine(i, { quantity: v });
+                }}
               />
               <Button type="button" variant="ghost" onClick={() => removeLine(i)}>
                 {t("createOrder.remove")}

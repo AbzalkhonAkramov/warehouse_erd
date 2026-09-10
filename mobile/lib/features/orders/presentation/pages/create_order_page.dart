@@ -96,10 +96,12 @@ class _CreateOrderView extends StatelessWidget {
                 TextField(
                   controller: pieceCtrl,
                   autofocus: true,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: TextInputType.numberWithOptions(
+                      decimal: !p.integerQty),
                   inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                    // Whole-unit products accept digits only; others allow a decimal.
+                    FilteringTextInputFormatter.allow(
+                        RegExp(p.integerQty ? r'[0-9]' : r'[0-9.,]')),
                   ],
                   decoration: InputDecoration(
                     labelText: ctx.tr('order.pieces'),

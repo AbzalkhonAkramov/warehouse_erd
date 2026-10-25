@@ -15,6 +15,8 @@ class ReturnRequestCreate(BaseModel):
     sales_order_id: int
     lines: list[ReturnLineIn] = Field(min_length=1)
     note: str | None = None
+    # Manager-entered: goods back to sellable stock, or held as refunded goods.
+    restock: bool = True
 
 
 class ReturnApprove(BaseModel):

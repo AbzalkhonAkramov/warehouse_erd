@@ -3,24 +3,20 @@ import * as cls from "../ui/cls";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getAgentCategories,
-  getAgentTopics,
   listCategories,
   listCustomers,
   listTopics,
   listUsers,
   setAgentCategories,
   setAgentShops,
-  setAgentTopics,
+  updateUser,
 } from "../api/endpoints";
 import type { User } from "../api/types";
 import { Button, Card, Empty, ErrorBox, Modal, Spinner } from "../components/ui";
-import { useAuth } from "../auth/AuthContext";
 import { useI18n } from "../i18n";
 
 export default function AgentsPage() {
   const { t } = useI18n();
-  const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
   const [editing, setEditing] = useState<User | null>(null);
   const [editingShops, setEditingShops] = useState<User | null>(null);
   const [editingTopics, setEditingTopics] = useState<User | null>(null);
@@ -67,11 +63,9 @@ export default function AgentsPage() {
                     <Button variant="ghost" onClick={() => setEditingShops(a)}>
                       {t("agents.manageShops")}
                     </Button>
-                    {isAdmin && (
-                      <Button variant="ghost" onClick={() => setEditingTopics(a)}>
-                        {t("agents.manageTopics")}
-                      </Button>
-                    )}
+                    <Button variant="ghost" onClick={() => setEditingTopics(a)}>
+                      {t("agents.manageTopics")}
+                    </Button>
                   </td>
                 </tr>
               ))}
@@ -95,59 +89,53 @@ export default function AgentsPage() {
   );
 }
 
+/** Manager assigns ONE Telegram topic (from the admin-registered topics) to the
+ * agent. Every photo report this agent sends is routed to this topic — the
+ * agent no longer picks a topic. */
 function TopicsModal({ agent, onClose }: { agent: User; onClose: () => void }) {
   const { t } = useI18n();
   const qc = useQueryClient();
   const topics = useQuery({ queryKey: ["telegram-topics"], queryFn: listTopics });
-  const assigned = useQuery({
-    queryKey: ["agent-topics", agent.id],
-    queryFn: () => getAgentTopics(agent.id),
-  });
 
-  const [selected, setSelected] = useState<Set<number>>(new Set());
-
-  useEffect(() => {
-    if (assigned.data) setSelected(new Set(assigned.data.map((tp) => tp.id)));
-  }, [assigned.data]);
+  // null = no topic assigned (falls back to the group's default topic).
+  const [selected, setSelected] = useState<number | null>(agent.default_topic_id ?? null);
 
   const save = useMutation({
-    mutationFn: () => setAgentTopics(agent.id, [...selected]),
+    mutationFn: () => updateUser(agent.id, { default_topic_id: selected }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["agent-topics", agent.id] });
+      qc.invalidateQueries({ queryKey: ["users", "agent"] });
       onClose();
     },
   });
 
-  function toggle(id: number) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  }
-
-  const loading = topics.isLoading || assigned.isLoading;
-
   return (
     <Modal title={t("agents.topicsTitle", { name: agent.full_name })} onClose={onClose}>
-      {loading ? (
+      {topics.isLoading ? (
         <Spinner />
       ) : topics.error ? (
         <ErrorBox error={topics.error} />
       ) : topics.data && topics.data.length > 0 ? (
         <>
           <p className={cls.cx(cls.muted, cls.small)} style={{ marginTop: 0 }}>
-            {selected.size === 0
-              ? t("agents.topicsAll")
-              : t("agents.topicsN", { n: selected.size })}
+            {t("agents.topicAssignHint")}
           </p>
           <div className={cls.checkList}>
+            <label className={cls.checkboxField}>
+              <input
+                type="radio"
+                name="agent-topic"
+                checked={selected === null}
+                onChange={() => setSelected(null)}
+              />
+              {t("agents.topicDefault")}
+            </label>
             {topics.data.map((tp) => (
               <label key={tp.id} className={cls.checkboxField}>
                 <input
-                  type="checkbox"
-                  checked={selected.has(tp.id)}
-                  onChange={() => toggle(tp.id)}
+                  type="radio"
+                  name="agent-topic"
+                  checked={selected === tp.id}
+                  onChange={() => setSelected(tp.id)}
                 />
                 {tp.name}
                 {!tp.is_active && (

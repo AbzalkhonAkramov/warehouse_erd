@@ -20,6 +20,8 @@ export interface User {
   telegram_chat_id?: string | null;
   /** Admin "important" flag: this agent's orders need before/after photos. */
   photo_required?: boolean;
+  /** Telegram topic the manager assigned; all this agent's photo reports go here. */
+  default_topic_id?: number | null;
 }
 
 export type SaleMode = "box" | "piece" | "both";
@@ -248,6 +250,8 @@ export interface SalesOrder {
   order_no?: string | null;
   invoice_number?: string | null;
   customer_id: number;
+  customer_name?: string | null;
+  customer_address?: string | null;
   agent_id: number;
   agent_name?: string | null;
   created_by_id?: number | null;

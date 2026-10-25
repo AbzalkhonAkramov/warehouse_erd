@@ -75,7 +75,8 @@ class PhotoReportBloc extends Bloc<PhotoReportEvent, PhotoReportState> {
       final result = await _photos.submit(
         customerId: state.customerId!,
         salesOrderId: state.salesOrderId,
-        topicId: state.topicId,
+        // Topic is not chosen by the agent: the backend always routes the
+        // report to the topic the manager assigned to this agent.
         note: state.note,
         beforePath: state.beforePath!,
         afterPath: state.afterPath!,

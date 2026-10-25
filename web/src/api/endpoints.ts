@@ -241,6 +241,12 @@ export const updateCompany = (body: {
 // --- Product returns (agent submits, manager approves) ---
 export const listReturns = (status?: string) =>
   api<ReturnRequest[]>(`/returns${status ? `?status_filter=${status}` : ""}`);
+export const createReturn = (body: {
+  sales_order_id: number;
+  lines: { product_id: number; quantity: string }[];
+  restock: boolean;
+  note?: string | null;
+}) => api<ReturnRequest>("/returns", { method: "POST", body });
 export const approveReturn = (id: number, restock: boolean) =>
   api<ReturnRequest>(`/returns/${id}/approve`, { method: "POST", body: { restock } });
 export const rejectReturn = (id: number) =>

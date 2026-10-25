@@ -150,23 +150,6 @@ class _PhotoReportView extends StatelessWidget {
                   : (id) => bloc.add(PhotoOrderSelected(id)),
             ),
             const SizedBox(height: 14),
-            DropdownButtonFormField<int?>(
-              initialValue: state.topicId,
-              isExpanded: true,
-              decoration: InputDecoration(
-                labelText: context.tr('photo.topic'),
-                helperText: context.tr('photo.topicHelp'),
-              ),
-              items: [
-                DropdownMenuItem<int?>(
-                    value: null, child: Text(context.tr('photo.defaultTopic'))),
-                ...state.topics.map(
-                  (t) => DropdownMenuItem<int?>(value: t.id, child: Text(t.name)),
-                ),
-              ],
-              onChanged: (id) => bloc.add(PhotoTopicSelected(id)),
-            ),
-            const SizedBox(height: 14),
             Row(
               children: [
                 Expanded(

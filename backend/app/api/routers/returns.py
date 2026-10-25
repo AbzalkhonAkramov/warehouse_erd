@@ -55,19 +55,19 @@ async def _to_out(db: AsyncSession, r: ReturnRequest) -> ReturnRequestOut:
 async def create_return(
     data: ReturnRequestCreate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    manager: User = Depends(require_roles(UserRole.MANAGER)),
 ) -> ReturnRequestOut:
-    """Agent submits a product return against one of their orders."""
+    """Manager records a product return against an order and applies it at once
+    (cuts debt + restock/hold). Returns are fully manager-driven; the manager
+    enters the data."""
     order = await db.get(SalesOrder, data.sales_order_id)
     if order is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Order not found")
-    if user.role == UserRole.AGENT and order.agent_id != user.id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not your order")
 
     req = ReturnRequest(
         customer_id=order.customer_id,
         sales_order_id=order.id,
-        agent_id=user.id,
+        agent_id=order.agent_id,  # the order's agent, not the manager
         status=ReturnRequestStatus.PENDING,
         note=data.note,
     )
@@ -76,6 +76,23 @@ async def create_return(
         for ln in data.lines
     ]
     db.add(req)
+    await db.flush()
+
+    # Apply the refund immediately through the standard flow.
+    await sales_service.move_order(
+        db,
+        manager,
+        order.id,
+        StatusMoveRequest(
+            status=SalesOrderStatus.REFUND,
+            lines=[RefundLineIn(product_id=ln.product_id, quantity=ln.quantity) for ln in req.lines],
+            restock=data.restock,
+            note=data.note,
+        ),
+    )
+    req.status = ReturnRequestStatus.APPROVED
+    req.reviewed_by_id = manager.id
+    req.reviewed_at = datetime.now(timezone.utc)
     await db.flush()
     await db.refresh(req, attribute_names=["lines"])
     return await _to_out(db, req)

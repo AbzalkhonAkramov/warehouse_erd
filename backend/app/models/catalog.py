@@ -74,11 +74,33 @@ class Product(Base, TimestampMixin):
 
     stock: Mapped[list["Stock"]] = relationship(back_populates="product")  # noqa: F821
 
+    # A product may carry several barcodes (or none). Stored in a child table so
+    # the count is unbounded; exposed as a plain list[str] via the property below.
+    barcode_rows: Mapped[list["ProductBarcode"]] = relationship(
+        cascade="all, delete-orphan", lazy="selectin"
+    )
+
+    @property
+    def barcodes(self) -> list[str]:
+        return [b.code for b in self.barcode_rows]
+
+
+class ProductBarcode(Base):
+    __tablename__ = "product_barcodes"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    product_id: Mapped[int] = mapped_column(
+        ForeignKey("products.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    code: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+
 
 class Supplier(Base, TimestampMixin):
     __tablename__ = "suppliers"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    # Individual supplier code — at least 5 digits, unique across suppliers.
+    code: Mapped[str | None] = mapped_column(String(32), unique=True, index=True)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     phone: Mapped[str | None] = mapped_column(String(32))
     email: Mapped[str | None] = mapped_column(String(255))

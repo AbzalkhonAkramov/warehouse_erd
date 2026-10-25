@@ -28,10 +28,12 @@ class ProductBase(BaseModel):
     box_dimensions: str | None = None
     sale_mode: SaleMode = SaleMode.PIECE
     integer_qty: bool = True  # whole units only vs fractional (kg/litres)
+    barcodes: list[str] = []  # zero or more barcodes
 
 
 class ProductCreate(ProductBase):
-    pass
+    # SKU is optional on create — auto-generated as "P<n>" (1 letter + digits) when blank.
+    sku: str | None = None
 
 
 class ProductUpdate(BaseModel):
@@ -53,6 +55,7 @@ class ProductUpdate(BaseModel):
     box_dimensions: str | None = None
     sale_mode: SaleMode | None = None
     integer_qty: bool | None = None
+    barcodes: list[str] | None = None
 
 
 class ProductOut(ProductBase):

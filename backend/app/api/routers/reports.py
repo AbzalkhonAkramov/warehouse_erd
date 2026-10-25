@@ -45,6 +45,135 @@ class DashboardOut(BaseModel):
     low_stock_items: int
 
 
+class ProductProfitRow(BaseModel):
+    product_id: int
+    product_name: str
+    qty_sold: Decimal
+    revenue: Decimal
+    cost: Decimal
+    profit: Decimal
+    margin_pct: float
+
+
+class TimePoint(BaseModel):
+    period: str  # YYYY-MM-DD (day) or YYYY-MM (month)
+    revenue: Decimal
+    profit: Decimal
+
+
+class AnalyticsOut(BaseModel):
+    revenue: Decimal
+    cost: Decimal          # COGS of sold goods
+    profit: Decimal        # gross profit
+    margin_pct: float
+    orders: int
+    stock_value: Decimal   # current stock valued at cost
+    total_debt: Decimal
+    by_product: list[ProductProfitRow]
+    over_time: list[TimePoint]
+
+
+def _margin(profit: Decimal, revenue: Decimal) -> float:
+    return round(float(profit / revenue * 100), 1) if revenue else 0.0
+
+
+@router.get("/analytics", response_model=AnalyticsOut)
+async def analytics(
+    date_from: date | None = None,
+    date_to: date | None = None,
+    group: str = "day",  # "day" | "month"
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_roles(UserRole.MANAGER, UserRole.ACCOUNTANT)),
+) -> AnalyticsOut:
+    """Margins & profit over real (shipped/delivered) sales. COGS uses each
+    product's current reference cost."""
+    stmt = (
+        select(
+            SalesOrderLine.product_id,
+            Product.name,
+            Product.cost_price,
+            SalesOrderLine.quantity,
+            SalesOrderLine.line_total,
+            SalesOrder.id,
+            SalesOrder.created_at,
+        )
+        .join(SalesOrder, SalesOrder.id == SalesOrderLine.sales_order_id)
+        .join(Product, Product.id == SalesOrderLine.product_id)
+        .where(SalesOrder.status.notin_(_EXCLUDED))
+    )
+    if date_from is not None:
+        stmt = stmt.where(SalesOrder.created_at >= datetime.combine(date_from, datetime.min.time()))
+    if date_to is not None:
+        stmt = stmt.where(SalesOrder.created_at <= datetime.combine(date_to, datetime.max.time()))
+
+    revenue = cost = Decimal("0")
+    order_ids: set[int] = set()
+    per_prod: dict[int, dict] = {}
+    per_time: dict[str, dict] = {}
+
+    for pid, pname, cost_price, qty, line_total, oid, created in (await db.execute(stmt)).all():
+        q = Decimal(qty)
+        rev = Decimal(line_total)
+        cst = (q * Decimal(cost_price or 0)).quantize(Decimal("0.01"))
+        prof = rev - cst
+        revenue += rev
+        cost += cst
+        order_ids.add(oid)
+
+        p = per_prod.setdefault(
+            pid,
+            {"name": pname, "qty": Decimal("0"), "rev": Decimal("0"), "cost": Decimal("0")},
+        )
+        p["qty"] += q
+        p["rev"] += rev
+        p["cost"] += cst
+
+        key = created.strftime("%Y-%m" if group == "month" else "%Y-%m-%d")
+        t = per_time.setdefault(key, {"rev": Decimal("0"), "prof": Decimal("0")})
+        t["rev"] += rev
+        t["prof"] += prof
+
+    by_product = sorted(
+        (
+            ProductProfitRow(
+                product_id=pid,
+                product_name=v["name"],
+                qty_sold=v["qty"],
+                revenue=v["rev"],
+                cost=v["cost"],
+                profit=v["rev"] - v["cost"],
+                margin_pct=_margin(v["rev"] - v["cost"], v["rev"]),
+            )
+            for pid, v in per_prod.items()
+        ),
+        key=lambda r: r.profit,
+        reverse=True,
+    )
+    over_time = [
+        TimePoint(period=k, revenue=v["rev"], profit=v["prof"])
+        for k, v in sorted(per_time.items())
+    ]
+
+    stock_value = await db.scalar(
+        select(func.coalesce(func.sum(Stock.quantity * Product.cost_price), 0)).join(
+            Product, Product.id == Stock.product_id
+        )
+    )
+    total_debt = await db.scalar(select(func.coalesce(func.sum(Customer.debt), 0)))
+
+    return AnalyticsOut(
+        revenue=revenue,
+        cost=cost,
+        profit=revenue - cost,
+        margin_pct=_margin(revenue - cost, revenue),
+        orders=len(order_ids),
+        stock_value=Decimal(stock_value or 0),
+        total_debt=Decimal(total_debt or 0),
+        by_product=by_product,
+        over_time=over_time,
+    )
+
+
 @router.get("/dashboard", response_model=DashboardOut)
 async def dashboard(
     db: AsyncSession = Depends(get_db),

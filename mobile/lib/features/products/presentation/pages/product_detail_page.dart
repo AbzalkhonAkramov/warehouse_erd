@@ -81,6 +81,9 @@ class ProductDetailPage extends StatelessWidget {
                       context.tr('saleMode.${p.saleMode}')),
                   _row(Icons.numbers_outlined, context.tr('product.qtyType'),
                       context.tr(p.integerQty ? 'qtyType.integer' : 'qtyType.fractional')),
+                  if (p.barcodes.isNotEmpty)
+                    _row(Icons.qr_code_scanner_outlined,
+                        context.tr('product.barcodes'), p.barcodes.join(', ')),
                   _row(Icons.inbox_outlined, context.tr('product.box'),
                       _box(context, p)),
                   _row(Icons.straighten_outlined, context.tr('product.unit'),

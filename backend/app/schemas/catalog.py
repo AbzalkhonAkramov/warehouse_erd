@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class CategoryCreate(BaseModel):
@@ -20,7 +20,8 @@ class SupplierBase(BaseModel):
 
 
 class SupplierCreate(SupplierBase):
-    pass
+    # Individual code: digits only, at least 5 of them.
+    code: str = Field(pattern=r"^\d{5,}$")
 
 
 class SupplierUpdate(BaseModel):
@@ -34,3 +35,4 @@ class SupplierOut(SupplierBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    code: str | None = None

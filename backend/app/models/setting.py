@@ -19,3 +19,5 @@ class CompanySettings(Base, TimestampMixin):
     cash_handover_mode: Mapped[str] = mapped_column(
         String(16), nullable=False, default="manager_records"
     )
+    # Language for the header row of every downloaded Excel template ("ru"/"uz"/"en").
+    excel_lang: Mapped[str] = mapped_column(String(4), nullable=False, default="ru")

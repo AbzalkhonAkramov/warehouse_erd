@@ -17,6 +17,7 @@ class Product extends Equatable {
     this.boxDimensions,
     this.saleMode = 'piece',
     this.integerQty = true,
+    this.barcodes = const [],
   });
 
   final int id;
@@ -37,6 +38,7 @@ class Product extends Equatable {
   final String? boxDimensions;  // "40x30x25 cm"
   final String saleMode;        // box | piece | both
   final bool integerQty;        // true = whole units only, false = fractional
+  final List<String> barcodes;  // zero or more barcodes
 
   bool get hasBox => boxQty != null && boxQty! > 0;
 
@@ -57,5 +59,6 @@ class Product extends Equatable {
         boxDimensions,
         saleMode,
         integerQty,
+        barcodes,
       ];
 }

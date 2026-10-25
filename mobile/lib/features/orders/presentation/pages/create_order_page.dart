@@ -10,6 +10,7 @@ import '../../../../core/widgets/state_views.dart';
 import '../../../../l10n/l10n_ext.dart';
 import '../../../customers/domain/entities/customer.dart';
 import '../../../products/domain/entities/product.dart';
+import '../../domain/entities/order_draft.dart';
 import '../cubit/create_order_cubit.dart';
 import '../cubit/outbox_cubit.dart';
 
@@ -17,10 +18,18 @@ String _fmtQty(double q) =>
     q == q.roundToDouble() ? q.toStringAsFixed(0) : '$q';
 
 class CreateOrderPage extends StatelessWidget {
-  const CreateOrderPage({super.key, this.initialCustomerId, this.standalone = false});
+  const CreateOrderPage({
+    super.key,
+    this.initialCustomerId,
+    this.initialDraft,
+    this.standalone = false,
+  });
 
   /// Preselect a market (when opened from its profile).
   final int? initialCustomerId;
+
+  /// Resume a saved draft (when opened from the drafts list).
+  final OrderDraft? initialDraft;
 
   /// When true, provides its own Scaffold/AppBar (pushed as a route) instead of
   /// running inside the home tab.
@@ -29,8 +38,8 @@ class CreateOrderPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final view = BlocProvider(
-      create: (_) =>
-          sl<CreateOrderCubit>()..init(initialCustomerId: initialCustomerId),
+      create: (_) => sl<CreateOrderCubit>()
+        ..init(initialCustomerId: initialCustomerId, draft: initialDraft),
       child: const _CreateOrderView(),
     );
     if (!standalone) return view;
@@ -160,20 +169,38 @@ class _CreateOrderView extends StatelessWidget {
       listenWhen: (p, c) => p.status != c.status,
       listener: (context, state) {
         if (state.status == CreateOrderStatus.success) {
+          final messenger = ScaffoldMessenger.of(context)..clearSnackBars();
           if (state.queued) {
-            // Saved to the offline outbox — tell the agent and update the badge.
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            // No internet → saved to the offline outbox (NOT sent yet).
+            messenger.showSnackBar(SnackBar(
               backgroundColor: AppColors.warning,
-              content: Text(context.tr('order.savedOffline')),
+              content: Row(children: [
+                const Icon(Icons.cloud_off_rounded, color: Colors.white, size: 18),
+                const SizedBox(width: 10),
+                Expanded(child: Text(context.tr('order.savedOffline'))),
+              ]),
             ));
             context.read<OutboxCubit>().refresh();
           } else {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text(context.tr('order.sent', {'id': state.createdOrderId})),
-              backgroundColor: Colors.blueGrey,
+            // Really reached the server.
+            messenger.showSnackBar(SnackBar(
+              backgroundColor: AppColors.success,
+              content: Row(children: [
+                const Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
+                const SizedBox(width: 10),
+                Expanded(
+                    child: Text(context.tr('order.sent', {'id': state.createdOrderId}))),
+              ]),
             ));
           }
-          context.read<CreateOrderCubit>().init();
+          // Clear the positions list / selected market for a fresh order.
+          context.read<CreateOrderCubit>().reset();
+        } else if (state.status == CreateOrderStatus.draftSaved) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            backgroundColor: AppColors.brand,
+            content: Text(context.tr('drafts.saved')),
+          ));
+          context.read<CreateOrderCubit>().markReady();
         } else if (state.status == CreateOrderStatus.error && state.error != null) {
           ScaffoldMessenger.of(context)
               .showSnackBar(SnackBar(content: Text(state.error!)));
@@ -192,10 +219,41 @@ class _CreateOrderView extends StatelessWidget {
         final byId = {for (final p in state.products) p.id: p};
         final positions = state.positionIds;
 
+        final canSaveDraft = state.canSaveDraft &&
+            state.status != CreateOrderStatus.submitting;
+
         return Column(
           children: [
+            // Top row: running total on the right, a draft icon in the corner.
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+              padding: const EdgeInsets.fromLTRB(12, 10, 4, 0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(context.tr('order.total'),
+                            style: const TextStyle(
+                                color: AppColors.neutral, fontSize: 12)),
+                        Text(money(state.total),
+                            style: const TextStyle(
+                                fontSize: 22, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: context.tr('drafts.save'),
+                    onPressed: canSaveDraft ? () => cubit.saveDraft() : null,
+                    icon: const Icon(Icons.bookmark_add_outlined),
+                    color: AppColors.brand,
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 6),
               child: Card(
                 child: ListTile(
                   shape: RoundedRectangleBorder(
@@ -287,7 +345,6 @@ class _CreateOrderView extends StatelessWidget {
                     ),
             ),
             _SubmitBar(
-              total: state.total,
               canSubmit: state.canSubmit &&
                   state.status != CreateOrderStatus.submitting,
               submitting: state.status == CreateOrderStatus.submitting,
@@ -374,6 +431,26 @@ class _ProductPickerState extends State<_ProductPicker> {
   String _q = '';
   int? _cat;
 
+  /// High-contrast category chip: solid brand + white text when selected,
+  /// white with a border and dark text otherwise.
+  Widget _catChip(
+      BuildContext context, String label, bool sel, VoidCallback onTap) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: sel,
+      showCheckmark: false,
+      backgroundColor: Colors.white,
+      selectedColor: AppColors.brand,
+      side: BorderSide(color: sel ? AppColors.brand : AppColors.line),
+      labelStyle: TextStyle(
+        color: sel ? Colors.white : const Color(0xFF0F172A),
+        fontWeight: FontWeight.w600,
+        fontSize: 13,
+      ),
+      onSelected: (_) => onTap(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final q = _q.trim().toLowerCase();
@@ -412,19 +489,13 @@ class _ProductPickerState extends State<_ProductPicker> {
                   children: [
                     Padding(
                       padding: const EdgeInsets.only(right: 6),
-                      child: ChoiceChip(
-                        label: Text(context.tr('order.allCategories')),
-                        selected: _cat == null,
-                        onSelected: (_) => setState(() => _cat = null),
-                      ),
+                      child: _catChip(context, context.tr('order.allCategories'),
+                          _cat == null, () => setState(() => _cat = null)),
                     ),
                     ...widget.categories.map((c) => Padding(
                           padding: const EdgeInsets.only(right: 6),
-                          child: ChoiceChip(
-                            label: Text(c.name as String),
-                            selected: _cat == c.id,
-                            onSelected: (_) => setState(() => _cat = c.id as int),
-                          ),
+                          child: _catChip(context, c.name as String,
+                              _cat == c.id, () => setState(() => _cat = c.id as int)),
                         )),
                   ],
                 ),
@@ -457,13 +528,11 @@ class _ProductPickerState extends State<_ProductPicker> {
 
 class _SubmitBar extends StatelessWidget {
   const _SubmitBar({
-    required this.total,
     required this.canSubmit,
     required this.submitting,
     required this.onSubmit,
   });
 
-  final double total;
   final bool canSubmit;
   final bool submitting;
   final VoidCallback onSubmit;
@@ -478,37 +547,20 @@ class _SubmitBar extends StatelessWidget {
         top: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(context.tr('order.total'),
-                        style: const TextStyle(
-                            color: AppColors.neutral, fontSize: 12)),
-                    Text(
-                      money(total),
-                      style: const TextStyle(
-                          fontSize: 20, fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
-              ),
-              FilledButton.icon(
-                onPressed: canSubmit ? onSubmit : null,
-                icon: submitting
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Icon(Icons.send),
-                label: Text(context.tr('order.submit')),
-              ),
-            ],
+          child: SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: canSubmit ? onSubmit : null,
+              icon: submitting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.send),
+              label: Text(context.tr('order.submit')),
+            ),
           ),
         ),
       ),

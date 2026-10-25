@@ -29,6 +29,9 @@ import AccountsPage from "./pages/AccountsPage";
 import ActivityLogPage from "./pages/ActivityLogPage";
 import BrandingPage from "./pages/BrandingPage";
 import CurrenciesPage from "./pages/CurrenciesPage";
+import IncomingPage from "./pages/IncomingPage";
+import AnalyticsPage from "./pages/AnalyticsPage";
+import SuppliersPage from "./pages/SuppliersPage";
 
 export default function App() {
   const { user, loading } = useAuth();
@@ -80,9 +83,21 @@ export default function App() {
         <Route path="create" element={<CreatePage />} />
         <Route path="products" element={<ProductsPage />} />
         <Route path="products/:id" element={<ProductDetailPage />} />
+        <Route
+          path="incoming"
+          element={isAgent ? <Navigate to="/products" replace /> : <IncomingPage />}
+        />
+        <Route
+          path="analytics"
+          element={isAgent ? <Navigate to="/invoices" replace /> : <AnalyticsPage />}
+        />
         <Route path="customers" element={<CustomersPage />} />
         <Route path="customers/:id" element={<CustomerDetailPage />} />
         <Route path="agents" element={<AgentsPage />} />
+        <Route
+          path="suppliers"
+          element={isAgent ? <Navigate to="/products" replace /> : <SuppliersPage />}
+        />
         <Route path="invoices" element={<InvoicesPage />} />
         <Route path="invoices/:id" element={<InvoiceDetailPage />} />
         <Route

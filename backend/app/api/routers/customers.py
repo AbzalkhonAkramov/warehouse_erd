@@ -29,6 +29,7 @@ from app.schemas.customer import (
     CustomerUpdate,
     VisitDaysUpdate,
 )
+from app.core.xlsx_i18n import excel_lang, headers as _xh
 from app.schemas.imports import BulkImportResult
 
 router = APIRouter(prefix="/customers", tags=["customers"])
@@ -76,14 +77,16 @@ async def list_customers(
 
 @router.get("/template")
 async def customers_template(
+    db: AsyncSession = Depends(get_db),
     _: User = Depends(require_roles(UserRole.MANAGER)),
 ) -> Response:
     """Blank market-creation sheet. Region is matched by name (created if new);
     Agent is matched by full name or email. Declared before /{customer_id}."""
+    lang = await excel_lang(db)
     wb = Workbook()
     ws = wb.active
     ws.title = "Markets"
-    ws.append(_CUSTOMER_COLUMNS)
+    ws.append(_xh(_CUSTOMER_COLUMNS, lang))
     ws.append(["Corner Shop", "+998901234567", "12 Market St", "Tashkent",
                "Center", 500, "mon,wed,fri", "agent@erp.local"])
     buf = BytesIO()

@@ -145,12 +145,13 @@ export const checkList =
 export const modalOverlay =
   "fixed inset-0 bg-slate-900/45 flex items-center justify-center z-50";
 export const modal =
-  "bg-white rounded-xl w-[460px] max-w-[calc(100vw-32px)] shadow-modal";
+  "bg-white rounded-xl w-[460px] max-w-[calc(100vw-32px)] shadow-modal " +
+  "flex flex-col max-h-[calc(100vh-48px)]";
 export const modalHeader =
   "flex items-center justify-between py-4 px-5 border-b border-line";
 export const modalClose =
   "bg-transparent border-none text-2xl leading-none cursor-pointer text-muted";
-export const modalBody = "p-5";
+export const modalBody = "p-5 overflow-y-auto flex-1 min-h-0";
 export const modalActions = "flex justify-end gap-2.5 mt-2";
 export const modalToolbar = "flex justify-between gap-2 mb-3";
 
@@ -173,6 +174,27 @@ export const backLink =
 export const headActions = "flex gap-2 items-center";
 export const rowGap = "flex items-center gap-2.5";
 export const excelImport = "mt-3.5 pt-3.5 border-t border-line flex flex-col gap-2";
+
+// --- Analytics KPI cards + simple bar chart ---
+export const kpiGrid =
+  "grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3 mb-4";
+export const kpiCard = "bg-white border border-line rounded-lg p-3.5";
+export const kpiLabel = "text-xs text-muted mb-1";
+export const kpiValue = "text-[1.35rem] font-bold";
+export const kpiProfit = "text-green-700";
+export const kpiCost = "text-red-700";
+export const chartScroll = "overflow-x-auto";
+export const barChart = "flex items-end gap-2 min-w-fit pt-2";
+export const barCol = "flex flex-col items-center gap-1 min-w-[28px]";
+export const barTrack = "flex items-end gap-[3px] h-[150px]";
+export const barRevenue = "w-2.5 bg-brand rounded-t";
+export const barProfit = "w-2.5 bg-green-500 rounded-t";
+export const barLabel = "text-[10px] text-muted whitespace-nowrap";
+export const chartLegend = "flex gap-4 mt-3 text-xs text-muted items-center";
+export const legendRevenue =
+  "inline-block w-2.5 h-2.5 rounded-sm bg-brand align-middle";
+export const legendProfit =
+  "inline-block w-2.5 h-2.5 rounded-sm bg-green-500 align-middle";
 
 // --- Create page / grids ---
 export const createGrid =

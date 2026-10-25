@@ -11,7 +11,8 @@ class PurchaseOrder(Base, TimestampMixin):
     __tablename__ = "purchase_orders"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    supplier_id: Mapped[int] = mapped_column(ForeignKey("suppliers.id"), nullable=False)
+    # Supplier is optional — a "coming goods" receipt may be recorded without one.
+    supplier_id: Mapped[int | None] = mapped_column(ForeignKey("suppliers.id"))
     warehouse_id: Mapped[int] = mapped_column(ForeignKey("warehouses.id"), nullable=False)
     status: Mapped[PurchaseOrderStatus] = mapped_column(
         Enum(PurchaseOrderStatus), default=PurchaseOrderStatus.DRAFT, nullable=False

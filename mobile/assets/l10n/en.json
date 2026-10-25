@@ -120,8 +120,20 @@
   "order.submit": "Submit order",
   "order.total": "Total",
   "orders.drawerTitle": "My orders",
+  "drafts.title": "Drafts",
+  "drafts.save": "Draft",
+  "drafts.saved": "Saved to drafts ✓",
+  "drafts.empty": "No drafts yet. Build an order and tap \"Draft\" to save it here.",
+  "drafts.noCustomer": "No market yet",
+  "drafts.positions": "{n} item(s)",
   "orders.empty": "No orders yet.",
   "orders.itemsCount": "{n} item(s)",
+  "orders.noItems": "No items",
+  "orders.filterAll": "All",
+  "orders.filterShop": "Shop",
+  "orders.filterDate": "Date",
+  "orders.allShops": "All shops",
+  "orders.filterReset": "Reset filters",
   "orders.pendingSync": "Waiting to send",
   "orders.receipt": "Receipt",
   "orders.syncedN": "{n} order(s) sent ✓",
@@ -221,5 +233,6 @@
   "tab.order": "Order",
   "tab.orders": "Orders",
   "tab.photos": "Photos",
-  "visitDays.pick": "Which days can you visit?"
+  "visitDays.pick": "Which days can you visit?",
+  "product.barcodes": "Barcodes"
 }

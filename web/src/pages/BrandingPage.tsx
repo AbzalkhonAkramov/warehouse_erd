@@ -21,6 +21,7 @@ export default function BrandingPage() {
 
   const [name, setName] = useState("");
   const [mode, setMode] = useState<Mode>("both");
+  const [excelLang, setExcelLang] = useState<"ru" | "uz" | "en">("ru");
   const [ok, setOk] = useState(false);
   const [seeded, setSeeded] = useState(false);
 
@@ -28,6 +29,7 @@ export default function BrandingPage() {
     if (company.data && !seeded) {
       setName(company.data.name);
       setMode(company.data.display_mode);
+      setExcelLang(company.data.excel_lang ?? "ru");
       setSeeded(true);
     }
   }, [company.data, seeded]);
@@ -35,7 +37,7 @@ export default function BrandingPage() {
   const invalidate = () => qc.invalidateQueries({ queryKey: ["company"] });
 
   const save = useMutation({
-    mutationFn: () => updateCompany({ name, display_mode: mode }),
+    mutationFn: () => updateCompany({ name, display_mode: mode, excel_lang: excelLang }),
     onSuccess: () => {
       invalidate();
       setOk(true);
@@ -72,6 +74,16 @@ export default function BrandingPage() {
           <span>{t("branding.name")}</span>
           <input value={name} onChange={(e) => setName(e.target.value)} />
         </label>
+
+        <label className={cls.field} style={{ maxWidth: 360, marginTop: 16 }}>
+          <span>{t("branding.excelLang")}</span>
+          <select value={excelLang} onChange={(e) => setExcelLang(e.target.value as "ru" | "uz" | "en")}>
+            <option value="ru">Русский</option>
+            <option value="uz">O‘zbekcha</option>
+            <option value="en">English</option>
+          </select>
+        </label>
+        <p className={cls.cx(cls.muted, cls.small)}>{t("branding.excelLangHint")}</p>
 
         <h3 className={cls.sectionSub}>{t("branding.logo")}</h3>
         <div className={cls.rowGap} style={{ alignItems: "center" }}>

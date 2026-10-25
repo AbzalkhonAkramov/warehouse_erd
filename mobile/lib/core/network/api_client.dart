@@ -80,7 +80,19 @@ class ApiClient {
       final list = data['detail'] as List;
       message = list.map((d) => d is Map ? d['msg'] : d).join(', ');
     } else if (isNetwork) {
-      message = 'Cannot reach the server';
+      // Spell out WHERE and WHY so it can be fixed from the Server URL dialog.
+      final reason = switch (e.type) {
+        DioExceptionType.connectionTimeout => 'connection timed out',
+        DioExceptionType.sendTimeout => 'send timed out',
+        DioExceptionType.receiveTimeout => 'receive timed out',
+        DioExceptionType.connectionError => 'connection failed',
+        DioExceptionType.badCertificate => 'bad TLS certificate',
+        _ => e.message ?? 'no response',
+      };
+      message = 'Cannot reach the server at ${_dio.options.baseUrl}\n($reason).\n'
+          'Tap the server icon (top-right) and set the correct Server URL.';
+    } else if (status != null) {
+      message = 'Server error $status';
     }
     return ApiException(message, statusCode: status, isNetwork: isNetwork);
   }

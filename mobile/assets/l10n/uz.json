@@ -120,8 +120,20 @@
   "order.submit": "Buyurtmani yuborish",
   "order.total": "Jami",
   "orders.drawerTitle": "Buyurtmalarim",
+  "drafts.title": "Qoralamalar",
+  "drafts.save": "Qoralama",
+  "drafts.saved": "Qoralamaga saqlandi ✓",
+  "drafts.empty": "Hozircha qoralama yo'q. Buyurtma tuzing va «Qoralama» tugmasini bosib shu yerga saqlang.",
+  "drafts.noCustomer": "Do'kon tanlanmagan",
+  "drafts.positions": "{n} ta pozitsiya",
   "orders.empty": "Hozircha buyurtmalar yo‘q.",
   "orders.itemsCount": "{n} ta pozitsiya",
+  "orders.noItems": "Pozitsiyalar yo'q",
+  "orders.filterAll": "Hammasi",
+  "orders.filterShop": "Do'kon",
+  "orders.filterDate": "Sana",
+  "orders.allShops": "Barcha do'konlar",
+  "orders.filterReset": "Filtrlarni tozalash",
   "orders.pendingSync": "Yuborilishi kutilmoqda",
   "orders.receipt": "Chek",
   "orders.syncedN": "{n} ta buyurtma yuborildi ✓",
@@ -221,5 +233,6 @@
   "tab.order": "Buyurtma",
   "tab.orders": "Buyurtmalar",
   "tab.photos": "Foto",
-  "visitDays.pick": "Qaysi kunlar tashrif buyura olasiz?"
+  "visitDays.pick": "Qaysi kunlar tashrif buyura olasiz?",
+  "product.barcodes": "Shtrix-kodlar"
 }

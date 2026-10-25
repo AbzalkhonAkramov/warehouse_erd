@@ -1,8 +1,12 @@
 import { api, downloadFile } from "./client";
 import type {
   ActivityEntry,
+  Analytics,
   AgentSalesRow,
   AgentCash,
+  PurchaseOrder,
+  PurchaseOrderStatus,
+  Supplier,
   CashRemittance,
   ReturnRequest,
   Category,
@@ -231,6 +235,7 @@ export const updateCompany = (body: {
   name?: string;
   display_mode?: string;
   cash_handover_mode?: string;
+  excel_lang?: string;
 }) => api<Company>("/meta/company", { method: "PATCH", body });
 
 // --- Product returns (agent submits, manager approves) ---
@@ -325,6 +330,36 @@ export const salesByAgent = () => api<AgentSalesRow[]>("/reports/sales-by-agent"
 export const debtAging = () => api<DebtRow[]>("/reports/debt-aging");
 export const commissions = (year: number, month: number) =>
   api<CommissionRow[]>(`/reports/commissions?year=${year}&month=${month}`);
+export const getAnalytics = (from?: string, to?: string, group: "day" | "month" = "day") => {
+  const p = new URLSearchParams({ group });
+  if (from) p.set("date_from", from);
+  if (to) p.set("date_to", to);
+  return api<Analytics>(`/reports/analytics?${p.toString()}`);
+};
+
+// --- Suppliers & purchasing (incoming goods) ---
+export const listSuppliers = () => api<Supplier[]>("/suppliers");
+export const createSupplier = (body: {
+  code: string;
+  name: string;
+  phone?: string | null;
+}) => api<Supplier>("/suppliers", { method: "POST", body });
+export const listPurchaseOrders = (status?: PurchaseOrderStatus) =>
+  api<PurchaseOrder[]>(`/purchase-orders${status ? `?status_filter=${status}` : ""}`);
+export const createPurchaseOrder = (body: {
+  supplier_id?: number | null;
+  expected_date?: string | null;
+  note?: string | null;
+  lines: { product_id: number; quantity: string; unit_cost: string }[];
+}) => api<PurchaseOrder>("/purchase-orders", { method: "POST", body });
+export const receivePurchaseOrder = (id: number) =>
+  api<PurchaseOrder>(`/purchase-orders/${id}/receive`, { method: "POST", body: { lines: [] } });
+export const downloadIncomingTemplate = (categoryId?: number) =>
+  downloadFile(
+    `/purchase-orders/template${categoryId ? `?category_id=${categoryId}` : ""}`,
+    "incoming-template.xlsx",
+  );
+export const importIncoming = (file: File) => importXlsx("/purchase-orders/import", file);
 
 // --- Telegram topics (super-admin) ---
 export const listTopics = () => api<TelegramTopic[]>("/telegram-topics");

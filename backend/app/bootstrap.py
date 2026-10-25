@@ -30,6 +30,13 @@ _PRODUCT_COLUMN_MIGRATIONS = (
     "ALTER TABLE sales_order_lines ADD COLUMN IF NOT EXISTS sell_as VARCHAR(8) NOT NULL DEFAULT 'piece'",
     "ALTER TABLE sales_order_lines ADD COLUMN IF NOT EXISTS box_count INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE sales_order_lines ADD COLUMN IF NOT EXISTS box_size INTEGER NOT NULL DEFAULT 0",
+    # Purchase orders / goods receipts may be recorded without a supplier.
+    "ALTER TABLE purchase_orders ALTER COLUMN supplier_id DROP NOT NULL",
+    # Language for downloaded Excel template headers.
+    "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS excel_lang VARCHAR(4) NOT NULL DEFAULT 'ru'",
+    # Individual supplier code (unique).
+    "ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS code VARCHAR(32)",
+    "CREATE UNIQUE INDEX IF NOT EXISTS ix_suppliers_code ON suppliers (code)",
 )
 
 

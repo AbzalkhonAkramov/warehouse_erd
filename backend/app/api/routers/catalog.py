@@ -17,6 +17,7 @@ from app.schemas.catalog import (
     SupplierOut,
     SupplierUpdate,
 )
+from app.core.xlsx_i18n import excel_lang, headers as _xh
 from app.schemas.imports import BulkImportResult
 
 router = APIRouter(tags=["catalog"])
@@ -59,13 +60,15 @@ async def create_category(
 
 @router.get("/categories/template")
 async def categories_template(
+    db: AsyncSession = Depends(get_db),
     _: User = Depends(require_roles(UserRole.MANAGER, UserRole.WAREHOUSE)),
 ) -> Response:
     """Blank .xlsx to bulk-create categories: one 'Name' column."""
+    lang = await excel_lang(db)
     wb = Workbook()
     ws = wb.active
     ws.title = "Categories"
-    ws.append(["Name"])
+    ws.append(_xh(["Name"], lang))
     ws.append(["Drinks"])  # example row — replace with your categories
     return _xlsx_response(wb, "categories-template.xlsx")
 
@@ -121,7 +124,13 @@ async def create_supplier(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(require_roles(UserRole.MANAGER, UserRole.WAREHOUSE)),
 ) -> Supplier:
-    supplier = Supplier(**data.model_dump())
+    code = data.code.strip()
+    clash = await db.scalar(select(Supplier).where(Supplier.code == code))
+    if clash:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Supplier code already exists")
+    payload = data.model_dump()
+    payload["code"] = code
+    supplier = Supplier(**payload)
     db.add(supplier)
     await db.flush()
     return supplier

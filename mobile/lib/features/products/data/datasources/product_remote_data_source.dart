@@ -24,6 +24,9 @@ Product _fromJson(Map<String, dynamic> j) => Product(
       boxDimensions: j['box_dimensions'] as String?,
       saleMode: (j['sale_mode'] as String?) ?? 'piece',
       integerQty: (j['integer_qty'] as bool?) ?? true,
+      barcodes: ((j['barcodes'] as List<dynamic>?) ?? const [])
+          .map((e) => '$e')
+          .toList(),
     );
 
 class ProductRemoteDataSource {

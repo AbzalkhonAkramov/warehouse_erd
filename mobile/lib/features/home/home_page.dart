@@ -8,6 +8,7 @@ import '../auth/presentation/bloc/auth_bloc.dart';
 import '../customers/presentation/pages/customers_page.dart';
 import '../orders/presentation/cubit/outbox_cubit.dart';
 import '../orders/presentation/pages/create_order_page.dart';
+import '../orders/presentation/pages/drafts_page.dart';
 import '../orders/presentation/pages/orders_page.dart';
 import '../products/presentation/pages/catalog_page.dart';
 import '../settings/presentation/pages/settings_page.dart';
@@ -159,6 +160,15 @@ class _AppDrawer extends StatelessWidget {
                     body: const OrdersPage(),
                   ),
                 ));
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.drafts_outlined),
+              title: Text(context.tr('drafts.title')),
+              onTap: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const DraftsPage()));
               },
             ),
             ListTile(

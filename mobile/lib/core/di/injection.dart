@@ -22,11 +22,13 @@ import '../../features/products/data/datasources/product_remote_data_source.dart
 import '../../features/products/data/repositories/product_repository_impl.dart';
 import '../../features/products/domain/repositories/product_repository.dart';
 // Orders
+import '../../features/orders/data/datasources/draft_local_data_source.dart';
 import '../../features/orders/data/datasources/order_local_data_source.dart';
 import '../../features/orders/data/datasources/order_remote_data_source.dart';
 import '../../features/orders/data/repositories/order_repository_impl.dart';
 import '../../features/orders/domain/repositories/order_repository.dart';
 import '../../features/orders/presentation/cubit/create_order_cubit.dart';
+import '../../features/orders/presentation/cubit/drafts_cubit.dart';
 import '../../features/orders/presentation/cubit/orders_cubit.dart';
 import '../../features/orders/presentation/cubit/outbox_cubit.dart';
 // Photo reports
@@ -81,10 +83,12 @@ void configureDependencies() {
   // Orders
   sl.registerLazySingleton(() => OrderRemoteDataSource(sl()));
   sl.registerLazySingleton(() => OrderLocalDataSource());
+  sl.registerLazySingleton(() => DraftLocalDataSource());
   sl.registerLazySingleton<OrderRepository>(
       () => OrderRepositoryImpl(sl(), sl()));
-  sl.registerFactory(() => CreateOrderCubit(sl(), sl(), sl()));
+  sl.registerFactory(() => CreateOrderCubit(sl(), sl(), sl(), sl()));
   sl.registerFactory(() => OrdersCubit(sl(), sl()));
+  sl.registerFactory(() => DraftsCubit(sl(), sl()));
   sl.registerLazySingleton(() => OutboxCubit(sl(), sl()));
 
   // Photo reports

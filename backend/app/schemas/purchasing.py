@@ -13,7 +13,7 @@ class PurchaseOrderLineCreate(BaseModel):
 
 
 class PurchaseOrderCreate(BaseModel):
-    supplier_id: int
+    supplier_id: int | None = None  # optional for a plain goods receipt
     warehouse_id: int | None = None
     expected_date: date | None = None
     note: str | None = None
@@ -36,6 +36,7 @@ class PurchaseOrderLineOut(BaseModel):
 
     id: int
     product_id: int
+    product_name: str | None = None
     quantity: Decimal
     unit_cost: Decimal
     received_quantity: Decimal
@@ -45,7 +46,9 @@ class PurchaseOrderOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    supplier_id: int
+    ref: str | None = None  # alphabetic code AA001, AA002, …
+    supplier_id: int | None = None
+    supplier_name: str | None = None
     warehouse_id: int
     status: PurchaseOrderStatus
     expected_date: date | None

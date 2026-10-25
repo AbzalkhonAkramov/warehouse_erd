@@ -60,6 +60,72 @@ export interface Product {
   sale_mode: SaleMode;
   // true = whole units only (integer qty); false = fractional allowed (kg/litres).
   integer_qty: boolean;
+  // Zero or more barcodes.
+  barcodes: string[];
+}
+
+// --- Purchasing / incoming goods ---
+export interface Supplier {
+  id: number;
+  code?: string | null;
+  name: string;
+  phone?: string | null;
+  email?: string | null;
+  address?: string | null;
+}
+
+export type PurchaseOrderStatus = "draft" | "ordered" | "received" | "cancelled";
+
+export interface PurchaseOrderLine {
+  id: number;
+  product_id: number;
+  product_name?: string | null;
+  quantity: Money;
+  unit_cost: Money;
+  received_quantity: Money;
+}
+
+export interface PurchaseOrder {
+  id: number;
+  ref?: string | null;
+  supplier_id?: number | null;
+  supplier_name?: string | null;
+  warehouse_id: number;
+  status: PurchaseOrderStatus;
+  expected_date?: string | null;
+  total: Money;
+  note?: string | null;
+  created_at: string;
+  lines: PurchaseOrderLine[];
+}
+
+// --- Analytics ---
+export interface ProductProfitRow {
+  product_id: number;
+  product_name: string;
+  qty_sold: Money;
+  revenue: Money;
+  cost: Money;
+  profit: Money;
+  margin_pct: number;
+}
+
+export interface AnalyticsTimePoint {
+  period: string;
+  revenue: Money;
+  profit: Money;
+}
+
+export interface Analytics {
+  revenue: Money;
+  cost: Money;
+  profit: Money;
+  margin_pct: number;
+  orders: number;
+  stock_value: Money;
+  total_debt: Money;
+  by_product: ProductProfitRow[];
+  over_time: AnalyticsTimePoint[];
 }
 
 export interface ActivityEntry {
@@ -133,6 +199,7 @@ export interface Company {
   logo_url?: string | null;
   display_mode: "text" | "logo" | "both";
   cash_handover_mode?: "manager_records" | "agent_submits";
+  excel_lang?: "ru" | "uz" | "en";
 }
 
 export interface ReturnLine {

@@ -29,13 +29,16 @@ async def _default_warehouse_id(db: AsyncSession) -> int:
 async def create_purchase_order(
     db: AsyncSession, user: User, data: PurchaseOrderCreate
 ) -> PurchaseOrder:
-    supplier = await db.get(Supplier, data.supplier_id)
-    if supplier is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Supplier not found")
+    supplier_id = None
+    if data.supplier_id is not None:
+        supplier = await db.get(Supplier, data.supplier_id)
+        if supplier is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Supplier not found")
+        supplier_id = supplier.id
     warehouse_id = data.warehouse_id or await _default_warehouse_id(db)
 
     po = PurchaseOrder(
-        supplier_id=supplier.id,
+        supplier_id=supplier_id,
         warehouse_id=warehouse_id,
         status=PurchaseOrderStatus.ORDERED,
         expected_date=data.expected_date,

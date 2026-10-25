@@ -120,8 +120,20 @@
   "order.submit": "Отправить заказ",
   "order.total": "Итого",
   "orders.drawerTitle": "Мои заказы",
+  "drafts.title": "Черновики",
+  "drafts.save": "В черновик",
+  "drafts.saved": "Сохранено в черновики ✓",
+  "drafts.empty": "Черновиков пока нет. Соберите заказ и нажмите «В черновик», чтобы сохранить его здесь.",
+  "drafts.noCustomer": "Без магазина",
+  "drafts.positions": "позиций: {n}",
   "orders.empty": "Заказов пока нет.",
   "orders.itemsCount": "позиций: {n}",
+  "orders.noItems": "Нет позиций",
+  "orders.filterAll": "Все",
+  "orders.filterShop": "Магазин",
+  "orders.filterDate": "Дата",
+  "orders.allShops": "Все магазины",
+  "orders.filterReset": "Сбросить фильтры",
   "orders.pendingSync": "Ожидает отправки",
   "orders.receipt": "Чек",
   "orders.syncedN": "Отправлено заказов: {n} ✓",
@@ -221,5 +233,6 @@
   "tab.order": "Заказ",
   "tab.orders": "Заказы",
   "tab.photos": "Фото",
-  "visitDays.pick": "В какие дни можно приезжать?"
+  "visitDays.pick": "В какие дни можно приезжать?",
+  "product.barcodes": "Штрихкоды"
 }

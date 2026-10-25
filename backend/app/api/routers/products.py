@@ -16,10 +16,12 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.models.associations import agent_categories
 from app.models.enums import SaleMode, SalesOrderStatus, StockMovementType, UserRole
-from app.models.catalog import Category, Currency, Product, Warehouse
+from app.models.catalog import Category, Currency, Product, ProductBarcode, Warehouse
 from app.models.inventory import Stock, StockMovement
 from app.models.sales import SalesOrder, SalesOrderLine
 from app.models.user import User
+from app.core.refcodes import format_ref
+from app.core.xlsx_i18n import excel_lang, headers as _xh
 from app.schemas.imports import BulkImportResult
 from app.schemas.product import (
     ProductCreate,
@@ -116,10 +118,11 @@ async def products_template(
     """Blank product-creation sheet plus a 'Guide' sheet listing the categories,
     currency codes and sale modes that are valid to type in. Declared before the
     /{product_id} route so the literal 'template' path isn't captured as an id."""
+    lang = await excel_lang(db)
     wb = Workbook()
     ws = wb.active
     ws.title = "Products"
-    ws.append(_PRODUCT_COLUMNS)
+    ws.append(_xh(_PRODUCT_COLUMNS, lang))
     ws.append([
         "SKU-100", "Example product", "Drinks", "шт", 5, 9, 10, "UZS",
         "piece", 24, 7.5, "40x30x25", 100, "yes",
@@ -168,12 +171,36 @@ async def create_product(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(require_roles(UserRole.MANAGER, UserRole.WAREHOUSE)),
 ) -> Product:
-    exists = await db.scalar(select(Product).where(Product.sku == data.sku))
-    if exists:
-        raise HTTPException(status.HTTP_409_CONFLICT, "SKU already exists")
-    product = Product(**data.model_dump())
+    payload = data.model_dump()
+    codes = _clean_codes(payload.pop("barcodes", []))
+    sku = (payload.get("sku") or "").strip()
+    auto = not sku
+    if auto:
+        # Placeholder until we have the id to build the alphabetic code from.
+        payload["sku"] = f"__tmp_{uuid.uuid4().hex}"
+    else:
+        exists = await db.scalar(select(Product).where(Product.sku == sku))
+        if exists:
+            raise HTTPException(status.HTTP_409_CONFLICT, "SKU already exists")
+        payload["sku"] = sku
+    product = Product(**payload)
+    for c in codes:
+        product.barcode_rows.append(ProductBarcode(code=c))
     db.add(product)
     await db.flush()
+    if auto:
+        # Alphabetic SKU (A001, A002, … Z999, AA001, …) derived from the id.
+        seq = product.id
+        product.sku = format_ref(seq, 1)
+        while await db.scalar(
+            select(Product.id).where(Product.sku == product.sku, Product.id != product.id)
+        ):
+            seq += 1
+            product.sku = format_ref(seq, 1)
+        await db.flush()
+    # Load the barcodes collection in this async context so response serialization
+    # (which reads the .barcodes property) doesn't trigger a lazy load.
+    await db.refresh(product, attribute_names=["barcode_rows"])
     return product
 
 
@@ -188,6 +215,7 @@ async def update_product(
     if product is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Product not found")
     payload = data.model_dump(exclude_unset=True)
+    codes = payload.pop("barcodes", None)  # None = leave unchanged
     if payload.get("sku") and payload["sku"] != product.sku:
         clash = await db.scalar(
             select(Product).where(Product.sku == payload["sku"], Product.id != product_id)
@@ -196,8 +224,23 @@ async def update_product(
             raise HTTPException(status.HTTP_409_CONFLICT, "SKU already exists")
     for field, value in payload.items():
         setattr(product, field, value)
+    if codes is not None:
+        # Replace the whole set (delete-orphan removes the old rows on flush).
+        product.barcode_rows.clear()
+        for c in _clean_codes(codes):
+            product.barcode_rows.append(ProductBarcode(code=c))
     await db.flush()
     return product
+
+
+def _clean_codes(codes: object) -> list[str]:
+    """Trim, drop blanks, de-duplicate (preserving order)."""
+    out: list[str] = []
+    for c in codes or []:
+        s = str(c).strip()
+        if s and s not in out:
+            out.append(s)
+    return out
 
 
 def _dec(v: object, default: Decimal | None = Decimal("0")) -> Decimal | None:

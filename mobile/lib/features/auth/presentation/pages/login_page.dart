@@ -155,6 +155,51 @@ class _LoginPageState extends State<LoginPage> {
                                             )
                                           : Text(context.tr('login.signIn')),
                                     ),
+                                    if (state.status ==
+                                            AuthStatus.unauthenticated &&
+                                        state.error != null) ...[
+                                      const SizedBox(height: 14),
+                                      Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.danger
+                                              .withValues(alpha: 0.08),
+                                          borderRadius:
+                                              BorderRadius.circular(10),
+                                          border: Border.all(
+                                              color: AppColors.danger
+                                                  .withValues(alpha: 0.3)),
+                                        ),
+                                        child: Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            const Icon(Icons.error_outline,
+                                                color: AppColors.danger,
+                                                size: 18),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: SelectableText(
+                                                state.error!,
+                                                style: const TextStyle(
+                                                    color: AppColors.danger,
+                                                    fontSize: 12.5,
+                                                    height: 1.35),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(height: 10),
+                                      OutlinedButton.icon(
+                                        onPressed: () =>
+                                            showServerUrlDialog(context),
+                                        icon: const Icon(Icons.dns_outlined,
+                                            size: 18),
+                                        label: Text(context.tr('server.title')),
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),

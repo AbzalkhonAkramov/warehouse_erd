@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, require_roles
 from app.core.database import get_db
+from app.core.xlsx_i18n import excel_lang, headers as _xh
 from app.models.catalog import Product, Warehouse
 from app.models.enums import StockMovementType, UserRole
 from app.models.inventory import Stock, StockMovement
@@ -165,15 +166,16 @@ async def stock_template(
         ).all()
     }
 
+    lang = await excel_lang(db)
     wb = Workbook()
     ws = wb.active
     ws.title = "Add stock"
-    ws.append(["Product ID", "Name", "Available stock", "Add quantity"])
+    ws.append(_xh(["Product ID", "Name", "Available stock", "Add quantity"], lang))
     for p in products:
         ws.append([p.id, p.name, float(qty_map.get(p.id, 0)), None])
 
     guide = wb.create_sheet("Guide")
-    guide.append(["ID", "Name", "Available stock"])
+    guide.append(_xh(["Product ID", "Name", "Available stock"], lang))
     for p in products:
         guide.append([p.id, p.name, float(qty_map.get(p.id, 0))])
 

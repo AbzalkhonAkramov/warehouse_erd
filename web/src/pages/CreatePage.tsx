@@ -5,6 +5,7 @@ import {
   createCategory,
   createCustomer,
   createProduct,
+  createSupplier,
   downloadCategoriesTemplate,
   downloadMarketsTemplate,
   downloadProductsTemplate,
@@ -36,7 +37,12 @@ const EMPTY_PRODUCT = {
   box_dimensions: "",
   sale_mode: "piece" as "box" | "piece" | "both",
   integer_qty: "1", // "1" = whole units, "0" = fractional
+  barcodes: "", // comma / space separated
 };
+
+// Split a free-text barcode field into a clean list.
+const splitBarcodes = (s: string): string[] =>
+  s.split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean);
 
 const SALE_MODES = ["piece", "box", "both"] as const;
 const EMPTY_SHOP = {
@@ -65,6 +71,7 @@ export default function CreatePage() {
       <div className={cls.createGrid}>
         {canProduct && <ProductForm />}
         {canProduct && <CategoryForm />}
+        {canProduct && <SupplierForm />}
         <ShopForm showAgentPicker={isManager} />
       </div>
     </div>
@@ -165,6 +172,7 @@ function ProductForm() {
         box_dimensions: form.box_dimensions ? form.box_dimensions : null,
         sale_mode: form.sale_mode,
         integer_qty: form.integer_qty === "1",
+        barcodes: splitBarcodes(form.barcodes),
       });
       if (file) await uploadProductImage(product.id, file, "front");
       if (backFile) await uploadProductImage(product.id, backFile, "back");
@@ -194,7 +202,7 @@ function ProductForm() {
       {confirm && (
         <ConfirmDialog
           rows={[
-            { label: t("field.sku"), value: form.sku },
+            { label: t("field.sku"), value: form.sku || t("create.skuAuto") },
             { label: t("field.name"), value: form.name },
             { label: t("field.unit"), value: form.unit },
             { label: t("field.costPrice"), value: form.cost_price },
@@ -219,7 +227,8 @@ function ProductForm() {
         <div className={cls.formGrid}>
           <label className={cls.field}>
             <span>{t("field.sku")}</span>
-            <input value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} required />
+            <input value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })}
+              placeholder={t("create.skuAuto")} />
           </label>
           <label className={cls.field}>
             <span>{t("field.name")}</span>
@@ -285,6 +294,11 @@ function ProductForm() {
             <span>{t("field.boxDimensions")}</span>
             <input value={form.box_dimensions} placeholder="40x30x25 cm"
               onChange={(e) => setForm({ ...form, box_dimensions: e.target.value })} />
+          </label>
+          <label className={cls.cx(cls.field, cls.fieldFull)}>
+            <span>{t("field.barcodes")}</span>
+            <input value={form.barcodes} placeholder={t("field.barcodesPh")}
+              onChange={(e) => setForm({ ...form, barcodes: e.target.value })} />
           </label>
           <label className={cls.cx(cls.field, cls.fieldFull)}>
             <span>{t("field.category")}</span>
@@ -384,6 +398,71 @@ function CategoryForm() {
           doImport={importCategories}
           invalidateKeys={["categories"]}
         />
+      </form>
+    </Card>
+  );
+}
+
+function SupplierForm() {
+  const { t } = useI18n();
+  const qc = useQueryClient();
+  const [name, setName] = useState("");
+  const [code, setCode] = useState("");
+  const [phone, setPhone] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
+
+  const codeValid = /^\d{5,}$/.test(code.trim());
+
+  const create = useMutation({
+    mutationFn: () =>
+      createSupplier({ code: code.trim(), name: name.trim(), phone: phone || null }),
+    onSuccess: (s) => {
+      qc.invalidateQueries({ queryKey: ["suppliers"] });
+      setOk(t("create.supplierCreated", { name: s.name }));
+      setName("");
+      setCode("");
+      setPhone("");
+    },
+    onError: (e) => setError(e instanceof Error ? e.message : t("common.somethingWrong")),
+  });
+
+  function submit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setOk(null);
+    if (name.trim() && codeValid) create.mutate();
+  }
+
+  return (
+    <Card title={t("create.supplierSection")}>
+      <form onSubmit={submit}>
+        <div className={cls.formGrid}>
+          <label className={cls.field}>
+            <span>{t("field.supplierCode")}</span>
+            <input
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+              inputMode="numeric"
+              placeholder="12345"
+              required
+            />
+          </label>
+          <label className={cls.field}>
+            <span>{t("field.name")}</span>
+            <input value={name} onChange={(e) => setName(e.target.value)} required />
+          </label>
+          <label className={cls.cx(cls.field, cls.fieldFull)}>
+            <span>{t("col.phone")}</span>
+            <input value={phone} onChange={(e) => setPhone(e.target.value)} />
+          </label>
+        </div>
+        <p className={cls.cx(cls.muted, cls.small)}>{t("create.supplierCodeHint")}</p>
+        {error && <ErrorBox error={error} />}
+        {ok && <div className={cls.okBox}>{ok}</div>}
+        <Button type="submit" disabled={create.isPending || !name.trim() || !codeValid}>
+          {create.isPending ? t("common.saving") : t("create.createSupplier")}
+        </Button>
       </form>
     </Card>
   );

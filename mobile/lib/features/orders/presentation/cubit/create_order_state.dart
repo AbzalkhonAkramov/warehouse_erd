@@ -1,6 +1,6 @@
 part of 'create_order_cubit.dart';
 
-enum CreateOrderStatus { initial, loading, ready, submitting, success, error }
+enum CreateOrderStatus { initial, loading, ready, submitting, success, error, draftSaved }
 
 class CreateOrderState extends Equatable {
   const CreateOrderState({
@@ -11,6 +11,7 @@ class CreateOrderState extends Equatable {
     this.pieces = const {},
     this.boxes = const {},
     this.customerId,
+    this.editingDraftId,
     this.createdOrderId,
     this.createdStatus,
     this.queued = false,
@@ -25,6 +26,7 @@ class CreateOrderState extends Equatable {
   final Map<int, double> pieces; // productId -> loose single goods
   final Map<int, int> boxes;     // productId -> number of full boxes
   final int? customerId;
+  final String? editingDraftId; // set when resuming a saved draft
   final int? createdOrderId;
   final String? createdStatus; // 'approved' (auto) or 'pending'
   final bool queued; // saved to the offline outbox instead of sent
@@ -56,6 +58,10 @@ class CreateOrderState extends Equatable {
 
   bool get canSubmit => customerId != null && positionIds.isNotEmpty;
 
+  /// A draft is worth saving once a customer or at least one line exists.
+  bool get canSaveDraft =>
+      customerId != null || pieces.isNotEmpty || boxes.isNotEmpty;
+
   CreateOrderState copyWith({
     CreateOrderStatus? status,
     List<Product>? products,
@@ -64,6 +70,7 @@ class CreateOrderState extends Equatable {
     Map<int, double>? pieces,
     Map<int, int>? boxes,
     int? customerId,
+    String? editingDraftId,
     int? createdOrderId,
     String? createdStatus,
     bool? queued,
@@ -77,6 +84,7 @@ class CreateOrderState extends Equatable {
       pieces: pieces ?? this.pieces,
       boxes: boxes ?? this.boxes,
       customerId: customerId ?? this.customerId,
+      editingDraftId: editingDraftId ?? this.editingDraftId,
       createdOrderId: createdOrderId ?? this.createdOrderId,
       createdStatus: createdStatus ?? this.createdStatus,
       queued: queued ?? this.queued,
@@ -93,6 +101,7 @@ class CreateOrderState extends Equatable {
         pieces,
         boxes,
         customerId,
+        editingDraftId,
         createdOrderId,
         createdStatus,
         queued,

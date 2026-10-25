@@ -49,6 +49,9 @@ const ICONS: Record<string, ReactNode> = {
   "/branding": svg(<><circle cx="12" cy="12" r="9" /><circle cx="8" cy="10" r="1" /><circle cx="12" cy="8" r="1" /><circle cx="16" cy="10" r="1" /><path d="M12 21a3 3 0 0 1 0-6 2 2 0 0 0 2-2c0-1 1-1 2-1" /></>),
   "/topics": svg(<><path d="M21 11.5a8.38 8.38 0 0 1-9 8.4 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.2A8.38 8.38 0 0 1 12 3a8.5 8.5 0 0 1 9 8.5Z" /></>),
   "/currencies": svg(<><circle cx="12" cy="12" r="9" /><path d="M14.5 9.5a2.5 2 0 0 0-2.5-1.5c-1.4 0-2.5.7-2.5 1.8 0 2.4 5 1.2 5 3.6 0 1.1-1.1 1.8-2.5 1.8a2.5 2 0 0 1-2.5-1.5M12 6.5v11" /></>),
+  "/incoming": svg(<><path d="M3 7l9-4 9 4-9 4-9-4Z" /><path d="M3 7v10l9 4 9-4V7" /><path d="M12 11v10" /><path d="M8 21v-4" /></>),
+  "/analytics": svg(<><path d="M3 3v18h18" /><path d="m7 14 3-4 3 3 4-6" /></>),
+  "/suppliers": svg(<><path d="M3 9h18M3 9l2-5h14l2 5M5 9v10h14V9" /><path d="M9 13h6" /></>),
 };
 
 // Same routes and labels as before — grouped for scannability only.
@@ -72,6 +75,7 @@ const GROUPS: NavGroup[] = [
     items: [
       { to: "/create", labelKey: "nav.create" },
       { to: "/products", labelKey: "nav.products" },
+      { to: "/incoming", labelKey: "nav.incoming", roles: ["manager", "warehouse"] },
     ],
   },
   {
@@ -79,6 +83,7 @@ const GROUPS: NavGroup[] = [
     items: [
       { to: "/customers", labelKey: "nav.customers" },
       { to: "/agents", labelKey: "nav.agents", roles: ["manager"] },
+      { to: "/suppliers", labelKey: "nav.suppliers", roles: ["manager", "warehouse", "accountant"] },
     ],
   },
   {
@@ -91,6 +96,7 @@ const GROUPS: NavGroup[] = [
   {
     labelKey: "nav.group.insights",
     items: [
+      { to: "/analytics", labelKey: "nav.analytics", roles: ["manager", "accountant"] },
       { to: "/reports", labelKey: "nav.reports", exclude: ["agent"] },
       { to: "/photos", labelKey: "nav.photos", roles: ["manager"] },
     ],

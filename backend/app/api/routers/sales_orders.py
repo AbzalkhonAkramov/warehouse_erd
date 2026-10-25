@@ -8,6 +8,7 @@ from sqlalchemy.orm import aliased, selectinload
 
 from app.api.deps import get_current_user, require_roles
 from app.core.database import get_db
+from app.core.refcodes import format_ref
 from app.models.catalog import Product
 from app.models.enums import SalesOrderStatus, UserRole
 from app.models.finance import Invoice
@@ -39,6 +40,16 @@ def _root_of(parent_of: dict[int, int | None], oid: int) -> int:
         seen.add(cur)
         cur = parent_of[cur]
     return cur
+
+
+# Human-readable order reference: a 3-letter alphabetic code + 3-digit number
+# (AAA001, AAA002, …). Forks keep the parent code plus ".<n>" (AAA001.1).
+def _fmt_order_no(oid: int, fork_map: dict[int, str]) -> str:
+    ref = fork_map.get(oid)
+    if ref:
+        root_str, i = ref.split(".", 1)
+        return f"{format_ref(int(root_str), 3)}.{i}"
+    return format_ref(oid, 3)
 
 
 def _order_nos(parent_of: dict[int, int | None]) -> dict[int, str]:
@@ -92,8 +103,20 @@ async def list_orders(
         row.created_by_name = creator_name
         row.customer_name = cust_name
         row.customer_address = cust_addr
-        row.order_no = fork_no.get(order.id, str(order.id))
+        row.order_no = _fmt_order_no(order.id, fork_no)
         out.append(row)
+
+    # Fill product names on every line so clients show names, not "#id".
+    prod_ids = {ln.product_id for row in out for ln in row.lines}
+    if prod_ids:
+        names = dict(
+            (await db.execute(
+                select(Product.id, Product.name).where(Product.id.in_(prod_ids))
+            )).all()
+        )
+        for row in out:
+            for ln in row.lines:
+                ln.product_name = names.get(ln.product_id)
     return out
 
 
@@ -167,11 +190,9 @@ async def status_history(
     for entry, name in (await db.execute(stmt)).all():
         row = OrderStatusHistoryOut.model_validate(entry)
         row.changed_by_name = name
-        row.order_no = order_nos.get(entry.sales_order_id, str(entry.sales_order_id))
+        row.order_no = _fmt_order_no(entry.sales_order_id, order_nos)
         if entry.related_order_id is not None:
-            row.related_order_no = order_nos.get(
-                entry.related_order_id, str(entry.related_order_id)
-            )
+            row.related_order_no = _fmt_order_no(entry.related_order_id, order_nos)
         out.append(row)
     return out
 
@@ -224,7 +245,7 @@ async def get_order(
     out.created_by_name = creator_name
     out.customer_name = customer.name if customer else None
     out.customer_address = customer.address if customer else None
-    out.order_no = fork_no.get(order.id, str(order.id))
+    out.order_no = _fmt_order_no(order.id, fork_no)
     out.invoice_number = invoice
     out.agent_photo_required = bool(agent_important)
     out.photos = [OrderPhotoOut(stage=s.value, link=link) for s, link in photo_rows]

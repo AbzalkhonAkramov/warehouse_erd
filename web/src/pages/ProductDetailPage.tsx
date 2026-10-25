@@ -3,7 +3,6 @@ import * as cls from "../ui/cls";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import {
-  addStock,
   getProduct,
   getProductHistory,
   listCategories,
@@ -18,7 +17,6 @@ import { useI18n } from "../i18n";
 import {
   Button,
   Card,
-  ConfirmDialog,
   Empty,
   ErrorBox,
   ExcelButton,
@@ -65,7 +63,6 @@ export default function ProductDetailPage() {
 
 function ProductDetail({ product, canManage }: { product: Product; canManage: boolean }) {
   const { t } = useI18n();
-  const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
 
   const history = useQuery({
@@ -73,30 +70,12 @@ function ProductDetail({ product, canManage }: { product: Product; canManage: bo
     queryFn: () => getProductHistory(product.id),
   });
 
-  // add-quantity
-  const [qtyInput, setQtyInput] = useState("");
-  const [noteInput, setNoteInput] = useState("");
-  const [confirm, setConfirm] = useState(false);
-
   // filters / sorting
   const [kind, setKind] = useState<Kind>("all");
   const [account, setAccount] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [sort, setSort] = useState<Sort>("date_desc");
-
-  const add = useMutation({
-    mutationFn: () => addStock(product.id, qtyInput, noteInput || undefined),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["product-history", product.id] });
-      qc.invalidateQueries({ queryKey: ["product", product.id] });
-      qc.invalidateQueries({ queryKey: ["stock"] });
-      qc.invalidateQueries({ queryKey: ["products"] });
-      qc.invalidateQueries({ queryKey: ["dashboard"] });
-      setQtyInput("");
-      setNoteInput("");
-    },
-  });
 
   const accounts = useMemo(() => {
     const set = new Set<string>();
@@ -187,6 +166,10 @@ function ProductDetail({ product, canManage }: { product: Product; canManage: bo
               value={t(product.integer_qty === false ? "qtyType.fractional" : "qtyType.integer")}
             />
             <Stat
+              label={t("field.barcodes")}
+              value={product.barcodes?.length ? product.barcodes.join(", ") : "—"}
+            />
+            <Stat
               label={t("products.box")}
               value={
                 product.box_qty
@@ -203,30 +186,6 @@ function ProductDetail({ product, canManage }: { product: Product; canManage: bo
           </div>
         </div>
       </Card>
-
-      {canManage && (
-        <Card title={t("stock.title")}>
-          <div className={cls.inlineAdd}>
-            <label className={cls.field}>
-              <span>{t("field.quantity")}</span>
-              <input
-                type="number"
-                step="0.001"
-                min="0.001"
-                value={qtyInput}
-                onChange={(e) => setQtyInput(e.target.value)}
-              />
-            </label>
-            <label className={cls.field}>
-              <span>{t("field.note")}</span>
-              <input value={noteInput} onChange={(e) => setNoteInput(e.target.value)} />
-            </label>
-            <Button disabled={!qtyInput || add.isPending} onClick={() => setConfirm(true)}>
-              {t("stock.add")}
-            </Button>
-          </div>
-        </Card>
-      )}
 
       <Card title={t("products.history")}>
         {/* filters + sorting */}
@@ -307,22 +266,6 @@ function ProductDetail({ product, canManage }: { product: Product; canManage: bo
         )}
       </Card>
 
-      {confirm && (
-        <ConfirmDialog
-          rows={[
-            { label: t("col.product"), value: product.name },
-            { label: t("field.quantity"), value: qtyInput },
-            { label: t("field.note"), value: noteInput },
-          ]}
-          busy={add.isPending}
-          onCancel={() => setConfirm(false)}
-          onConfirm={() => {
-            setConfirm(false);
-            add.mutate();
-          }}
-        />
-      )}
-
       {editing && <ProductEditModal product={product} onClose={() => setEditing(false)} />}
     </>
   );
@@ -347,6 +290,7 @@ function ProductEditModal({ product, onClose }: { product: Product; onClose: () 
     box_dimensions: product.box_dimensions ?? "",
     sale_mode: (product.sale_mode ?? "piece") as "box" | "piece" | "both",
     integer_qty: product.integer_qty === false ? "0" : "1",
+    barcodes: (product.barcodes ?? []).join(", "),
   });
   const [frontFile, setFrontFile] = useState<File | null>(null);
   const [backFile, setBackFile] = useState<File | null>(null);
@@ -368,6 +312,7 @@ function ProductEditModal({ product, onClose }: { product: Product; onClose: () 
         box_dimensions: form.box_dimensions ? form.box_dimensions : null,
         sale_mode: form.sale_mode,
         integer_qty: form.integer_qty === "1",
+        barcodes: form.barcodes.split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean),
       });
       if (frontFile) await uploadProductImage(product.id, frontFile, "front");
       if (backFile) await uploadProductImage(product.id, backFile, "back");
@@ -458,6 +403,11 @@ function ProductEditModal({ product, onClose }: { product: Product; onClose: () 
             <span>{t("field.boxDimensions")}</span>
             <input value={form.box_dimensions} placeholder="40x30x25 cm"
               onChange={(e) => setForm({ ...form, box_dimensions: e.target.value })} />
+          </label>
+          <label className={cls.cx(cls.field, cls.fieldFull)}>
+            <span>{t("field.barcodes")}</span>
+            <input value={form.barcodes} placeholder={t("field.barcodesPh")}
+              onChange={(e) => setForm({ ...form, barcodes: e.target.value })} />
           </label>
           <label className={cls.cx(cls.field, cls.fieldFull)}>
             <span>{t("field.category")}</span>

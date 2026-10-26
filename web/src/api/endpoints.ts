@@ -380,11 +380,15 @@ export const createPurchaseOrder = (body: {
 }) => api<PurchaseOrder>("/purchase-orders", { method: "POST", body });
 export const receivePurchaseOrder = (id: number) =>
   api<PurchaseOrder>(`/purchase-orders/${id}/receive`, { method: "POST", body: { lines: [] } });
-export const downloadIncomingTemplate = (categoryId?: number) =>
-  downloadFile(
-    `/purchase-orders/template${categoryId ? `?category_id=${categoryId}` : ""}`,
+export const downloadIncomingTemplate = (categoryIds?: number[]) => {
+  const qs = (categoryIds ?? [])
+    .map((id) => `category_id=${encodeURIComponent(id)}`)
+    .join("&");
+  return downloadFile(
+    `/purchase-orders/template${qs ? `?${qs}` : ""}`,
     "incoming-template.xlsx",
   );
+};
 export const importIncoming = (file: File) => importXlsx("/purchase-orders/import", file);
 
 // --- Telegram topics (super-admin) ---
@@ -398,8 +402,58 @@ export const deleteTopic = (id: number) =>
 export const discoverUpdates = () =>
   api<TelegramUpdateHint[]>("/telegram-topics/updates");
 
+// --- Telegram user linking (super-admin) ---
+export interface TelegramBotInfo {
+  configured: boolean;
+  username?: string | null;
+  error?: string | null;
+}
+export interface TelegramLinkUser {
+  id: number;
+  full_name: string;
+  email: string;
+  role: string;
+  linked: boolean;
+  telegram_username?: string | null;
+  has_code: boolean;
+}
+export interface TelegramLinkCode {
+  code: string;
+  link?: string | null;
+}
+export interface TelegramSyncResult {
+  checked: number;
+  linked: string[];
+}
+export const getTelegramBot = () => api<TelegramBotInfo>("/telegram/users/bot");
+export const listTelegramUsers = () =>
+  api<TelegramLinkUser[]>("/telegram/users");
+export const generateTelegramCode = (id: number) =>
+  api<TelegramLinkCode>(`/telegram/users/${id}/code`, { method: "POST" });
+export const unlinkTelegramUser = (id: number) =>
+  api<TelegramLinkUser>(`/telegram/users/${id}/unlink`, { method: "POST" });
+export const syncTelegramLinks = () =>
+  api<TelegramSyncResult>("/telegram/users/sync", { method: "POST" });
+
 // --- Photo reports ---
-export const listPhotoReports = () => api<PhotoReport[]>("/photo-reports");
+export interface PhotoFilters {
+  customer_id?: number;
+  agent_id?: number;
+  topic_id?: number;
+  status?: string;
+  date_from?: string;
+  date_to?: string;
+}
+export const listPhotoReports = (filters: PhotoFilters = {}) => {
+  const p = new URLSearchParams();
+  Object.entries(filters).forEach(([k, v]) => {
+    if (v !== undefined && v !== "") p.set(k, String(v));
+  });
+  const qs = p.toString();
+  return api<PhotoReport[]>(`/photo-reports${qs ? `?${qs}` : ""}`);
+};
+export const listPhotoTopics = () =>
+  api<{ id: number; name: string }[]>("/photo-reports/topics");
 export const resendPhotoReport = (id: number) =>
   api<PhotoReport>(`/photo-reports/${id}/resend`, { method: "POST" });
 

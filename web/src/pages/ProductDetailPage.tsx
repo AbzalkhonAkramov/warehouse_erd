@@ -24,7 +24,7 @@ import {
   Spinner,
   Stat,
 } from "../components/ui";
-import { date, money, qty } from "../lib/format";
+import { date, money, moneyTrim, qty } from "../lib/format";
 import { exportExcel } from "../lib/excel";
 
 type Kind = "all" | "added" | "sale";
@@ -150,12 +150,12 @@ function ProductDetail({ product, canManage }: { product: Product; canManage: bo
             <Stat label={t("col.sku")} value={<span className={cls.mono}>{product.sku}</span>} />
             <Stat
               label={t("col.sale")}
-              value={`${money(product.sale_price)}${product.currency_symbol ? " " + product.currency_symbol : ""}`}
+              value={`${moneyTrim(product.sale_price)}${product.currency_symbol ? " " + product.currency_symbol : ""}`}
             />
             {product.cost_price != null && (
               <Stat
                 label={t("col.cost")}
-                value={`${money(product.cost_price)}${product.currency_symbol ? " " + product.currency_symbol : ""}`}
+                value={`${moneyTrim(product.cost_price)}${product.currency_symbol ? " " + product.currency_symbol : ""}`}
               />
             )}
             <Stat label={t("col.onHand")} value={`${qty(product.on_hand ?? 0)} ${product.unit}`} />

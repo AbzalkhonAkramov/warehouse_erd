@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../auth/AuthContext";
@@ -48,6 +48,7 @@ const ICONS: Record<string, ReactNode> = {
   "/activity": svg(<><path d="M22 12h-4l-3 8-6-16-3 8H2" /></>),
   "/branding": svg(<><circle cx="12" cy="12" r="9" /><circle cx="8" cy="10" r="1" /><circle cx="12" cy="8" r="1" /><circle cx="16" cy="10" r="1" /><path d="M12 21a3 3 0 0 1 0-6 2 2 0 0 0 2-2c0-1 1-1 2-1" /></>),
   "/topics": svg(<><path d="M21 11.5a8.38 8.38 0 0 1-9 8.4 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.2A8.38 8.38 0 0 1 12 3a8.5 8.5 0 0 1 9 8.5Z" /></>),
+  "/telegram": svg(<><path d="m22 3-20 8 6 2 2 6 3-4 5 4 4-16Z" /><path d="m8 13 8-6" /></>),
   "/currencies": svg(<><circle cx="12" cy="12" r="9" /><path d="M14.5 9.5a2.5 2 0 0 0-2.5-1.5c-1.4 0-2.5.7-2.5 1.8 0 2.4 5 1.2 5 3.6 0 1.1-1.1 1.8-2.5 1.8a2.5 2 0 0 1-2.5-1.5M12 6.5v11" /></>),
   "/incoming": svg(<><path d="M3 7l9-4 9 4-9 4-9-4Z" /><path d="M3 7v10l9 4 9-4V7" /><path d="M12 11v10" /><path d="M8 21v-4" /></>),
   "/analytics": svg(<><path d="M3 3v18h18" /><path d="m7 14 3-4 3 3 4-6" /></>),
@@ -63,10 +64,9 @@ const GROUPS: NavGroup[] = [
   {
     labelKey: "nav.group.sales",
     items: [
-      { to: "/orders", labelKey: "nav.orders" },
+      { to: "/orders", labelKey: "nav.orders", end: true },
       { to: "/orders/new", labelKey: "nav.createOrder" },
       { to: "/returns", labelKey: "nav.returns", roles: ["manager", "accountant"] },
-      { to: "/refunds", labelKey: "nav.refunds", roles: ["manager", "accountant"] },
       { to: "/order-history", labelKey: "nav.history", roles: ["manager", "accountant"] },
     ],
   },
@@ -103,6 +103,7 @@ const GROUPS: NavGroup[] = [
       { to: "/activity", labelKey: "nav.activity", roles: [] }, // admin-only
       { to: "/branding", labelKey: "nav.branding", roles: [] }, // admin-only
       { to: "/topics", labelKey: "nav.topics", roles: [] }, // admin-only
+      { to: "/telegram", labelKey: "nav.telegram", roles: [] }, // admin-only
     ],
   },
 ];
@@ -208,27 +209,140 @@ export default function Layout() {
             </button>
             <div className={cls.topbarTitle}>{titleKey ? t(titleKey) : ""}</div>
           </div>
-          <div className={cls.topbarUser}>
-            <LanguageSwitcher />
-            <span className={cls.userName}>{user?.full_name}</span>
-            <span className={cls.userRole}>{user?.role}</span>
-            <button
-              className={cls.btn.ghost}
-              onClick={() => setShowChangePw(true)}
-              title={t("common.changePassword")}
-            >
-              🔑
-            </button>
-            <button className={cls.btn.ghost} onClick={logout}>
-              {t("common.signOut")}
-            </button>
-          </div>
+          <UserMenu
+            user={user}
+            logout={logout}
+            onChangePassword={() => setShowChangePw(true)}
+          />
         </header>
         {showChangePw && <ChangePasswordModal onClose={() => setShowChangePw(false)} />}
         <main className={cls.content}>
           <Outlet />
         </main>
       </div>
+    </div>
+  );
+}
+
+/** Avatar in the top-right that opens a dropdown with role, language and sign out. */
+function UserMenu({
+  user,
+  logout,
+  onChangePassword,
+}: {
+  user: ReturnType<typeof useAuth>["user"];
+  logout: () => void;
+  onChangePassword: () => void;
+}) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  const name = user?.full_name ?? "";
+  const initial = name.trim().charAt(0).toUpperCase() || "?";
+
+  const avatarStyle: CSSProperties = {
+    width: 38,
+    height: 38,
+    borderRadius: "50%",
+    background: "var(--brand, #2563eb)",
+    color: "#fff",
+    fontWeight: 700,
+    fontSize: 15,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    border: "none",
+    cursor: "pointer",
+  };
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button style={avatarStyle} onClick={() => setOpen((v) => !v)} aria-label={name}>
+        {initial}
+      </button>
+      {open && (
+        <div
+          style={{
+            position: "absolute",
+            top: "100%",
+            right: 0,
+            marginTop: 8,
+            minWidth: 240,
+            background: "var(--card-bg, #fff)",
+            border: "1px solid var(--line, #e7ecf3)",
+            borderRadius: 12,
+            boxShadow: "0 12px 34px rgba(15,23,42,0.16)",
+            padding: 8,
+            zIndex: 40,
+          }}
+        >
+          {/* Header: avatar, then name, then role underneath */}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 4,
+              padding: "10px 8px 12px",
+            }}
+          >
+            <div style={{ ...avatarStyle, width: 52, height: 52, fontSize: 20, cursor: "default" }}>
+              {initial}
+            </div>
+            <div style={{ fontWeight: 600, marginTop: 4 }}>{name}</div>
+            <div className={cls.userRole}>{user?.role}</div>
+          </div>
+
+          <div style={{ height: 1, background: "var(--line, #e7ecf3)", margin: "4px 0 8px" }} />
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 8,
+              padding: "4px 8px 10px",
+            }}
+          >
+            <span className={cls.cx(cls.muted, cls.small)}>🌐 {t("common.language")}</span>
+            <LanguageSwitcher />
+          </div>
+
+          <button
+            className={cls.cx(cls.btn.ghost)}
+            style={{ width: "100%", justifyContent: "flex-start", textAlign: "left" }}
+            onClick={() => {
+              onChangePassword();
+              setOpen(false);
+            }}
+          >
+            🔑 {t("common.changePassword")}
+          </button>
+          <button
+            className={cls.cx(cls.btn.ghost)}
+            style={{
+              width: "100%",
+              justifyContent: "flex-start",
+              textAlign: "left",
+              color: "#dc2626",
+              fontWeight: 600,
+            }}
+            onClick={logout}
+          >
+            {t("common.signOut")}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -7,5 +7,10 @@ final NumberFormat _qtyFmt = NumberFormat('#,##0.###');
 /// Money with thousands separators (space) and 2 decimals: `150 000.00`.
 String money(num value) => _moneyGrouped.format(value).replaceAll(',', ' ');
 
+/// Money without the trailing `.00` for whole amounts (keeps real cents when
+/// present): `150 000`, `150 000.50`. Used for catalog prices.
+final NumberFormat _moneyTrim = NumberFormat('#,##0.##');
+String moneyTrim(num value) => _moneyTrim.format(value).replaceAll(',', ' ');
+
 /// Quantity without trailing zeros: `12`, `1.5`.
 String qty(num value) => _qtyFmt.format(value).replaceAll(',', ' ');

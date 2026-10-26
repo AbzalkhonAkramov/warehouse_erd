@@ -17,6 +17,7 @@ import ReturnsPage from "./pages/ReturnsPage";
 import ReportsPage from "./pages/ReportsPage";
 import PhotoReportsPage from "./pages/PhotoReportsPage";
 import TopicsPage from "./pages/TopicsPage";
+import TelegramPage from "./pages/TelegramPage";
 import AgentsPage from "./pages/AgentsPage";
 import CreatePage from "./pages/CreatePage";
 import ProductDetailPage from "./pages/ProductDetailPage";
@@ -117,6 +118,7 @@ export default function App() {
           element={isAgent ? <Navigate to="/products" replace /> : <CurrenciesPage />}
         />
         <Route path="topics" element={<TopicsPage />} />
+        <Route path="telegram" element={<TelegramPage />} />
       </Route>
       <Route path="/login" element={<Navigate to="/" replace />} />
       <Route path="*" element={<Navigate to="/" replace />} />

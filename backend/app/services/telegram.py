@@ -158,6 +158,21 @@ async def send_media_group(
     return out
 
 
+async def get_me() -> dict:
+    """Return the bot's own info (id, username, …) via getMe."""
+    token = _require_token()
+    url = f"https://api.telegram.org/bot{token}/getMe"
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(url)
+        body = resp.json()
+    except (httpx.HTTPError, ValueError) as exc:
+        raise TelegramError(f"Telegram request failed: {exc}") from exc
+    if not body.get("ok"):
+        raise TelegramError(body.get("description", "Unknown Telegram error"))
+    return body.get("result", {})
+
+
 async def get_updates() -> list[dict]:
     """Fetch recent updates — used by admins to discover group chat_id / topic ids."""
     token = _require_token()

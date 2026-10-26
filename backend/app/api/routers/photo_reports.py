@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, File, Form, UploadFile
+from datetime import date, datetime, time, timedelta
+
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,7 +9,7 @@ from sqlalchemy.orm import selectinload
 from app.api.deps import get_current_user, require_roles
 from app.core.database import get_db
 from app.models.associations import agent_topics
-from app.models.enums import UserRole
+from app.models.enums import PhotoReportStatus, UserRole
 from app.models.photo import PhotoReport
 from app.models.telegram import TelegramTopic
 from app.models.user import User
@@ -52,6 +54,12 @@ async def list_topic_options(
 
 @router.get("", response_model=list[PhotoReportOut])
 async def list_reports(
+    customer_id: int | None = Query(None),
+    agent_id: int | None = Query(None),
+    topic_id: int | None = Query(None),
+    status: PhotoReportStatus | None = Query(None),
+    date_from: date | None = Query(None),
+    date_to: date | None = Query(None),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> list[PhotoReport]:
@@ -60,8 +68,24 @@ async def list_reports(
         .options(selectinload(PhotoReport.images))
         .order_by(PhotoReport.id.desc())
     )
+    # Agents only ever see their own reports (the agent filter is ignored for them).
     if user.role == UserRole.AGENT:
         stmt = stmt.where(PhotoReport.agent_id == user.id)
+    elif agent_id is not None:
+        stmt = stmt.where(PhotoReport.agent_id == agent_id)
+    if customer_id is not None:
+        stmt = stmt.where(PhotoReport.customer_id == customer_id)
+    if topic_id is not None:
+        stmt = stmt.where(PhotoReport.topic_id == topic_id)
+    if status is not None:
+        stmt = stmt.where(PhotoReport.status == status)
+    if date_from is not None:
+        stmt = stmt.where(PhotoReport.created_at >= datetime.combine(date_from, time.min))
+    if date_to is not None:
+        # Inclusive of the whole end day.
+        stmt = stmt.where(
+            PhotoReport.created_at < datetime.combine(date_to + timedelta(days=1), time.min)
+        )
     return list(await db.scalars(stmt))
 
 

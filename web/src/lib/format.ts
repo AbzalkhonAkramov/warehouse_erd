@@ -3,6 +3,13 @@ export function money(value: string | number | null | undefined): string {
   return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+// Like `money`, but without the trailing ".00" for whole amounts (keeps real
+// cents when present). Used for catalog prices, e.g. 1 234 instead of 1 234.00.
+export function moneyTrim(value: string | number | null | undefined): string {
+  const n = typeof value === "string" ? parseFloat(value) : value ?? 0;
+  return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
+
 export function qty(value: string | number | null | undefined): string {
   const n = typeof value === "string" ? parseFloat(value) : value ?? 0;
   return n.toLocaleString(undefined, { maximumFractionDigits: 3 });

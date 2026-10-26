@@ -1,10 +1,11 @@
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import * as cls from "../ui/cls";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createCategory,
   createCustomer,
   createProduct,
+  createRegion,
   createSupplier,
   downloadCategoriesTemplate,
   downloadMarketsTemplate,
@@ -58,6 +59,8 @@ const EMPTY_SHOP = {
 
 const WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
+type EntityKey = "product" | "category" | "supplier" | "region" | "shop";
+
 export default function CreatePage() {
   const { t } = useI18n();
   const { user } = useAuth();
@@ -65,15 +68,102 @@ export default function CreatePage() {
   const canProduct = role === "admin" || role === "manager" || role === "warehouse";
   const isManager = role === "admin" || role === "manager";
 
+  const options: { key: EntityKey; label: string }[] = [
+    ...(canProduct
+      ? ([
+          { key: "product", label: t("create.productSection") },
+          { key: "category", label: t("create.categorySection") },
+          { key: "supplier", label: t("create.supplierSection") },
+        ] as const)
+      : []),
+    ...(isManager ? ([{ key: "region", label: t("create.regionSection") }] as const) : []),
+    { key: "shop", label: t("create.shopSection") },
+  ];
+
+  const [selected, setSelected] = useState<EntityKey>(options[0].key);
+
   return (
     <div className={cls.page}>
-      <h1>{t("create.title")}</h1>
-      <div className={cls.createGrid}>
-        {canProduct && <ProductForm />}
-        {canProduct && <CategoryForm />}
-        {canProduct && <SupplierForm />}
-        <ShopForm showAgentPicker={isManager} />
+      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 18 }}>
+        <h1 style={{ margin: 0 }}>{t("create.title")}</h1>
+        <CreateMenu options={options} selected={selected} onSelect={setSelected} />
       </div>
+      <div>
+        {selected === "product" && canProduct && <ProductForm />}
+        {selected === "category" && canProduct && <CategoryForm />}
+        {selected === "supplier" && canProduct && <SupplierForm />}
+        {selected === "region" && isManager && <RegionForm />}
+        {selected === "shop" && <ShopForm showAgentPicker={isManager} />}
+      </div>
+    </div>
+  );
+}
+
+/** A "Create ▸" button that opens a menu to its right listing what to create. */
+function CreateMenu({
+  options,
+  selected,
+  onSelect,
+}: {
+  options: { key: EntityKey; label: string }[];
+  selected: EntityKey;
+  onSelect: (k: EntityKey) => void;
+}) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  return (
+    <div ref={ref} style={{ position: "relative", display: "inline-block" }}>
+      <Button type="button" onClick={() => setOpen((v) => !v)}>
+        + {t("create.newButton")} ▸
+      </Button>
+      {open && (
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: "100%",
+            marginLeft: 8,
+            minWidth: 220,
+            background: "var(--card-bg, #fff)",
+            border: "1px solid var(--line, #e7ecf3)",
+            borderRadius: 10,
+            boxShadow: "0 10px 30px rgba(15,23,42,0.14)",
+            padding: 4,
+            zIndex: 30,
+            display: "flex",
+            flexDirection: "column",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {options.map((o) => (
+            <button
+              key={o.key}
+              type="button"
+              className={cls.cx(
+                "w-full text-left px-3 py-2 rounded-md text-sm cursor-pointer hover:bg-slate-100",
+                o.key === selected && "!bg-brand/10 font-semibold text-brand",
+              )}
+              onClick={() => {
+                onSelect(o.key);
+                setOpen(false);
+              }}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -398,6 +488,58 @@ function CategoryForm() {
           doImport={importCategories}
           invalidateKeys={["categories"]}
         />
+      </form>
+    </Card>
+  );
+}
+
+function RegionForm() {
+  const { t } = useI18n();
+  const qc = useQueryClient();
+  const [name, setName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
+  const [confirm, setConfirm] = useState(false);
+
+  const create = useMutation({
+    mutationFn: () => createRegion(name.trim()),
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: ["regions"] });
+      setOk(t("create.regionCreated", { name: r.name }));
+      setName("");
+    },
+    onError: (e) => setError(e instanceof Error ? e.message : t("common.somethingWrong")),
+  });
+
+  function submit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setOk(null);
+    if (name.trim()) setConfirm(true);
+  }
+
+  return (
+    <Card title={t("create.regionSection")}>
+      {confirm && (
+        <ConfirmDialog
+          rows={[{ label: t("customers.region"), value: name }]}
+          onCancel={() => setConfirm(false)}
+          onConfirm={() => {
+            setConfirm(false);
+            create.mutate();
+          }}
+        />
+      )}
+      <form onSubmit={submit}>
+        <label className={cls.field}>
+          <span>{t("customers.region")}</span>
+          <input value={name} onChange={(e) => setName(e.target.value)} required />
+        </label>
+        {error && <ErrorBox error={error} />}
+        {ok && <div className={cls.okBox}>{ok}</div>}
+        <Button type="submit" disabled={create.isPending || !name.trim()}>
+          {create.isPending ? t("common.saving") : t("create.createRegion")}
+        </Button>
       </form>
     </Card>
   );

@@ -1,7 +1,7 @@
 from decimal import Decimal, InvalidOperation
 from io import BytesIO
 
-from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from openpyxl import Workbook, load_workbook
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -70,16 +70,16 @@ async def list_purchase_orders(
 
 @router.get("/template")
 async def incoming_template(
-    category_id: int | None = None,
+    category_id: list[int] = Query(default=[]),
     db: AsyncSession = Depends(get_db),
     _: User = Depends(_MANAGER_OR_WAREHOUSE),
 ) -> Response:
-    """A goods-receipt sheet listing products (optionally filtered by category) with
-    blank Quantity + Unit cost columns. Declared before /{po_id}."""
+    """A goods-receipt sheet listing products (optionally filtered by one or more
+    categories) with blank Quantity + Unit cost columns. Declared before /{po_id}."""
     lang = await excel_lang(db)
     stmt = select(Product).where(Product.is_active.is_(True)).order_by(Product.name)
-    if category_id is not None:
-        stmt = stmt.where(Product.category_id == category_id)
+    if category_id:
+        stmt = stmt.where(Product.category_id.in_(category_id))
     products = list(await db.scalars(stmt))
     qty_map = {
         pid: q

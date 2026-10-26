@@ -24,6 +24,10 @@ class User(Base, TimestampMixin):
 
     # Telegram chat id for personal notifications (e.g. an agent's order approved)
     telegram_chat_id: Mapped[str | None] = mapped_column(String(64))
+    # One-time code the user sends to the bot (/start <code>) to link their chat.
+    telegram_link_code: Mapped[str | None] = mapped_column(String(16))
+    # @username / display name captured when the chat was linked (for the admin UI).
+    telegram_username: Mapped[str | None] = mapped_column(String(120))
 
     # Default Telegram topic this agent's photo reports route to (admin-assigned).
     default_topic_id: Mapped[int | None] = mapped_column(ForeignKey("telegram_topics.id"))

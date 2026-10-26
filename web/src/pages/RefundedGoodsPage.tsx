@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import * as cls from "../ui/cls";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -63,7 +64,10 @@ export default function RefundedGoodsPage() {
   return (
     <div className={cls.page}>
       <div className={cls.pageHead}>
-        <h1>{t("refunds.title")}</h1>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <Link to="/returns" className={cls.btn.ghost}>← {t("returns.title")}</Link>
+          <h1 style={{ margin: 0 }}>{t("refunds.title")}</h1>
+        </div>
         <ExcelButton onClick={exportRows} />
       </div>
 

@@ -1,10 +1,8 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as cls from "../ui/cls";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  downloadStockTemplate,
-  importStock,
   listCategories,
   listProducts,
   listStock,
@@ -13,7 +11,7 @@ import {
 import { useAuth } from "../auth/AuthContext";
 import { useI18n } from "../i18n";
 import { Button, Card, ErrorBox, ExcelButton, Spinner } from "../components/ui";
-import { money, qty } from "../lib/format";
+import { money, moneyTrim, qty } from "../lib/format";
 import { exportExcel } from "../lib/excel";
 
 type Sort = "name" | "price_desc" | "price_asc" | "stock_desc";
@@ -37,7 +35,7 @@ export default function ProductsPage() {
   const canManage = role === "admin" || role === "manager" || role === "warehouse";
 
   const [search, setSearch] = useState("");
-  const [category, setCategory] = useState<string>("");
+  const [categoryIds, setCategoryIds] = useState<Set<number>>(new Set());
   const [sort, setSort] = useState<Sort>("name");
   const [layout, setLayout] = useState<Layout>(initialLayout);
 
@@ -49,32 +47,9 @@ export default function ProductsPage() {
       /* ignore */
     }
   }
-  const [importMsg, setImportMsg] = useState<string | null>(null);
-  const [importErr, setImportErr] = useState<string | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
-  const qc = useQueryClient();
-
   const products = useQuery({ queryKey: ["products"], queryFn: listProducts });
   const stock = useQuery({ queryKey: ["stock"], queryFn: () => listStock(false) });
   const categories = useQuery({ queryKey: ["categories"], queryFn: listCategories });
-
-  const doImport = useMutation({
-    mutationFn: importStock,
-    onSuccess: (r) => {
-      qc.invalidateQueries({ queryKey: ["stock"] });
-      qc.invalidateQueries({ queryKey: ["products"] });
-      setImportErr(null);
-      setImportMsg(
-        t("stockImport.done", {
-          updated: r.updated,
-          total: r.added_total,
-          skipped: r.skipped,
-        }) + (r.errors.length ? ` · ${r.errors.length} ${t("stockImport.errs")}` : ""),
-      );
-    },
-    onError: (e) =>
-      setImportErr(e instanceof Error ? e.message : t("common.somethingWrong")),
-  });
 
   const onHand = useMemo(() => {
     const map = new Map<number, { quantity: string; low: boolean }>();
@@ -90,7 +65,8 @@ export default function ProductsPage() {
         (p) => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q),
       );
     }
-    if (category) list = list.filter((p) => String(p.category_id ?? "") === category);
+    if (categoryIds.size)
+      list = list.filter((p) => p.category_id != null && categoryIds.has(p.category_id));
     const stockOf = (id: number) => parseFloat(onHand.get(id)?.quantity ?? "0");
     const sorted = [...list];
     sorted.sort((a, b) => {
@@ -106,7 +82,7 @@ export default function ProductsPage() {
       }
     });
     return sorted;
-  }, [products.data, search, category, sort, onHand]);
+  }, [products.data, search, categoryIds, sort, onHand]);
 
   const exportProducts = () =>
     exportExcel(
@@ -129,38 +105,12 @@ export default function ProductsPage() {
         <div className={cls.headActions}>
           <ExcelButton onClick={exportProducts} />
           {canManage && (
-            <>
-              <Button variant="ghost" onClick={() => downloadStockTemplate()}>
-                ⬇ {t("stockImport.template")}
-              </Button>
-              <Button
-                variant="ghost"
-                disabled={doImport.isPending}
-                onClick={() => fileRef.current?.click()}
-              >
-                ⬆ {doImport.isPending ? t("common.saving") : t("stockImport.import")}
-              </Button>
-              <input
-                ref={fileRef}
-                type="file"
-                accept=".xlsx"
-                style={{ display: "none" }}
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) doImport.mutate(f);
-                  if (fileRef.current) fileRef.current.value = "";
-                }}
-              />
-              <Link to="/create">
-                <Button>{t("products.new")}</Button>
-              </Link>
-            </>
+            <Link to="/create">
+              <Button>{t("products.new")}</Button>
+            </Link>
           )}
         </div>
       </div>
-
-      {importMsg && <div className={cls.okBox}>{importMsg}</div>}
-      {importErr && <div className={cls.errorBox}>{importErr}</div>}
 
       <div className={cls.filterRow}>
         <input
@@ -169,12 +119,11 @@ export default function ProductsPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <select value={category} onChange={(e) => setCategory(e.target.value)}>
-          <option value="">{t("filter.allCategories")}</option>
-          {categories.data?.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
+        <CategoryFilter
+          categories={categories.data ?? []}
+          selected={categoryIds}
+          onChange={setCategoryIds}
+        />
         <label className={cls.inlineField}>
           {t("sort.label")}
           <select value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
@@ -232,7 +181,7 @@ export default function ProductsPage() {
                     <td className={cls.mono}>{p.sku}</td>
                     <td>{p.name}</td>
                     <td className={cls.cx(cls.numCell, cls.strong)}>
-                      {money(p.sale_price)}{p.currency_symbol ? ` ${p.currency_symbol}` : ""}
+                      {moneyTrim(p.sale_price)}{p.currency_symbol ? ` ${p.currency_symbol}` : ""}
                     </td>
                     <td className={cls.cx(cls.numCell, s?.low ? cls.warn : undefined)}>
                       {s ? qty(s.quantity) : "0"} {p.unit}
@@ -261,7 +210,7 @@ export default function ProductsPage() {
                   <div className={cls.productName}>{p.name}</div>
                   <div className={cls.productRow}>
                     <span className={cls.productPrice}>
-                      {money(p.sale_price)}{p.currency_symbol ? ` ${p.currency_symbol}` : ""}
+                      {moneyTrim(p.sale_price)}{p.currency_symbol ? ` ${p.currency_symbol}` : ""}
                     </span>
                     <span className={s?.low ? cls.productStockWarn : cls.productStock}>
                       {t("col.onHand")}: {s ? qty(s.quantity) : "0"} {p.unit}
@@ -271,6 +220,115 @@ export default function ProductsPage() {
               </Card>
             );
           })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Searchable multi-select category filter (text field + checkbox dropdown). */
+function CategoryFilter({
+  categories,
+  selected,
+  onChange,
+}: {
+  categories: { id: number; name: string }[];
+  selected: Set<number>;
+  onChange: (next: Set<number>) => void;
+}) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+        setQ("");
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  const filtered = categories.filter((c) =>
+    c.name.toLowerCase().includes(q.trim().toLowerCase()),
+  );
+  const summary =
+    selected.size === 0
+      ? t("filter.allCategories")
+      : t("filter.nCategories", { n: String(selected.size) });
+
+  function toggle(id: number) {
+    const next = new Set(selected);
+    next.has(id) ? next.delete(id) : next.add(id);
+    onChange(next);
+  }
+
+  return (
+    <div ref={ref} style={{ position: "relative", minWidth: 240 }}>
+      <input
+        className={cls.searchInput}
+        style={{ width: "100%" }}
+        value={q}
+        placeholder={summary}
+        onFocus={() => setOpen(true)}
+        onChange={(e) => {
+          setQ(e.target.value);
+          setOpen(true);
+        }}
+      />
+      {open && (
+        <div
+          style={{
+            position: "absolute",
+            top: "100%",
+            left: 0,
+            marginTop: 4,
+            width: "100%",
+            maxHeight: 300,
+            overflowY: "auto",
+            background: "var(--card-bg, #fff)",
+            border: "1px solid var(--line, #e7ecf3)",
+            borderRadius: 10,
+            boxShadow: "0 10px 30px rgba(15,23,42,0.14)",
+            padding: 4,
+            zIndex: 30,
+          }}
+        >
+          {selected.size > 0 && (
+            <button
+              type="button"
+              className={cls.cx("w-full text-left px-3 py-2 rounded-md text-sm cursor-pointer hover:bg-slate-100 text-brand")}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                onChange(new Set());
+              }}
+            >
+              {t("filter.clearCategories")}
+            </button>
+          )}
+          {filtered.map((c) => (
+            <label
+              key={c.id}
+              className={cls.cx("flex items-center gap-2 px-3 py-2 rounded-md text-sm cursor-pointer hover:bg-slate-100")}
+              onMouseDown={(e) => e.preventDefault()}
+            >
+              <input
+                type="checkbox"
+                checked={selected.has(c.id)}
+                onChange={() => toggle(c.id)}
+              />
+              {c.name}
+            </label>
+          ))}
+          {filtered.length === 0 && (
+            <div className={cls.cx(cls.muted, cls.small)} style={{ padding: "8px 12px" }}>
+              {t("common.nothingFound")}
+            </div>
+          )}
         </div>
       )}
     </div>

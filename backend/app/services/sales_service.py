@@ -30,7 +30,7 @@ from app.models.sales import (
 )
 from app.models.user import User
 from app.schemas.sales import SalesOrderCreate, SalesOrderUpdate, StatusMoveRequest
-from app.services import telegram
+from app.services import notifications, telegram
 
 ZERO = Decimal("0")
 
@@ -172,13 +172,16 @@ async def create_order(db: AsyncSession, creator: User, data: SalesOrderCreate) 
         )
     )
 
-    # New orders wait for a manager to ship/deliver them.
-    await telegram.notify_managers(
+    # New orders wait for a manager to ship/deliver them. Notify the legacy group
+    # chat (if configured) and every manager who linked their personal Telegram.
+    new_order_msg = (
         f"🆕 <b>New order #{order.id}</b>\n"
         f"Customer: {customer.name}\n"
         f"Agent: {agent.full_name}\n"
         f"Total: {order.total}"
     )
+    await telegram.notify_managers(new_order_msg)
+    await notifications.notify_roles(db, [UserRole.MANAGER], new_order_msg)
     return order
 
 

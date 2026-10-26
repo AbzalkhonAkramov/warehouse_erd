@@ -196,8 +196,8 @@ class _ProductCard extends StatelessWidget {
                   const Spacer(),
                   Text(
                     product.currencySymbol != null
-                        ? '${money(product.salePrice)} ${product.currencySymbol}'
-                        : money(product.salePrice),
+                        ? '${moneyTrim(product.salePrice)} ${product.currencySymbol}'
+                        : moneyTrim(product.salePrice),
                     style: const TextStyle(
                         color: AppColors.brand,
                         fontWeight: FontWeight.bold,

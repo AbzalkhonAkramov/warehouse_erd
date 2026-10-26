@@ -45,6 +45,9 @@ _PRODUCT_COLUMN_MIGRATIONS = (
     "ALTER TABLE stock_count_lines ADD COLUMN IF NOT EXISTS applied BOOLEAN",
     # New DRAFT state for inventory counts (native enum needs the value added).
     "ALTER TYPE stockcountstatus ADD VALUE IF NOT EXISTS 'DRAFT'",
+    # Telegram self-link: per-user start code + captured username.
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS telegram_link_code VARCHAR(16)",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS telegram_username VARCHAR(120)",
 )
 
 

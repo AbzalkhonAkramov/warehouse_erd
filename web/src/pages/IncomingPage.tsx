@@ -100,6 +100,118 @@ function ProductPicker({
   );
 }
 
+/** Searchable multi-select category picker (text field + checkbox dropdown).
+ * No selection means "all categories". */
+function CategoryPicker({
+  categories,
+  selected,
+  onChange,
+}: {
+  categories: { id: number; name: string }[];
+  selected: Set<number>;
+  onChange: (next: Set<number>) => void;
+}) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const boxRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onDoc(e: MouseEvent) {
+      if (boxRef.current && !boxRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setQuery("");
+      }
+    }
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, []);
+
+  const summary =
+    selected.size === 0
+      ? t("filter.allCategories")
+      : t("filter.nCategories", { n: String(selected.size) });
+  const q = query.trim().toLowerCase();
+  const matches = categories
+    .filter((c) => !q || c.name.toLowerCase().includes(q))
+    .slice(0, 50);
+
+  function toggle(id: number) {
+    const next = new Set(selected);
+    next.has(id) ? next.delete(id) : next.add(id);
+    onChange(next);
+  }
+
+  return (
+    <div ref={boxRef} style={{ position: "relative", minWidth: 220 }}>
+      <input
+        style={{ width: "100%" }}
+        value={query}
+        placeholder={summary}
+        onFocus={() => setOpen(true)}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          setOpen(true);
+        }}
+      />
+      {open && (
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(100% + 2px)",
+            left: 0,
+            right: 0,
+            zIndex: 30,
+            background: "#fff",
+            border: "1px solid var(--line, #e5e7eb)",
+            borderRadius: 8,
+            maxHeight: 260,
+            overflowY: "auto",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+          }}
+        >
+          {selected.size > 0 && (
+            <div
+              onMouseDown={(e) => {
+                e.preventDefault();
+                onChange(new Set());
+              }}
+              style={{ padding: "8px 11px", cursor: "pointer", fontSize: 14 }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "#f1f5f9")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "#fff")}
+            >
+              <span className={cls.cx(cls.muted)}>{t("filter.clearCategories")}</span>
+            </div>
+          )}
+          {matches.map((c) => (
+            <label
+              key={c.id}
+              onMouseDown={(e) => e.preventDefault()}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "8px 11px",
+                cursor: "pointer",
+                fontSize: 14,
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "#f1f5f9")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "#fff")}
+            >
+              <input
+                type="checkbox"
+                checked={selected.has(c.id)}
+                onChange={() => toggle(c.id)}
+              />
+              {c.name}
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface LineRow {
   product_id: string;
   quantity: string;
@@ -123,7 +235,7 @@ export default function IncomingPage() {
   const suppliers = useQuery({ queryKey: ["suppliers"], queryFn: listSuppliers });
   const categories = useQuery({ queryKey: ["categories"], queryFn: listCategories });
 
-  const [tplCategory, setTplCategory] = useState<string>("");
+  const [tplCategoryIds, setTplCategoryIds] = useState<Set<number>>(new Set());
   const [importMsg, setImportMsg] = useState<string | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
 
@@ -215,16 +327,15 @@ export default function IncomingPage() {
         <div className={cls.filterRow}>
           <label className={cls.inlineField}>
             {t("field.category")}
-            <select value={tplCategory} onChange={(e) => setTplCategory(e.target.value)}>
-              <option value="">{t("filter.allCategories")}</option>
-              {categories.data?.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
+            <CategoryPicker
+              categories={categories.data ?? []}
+              selected={tplCategoryIds}
+              onChange={setTplCategoryIds}
+            />
           </label>
           <Button
             variant="ghost"
-            onClick={() => downloadIncomingTemplate(tplCategory ? Number(tplCategory) : undefined)}
+            onClick={() => downloadIncomingTemplate([...tplCategoryIds])}
           >
             ⬇ {t("import.template")}
           </Button>

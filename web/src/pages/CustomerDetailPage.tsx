@@ -42,6 +42,8 @@ export default function CustomerDetailPage() {
   const [newRegion, setNewRegion] = useState("");
   const [ok, setOk] = useState(false);
   const [seeded, setSeeded] = useState(false);
+  const [tab, setTab] = useState<"info" | "agents">("info");
+  const [agentQuery, setAgentQuery] = useState("");
 
   useEffect(() => {
     const c = customer.data;
@@ -126,6 +128,29 @@ export default function CustomerDetailPage() {
       </p>
 
       <Card title={t("customers.details")}>
+        <div
+          className={cls.cx(cls.filterRow)}
+          style={{ overflowX: "auto", flexWrap: "nowrap", marginBottom: 16 }}
+        >
+          <button
+            type="button"
+            className={cls.cx(cls.chip, tab === "info" && cls.chipActive)}
+            onClick={() => setTab("info")}
+          >
+            {t("customers.tabInfo")}
+          </button>
+          <button
+            type="button"
+            className={cls.cx(cls.chip, tab === "agents" && cls.chipActive)}
+            onClick={() => setTab("agents")}
+          >
+            {t("customers.tabAgents")}
+            {agentIds.size > 0 ? ` · ${agentIds.size}` : ""}
+          </button>
+        </div>
+
+        {tab === "info" && (
+        <>
         <div className={cls.formGrid}>
           <label className={cls.field}>
             <span>{t("col.name")}</span>
@@ -195,17 +220,33 @@ export default function CustomerDetailPage() {
             </button>
           ))}
         </div>
+        </>
+        )}
 
-        <h3 className={cls.sectionSub}>{t("customers.agents")}</h3>
-        <div className={cls.checkList}>
-          {agents.data?.map((a) => (
-            <label key={a.id} className={cls.checkboxField}>
-              <input type="checkbox" checked={agentIds.has(a.id)} disabled={!canEdit}
-                onChange={() => toggleAgent(a.id)} />
-              {a.full_name}
-            </label>
-          ))}
-        </div>
+        {tab === "agents" && (
+        <>
+          <input
+            className={cls.searchInput}
+            style={{ width: "100%", marginBottom: 10 }}
+            placeholder={t("customers.searchAgents")}
+            value={agentQuery}
+            onChange={(e) => setAgentQuery(e.target.value)}
+          />
+          <div className={cls.checkList} style={{ maxHeight: 360 }}>
+            {agents.data
+              ?.filter((a) =>
+                a.full_name.toLowerCase().includes(agentQuery.trim().toLowerCase()),
+              )
+              .map((a) => (
+                <label key={a.id} className={cls.checkboxField}>
+                  <input type="checkbox" checked={agentIds.has(a.id)} disabled={!canEdit}
+                    onChange={() => toggleAgent(a.id)} />
+                  {a.full_name}
+                </label>
+              ))}
+          </div>
+        </>
+        )}
 
         {addRegion.error && <ErrorBox error={addRegion.error} />}
         {save.error && <ErrorBox error={save.error} />}

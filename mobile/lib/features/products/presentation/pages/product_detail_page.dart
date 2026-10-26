@@ -18,7 +18,7 @@ class ProductDetailPage extends StatelessWidget {
   final bool showStock;
 
   String _price(Product p) =>
-      p.currencySymbol != null ? '${money(p.salePrice)} ${p.currencySymbol}' : money(p.salePrice);
+      p.currencySymbol != null ? '${moneyTrim(p.salePrice)} ${p.currencySymbol}' : moneyTrim(p.salePrice);
 
   String _box(BuildContext context, Product p) {
     if (!p.hasBox) return context.tr('product.noBox');

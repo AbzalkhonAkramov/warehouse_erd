@@ -18,6 +18,7 @@ from app.api.routers import (
     returns,
     sales_orders,
     telegram_topics,
+    telegram_users,
     users,
 )
 
@@ -37,6 +38,7 @@ api_router.include_router(sales_orders.router)
 api_router.include_router(returns.router)
 api_router.include_router(agents.router)
 api_router.include_router(telegram_topics.router)
+api_router.include_router(telegram_users.router)
 api_router.include_router(photo_reports.router)
 api_router.include_router(activity.router)
 api_router.include_router(reports.router)

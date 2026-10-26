@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import * as cls from "../ui/cls";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -42,7 +43,10 @@ export default function ReturnsPage() {
           <h1>{t("returns.title")}</h1>
           <p className={cls.muted} style={{ margin: 0 }}>{t("returns.subtitle")}</p>
         </div>
-        <Button onClick={() => setCreating(true)}>{t("returns.create")}</Button>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <Link to="/refunds" className={cls.btn.ghost}>{t("refunds.title")}</Link>
+          <Button onClick={() => setCreating(true)}>{t("returns.create")}</Button>
+        </div>
       </div>
 
       <div className={cls.filterRow}>

@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import * as cls from "../ui/cls";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -11,11 +11,94 @@ import {
   listSuppliers,
   receivePurchaseOrder,
 } from "../api/endpoints";
-import type { PurchaseOrder, PurchaseOrderStatus } from "../api/types";
+import type { Product, PurchaseOrder, PurchaseOrderStatus } from "../api/types";
 import { useI18n } from "../i18n";
 import { Button, Card, Empty, ErrorBox, Spinner } from "../components/ui";
 import { date, money, qty } from "../lib/format";
-import { useRef } from "react";
+
+/** Searchable product picker: type part of a name or SKU, pick from the dropdown.
+ * Much easier than a long <select> when there are many SKUs. */
+function ProductPicker({
+  products,
+  value,
+  onSelect,
+}: {
+  products: Product[];
+  value: string;
+  onSelect: (id: string) => void;
+}) {
+  const { t } = useI18n();
+  const selected = products.find((p) => String(p.id) === value) ?? null;
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const boxRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onDoc(e: MouseEvent) {
+      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, []);
+
+  const label = selected ? `${selected.name} · ${selected.sku}` : "";
+  const q = query.trim().toLowerCase();
+  const matches = open
+    ? products
+        .filter((p) => !q || p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q))
+        .slice(0, 50)
+    : [];
+
+  return (
+    <div ref={boxRef} className={cls.grow} style={{ position: "relative" }}>
+      <input
+        style={{ width: "100%" }}
+        value={open ? query : label}
+        placeholder={t("createOrder.selectProduct")}
+        onFocus={() => {
+          setQuery("");
+          setOpen(true);
+        }}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          setOpen(true);
+        }}
+      />
+      {open && matches.length > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(100% + 2px)",
+            left: 0,
+            right: 0,
+            zIndex: 30,
+            background: "#fff",
+            border: "1px solid var(--line, #e5e7eb)",
+            borderRadius: 8,
+            maxHeight: 260,
+            overflowY: "auto",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+          }}
+        >
+          {matches.map((p) => (
+            <div
+              key={p.id}
+              onMouseDown={() => {
+                onSelect(String(p.id));
+                setOpen(false);
+              }}
+              style={{ padding: "8px 11px", cursor: "pointer", fontSize: 14 }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "#f1f5f9")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "#fff")}
+            >
+              {p.name} <span className={cls.cx(cls.muted, cls.mono, cls.small)}>· {p.sku}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface LineRow {
   product_id: string;
@@ -77,10 +160,11 @@ export default function IncomingPage() {
   };
 
   const create = useMutation({
-    mutationFn: () =>
+    mutationFn: (draft: boolean) =>
       createPurchaseOrder({
         supplier_id: supplierId ? Number(supplierId) : null,
         note: note || null,
+        draft,
         lines: lines
           .filter((l) => l.product_id && parseFloat(l.quantity) > 0)
           .map((l) => ({
@@ -185,18 +269,24 @@ export default function IncomingPage() {
           </label>
         </div>
 
-        {lines.map((l, i) => (
+        {/* Column headers for the line inputs below. */}
+        <div className={cls.cx(cls.orderLineRow, cls.muted, cls.small)} style={{ marginBottom: 4 }}>
+          <span className={cls.grow}>{t("incoming.colProduct")}</span>
+          <span className={cls.cx(cls.qtyInput, cls.numCell)}>{t("col.qty")}</span>
+          <span className={cls.cx(cls.qtyInput, cls.numCell)}>{t("incoming.unitCost")}</span>
+          <span className={cls.cx(cls.qtyInput, cls.numCell)}>{t("col.lineTotal")}</span>
+          <span style={{ width: 36 }} />
+        </div>
+
+        {lines.map((l, i) => {
+          const lineSum = (parseFloat(l.quantity) || 0) * (parseFloat(l.unit_cost) || 0);
+          return (
           <div className={cls.orderLineRow} key={i}>
-            <select
-              className={cls.grow}
+            <ProductPicker
+              products={products.data ?? []}
               value={l.product_id}
-              onChange={(e) => setLine(i, { product_id: e.target.value })}
-            >
-              <option value="">{t("createOrder.selectProduct")}</option>
-              {products.data?.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
+              onSelect={(id) => setLine(i, { product_id: id })}
+            />
             <input
               className={cls.qtyInput}
               type="number"
@@ -215,11 +305,13 @@ export default function IncomingPage() {
               value={l.unit_cost}
               onChange={(e) => setLine(i, { unit_cost: e.target.value })}
             />
+            <span className={cls.cx(cls.qtyInput, cls.numCell, cls.strong)}>{money(lineSum)}</span>
             <Button type="button" variant="ghost" onClick={() => removeLine(i)}>
               ✕
             </Button>
           </div>
-        ))}
+          );
+        })}
         <Button type="button" variant="ghost" onClick={addLine}>
           + {t("createOrder.addLine")}
         </Button>
@@ -228,9 +320,18 @@ export default function IncomingPage() {
         <div className={cls.orderTotal}>
           {t("incoming.totalCost")}: <strong>{money(total)}</strong>
         </div>
-        <Button disabled={!canCreate || create.isPending} onClick={() => create.mutate()}>
-          {create.isPending ? t("common.saving") : t("incoming.create")}
-        </Button>
+        <div className={cls.rowGap}>
+          <Button disabled={!canCreate || create.isPending} onClick={() => create.mutate(false)}>
+            {create.isPending ? t("common.saving") : t("incoming.create")}
+          </Button>
+          <Button
+            variant="ghost"
+            disabled={!canCreate || create.isPending}
+            onClick={() => create.mutate(true)}
+          >
+            {t("incoming.saveDraft")}
+          </Button>
+        </div>
       </Card>
 
       {/* Receipts list */}
@@ -268,7 +369,7 @@ export default function IncomingPage() {
                       </span>
                     </td>
                     <td className={cls.actionsCol}>
-                      {o.status === "ordered" && (
+                      {(o.status === "ordered" || o.status === "draft") && (
                         <Button
                           variant="ghost"
                           disabled={receive.isPending}

@@ -121,6 +121,25 @@ export default function Layout() {
   const { t } = useI18n();
   const location = useLocation();
   const [showChangePw, setShowChangePw] = useState(false);
+  // Hideable sidebar — remembered per browser so more room is given to the page.
+  const [sidebarHidden, setSidebarHidden] = useState(() => {
+    try {
+      return localStorage.getItem("erp_sidebar_hidden") === "1";
+    } catch {
+      return false;
+    }
+  });
+  function toggleSidebar() {
+    setSidebarHidden((h) => {
+      const next = !h;
+      try {
+        localStorage.setItem("erp_sidebar_hidden", next ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }
   const role = user?.role;
   const canSee = (item: NavItem) => {
     if (role && item.exclude?.includes(role)) return false;
@@ -139,6 +158,7 @@ export default function Layout() {
 
   return (
     <div className={cls.appShell}>
+      {!sidebarHidden && (
       <aside className={cls.sidebar}>
         <div className={cls.brand}>
           {showLogo &&
@@ -174,9 +194,20 @@ export default function Layout() {
           })}
         </nav>
       </aside>
+      )}
       <div className={cls.main}>
         <header className={cls.topbar}>
-          <div className={cls.topbarTitle}>{titleKey ? t(titleKey) : ""}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <button
+              className={cls.btn.ghost}
+              onClick={toggleSidebar}
+              title={t("nav.toggleSidebar")}
+              aria-label={t("nav.toggleSidebar")}
+            >
+              ☰
+            </button>
+            <div className={cls.topbarTitle}>{titleKey ? t(titleKey) : ""}</div>
+          </div>
           <div className={cls.topbarUser}>
             <LanguageSwitcher />
             <span className={cls.userName}>{user?.full_name}</span>

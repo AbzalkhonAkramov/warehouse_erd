@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import require_roles
 from app.core.database import get_db
+from app.models.associations import agent_topics
 from app.models.enums import UserRole
 from app.models.telegram import TelegramTopic
 from app.models.user import User
@@ -61,6 +62,26 @@ async def update_topic(
     if topic.is_default:
         await _clear_other_defaults(db, topic.id)
     return topic
+
+
+@router.delete("/{topic_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_topic(
+    topic_id: int,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(_ADMIN),
+) -> None:
+    """Delete a Telegram topic. First detaches it from any agent (default topic and
+    the allowed-topics list) so the foreign keys don't block the delete."""
+    topic = await db.get(TelegramTopic, topic_id)
+    if topic is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Topic not found")
+    # Clear references: agents' default topic + the allowed-topics association.
+    await db.execute(
+        update(User).where(User.default_topic_id == topic_id).values(default_topic_id=None)
+    )
+    await db.execute(delete(agent_topics).where(agent_topics.c.topic_id == topic_id))
+    await db.delete(topic)
+    await db.flush()
 
 
 @router.get("/updates", response_model=list[TelegramUpdateHint])

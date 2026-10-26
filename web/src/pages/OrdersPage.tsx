@@ -10,10 +10,8 @@ import {
   listOrders,
   listProducts,
   listUsers,
-  moveOrder,
   unarchiveOrder,
   updateOrder,
-  type MoveLineInput,
 } from "../api/endpoints";
 import type { SalesOrder, SalesOrderStatus } from "../api/types";
 import {
@@ -22,7 +20,6 @@ import {
   Empty,
   ErrorBox,
   ExcelButton,
-  Modal,
   Spinner,
   StatusBadge,
 } from "../components/ui";
@@ -43,12 +40,6 @@ const FILTERS: { value: string; labelKey: string }[] = [
 
 const MOVE_TARGETS: SalesOrderStatus[] = ["shipped", "delivered", "refund", "cancelled"];
 
-interface MoveRow {
-  checked: boolean;
-  qty: string;
-  max: number;
-}
-
 export default function OrdersPage() {
   const { t } = useI18n();
   const { user } = useAuth();
@@ -64,13 +55,7 @@ export default function OrdersPage() {
   const [dateTo, setDateTo] = useState("");
   const [expanded, setExpanded] = useState<number | null>(null);
   const [editDelivererId, setEditDelivererId] = useState<number | "">("");
-  const [moveSel, setMoveSel] = useState<SalesOrderStatus>("shipped");
   const [actionError, setActionError] = useState<string | null>(null);
-
-  const [moving, setMoving] = useState<SalesOrder | null>(null);
-  const [moveTarget, setMoveTarget] = useState<SalesOrderStatus>("shipped");
-  const [moveRows, setMoveRows] = useState<Record<number, MoveRow>>({});
-  const [restock, setRestock] = useState(true);
 
   // Bulk selection (checkboxes) for mass status move + receipt printing.
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -127,7 +112,6 @@ export default function OrdersPage() {
     if (expanded === o.id) return setExpanded(null);
     setExpanded(o.id);
     setEditDelivererId(o.deliverer_id ?? "");
-    setMoveSel("shipped");
     setActionError(null);
   }
 
@@ -155,6 +139,18 @@ export default function OrdersPage() {
     onError,
   });
 
+  const bulkArchive = useMutation({
+    mutationFn: () =>
+      Promise.all(
+        [...selected].map((id) => (isArchived ? unarchiveOrder(id) : archiveOrder(id))),
+      ),
+    onSuccess: () => {
+      setSelected(new Set());
+      refresh();
+    },
+    onError,
+  });
+
   async function printReceipts() {
     if (selected.size === 0) return;
     setPrinting(true);
@@ -175,51 +171,6 @@ export default function OrdersPage() {
     });
   }
 
-  const archive = useMutation({
-    mutationFn: (o: SalesOrder) => archiveOrder(o.id),
-    onSuccess: refresh,
-    onError,
-  });
-  const unarchive = useMutation({
-    mutationFn: (o: SalesOrder) => unarchiveOrder(o.id),
-    onSuccess: refresh,
-    onError,
-  });
-
-  function openMove(o: SalesOrder, target: SalesOrderStatus) {
-    const rows: Record<number, MoveRow> = {};
-    o.lines.forEach((l) => {
-      const max = parseFloat(String(l.quantity));
-      if (max > 0) rows[l.product_id] = { checked: true, qty: String(max), max };
-    });
-    setMoveRows(rows);
-    setRestock(true);
-    setMoveTarget(target);
-    setMoving(o);
-  }
-
-  const move = useMutation({
-    mutationFn: (o: SalesOrder) => {
-      const entries = Object.entries(moveRows);
-      const allFull = entries.every(([, r]) => r.checked && parseFloat(r.qty) >= r.max);
-      const lines: MoveLineInput[] | undefined = allFull
-        ? undefined
-        : entries
-            .filter(([, r]) => r.checked && parseFloat(r.qty) > 0)
-            .map(([pid, r]) => ({ product_id: Number(pid), quantity: r.qty }));
-      return moveOrder(o.id, {
-        status: moveTarget,
-        lines,
-        restock: moveTarget === "refund" ? restock : undefined,
-      });
-    },
-    onSuccess: () => {
-      setMoving(null);
-      refresh();
-    },
-    onError,
-  });
-
   function exportOrders() {
     if (!shownOrders.length) return;
     exportExcel(
@@ -236,8 +187,6 @@ export default function OrdersPage() {
       ]),
     );
   }
-
-  const moveLines = moving?.lines.filter((l) => moveRows[l.product_id]) ?? [];
 
   return (
     <div className={cls.page}>
@@ -335,6 +284,13 @@ export default function OrdersPage() {
               <Button disabled={bulkMove.isPending} onClick={() => bulkMove.mutate()}>
                 {bulkMove.isPending ? t("common.saving") : t("orders.bulkMove")}
               </Button>
+              <Button
+                variant="ghost"
+                disabled={bulkArchive.isPending}
+                onClick={() => bulkArchive.mutate()}
+              >
+                {isArchived ? `↩️ ${t("orders.unarchive")}` : `🗄️ ${t("orders.archive")}`}
+              </Button>
             </>
           )}
           <Button variant="ghost" disabled={printing} onClick={printReceipts}>
@@ -371,6 +327,7 @@ export default function OrdersPage() {
                 <th className={cls.numCell}>{t("col.total")}</th>
                 <th>{t("common.status")}</th>
                 <th>{t("orders.deliverer")}</th>
+                <th className={cls.actionsCol} />
               </tr>
             </thead>
             <tbody>
@@ -393,36 +350,80 @@ export default function OrdersPage() {
                       <StatusBadge status={o.status} />
                     </td>
                     <td>{o.deliverer || "—"}</td>
+                    <td className={cls.actionsCol} onClick={(e) => e.stopPropagation()}>
+                      {isManager && (
+                        <Button
+                          variant="ghost"
+                          onClick={() => navigate(`/orders/${o.id}/history`)}
+                        >
+                          🕓 {t("orders.fullHistory")}
+                        </Button>
+                      )}
+                    </td>
                   </tr>
                   {expanded === o.id && (
                     <tr className={cls.detailRowTd}>
-                      <td colSpan={8}>
+                      <td colSpan={9}>
                         <div className={cls.orderDetail}>
                           {o.parent_order_id && (
                             <p className={cls.note}>
                               ↩ {t("orders.refundOf", { id: o.parent_order_id })}
                             </p>
                           )}
-                          <table className={cls.tableSub}>
-                            <thead>
-                              <tr>
-                                <th>{t("col.product")}</th>
-                                <th className={cls.numCell}>{t("col.qty")}</th>
-                                <th className={cls.numCell}>{t("col.unitPrice")}</th>
-                                <th className={cls.numCell}>{t("col.lineTotal")}</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {o.lines.map((l) => (
-                                <tr key={l.id}>
-                                  <td>{productName(l.product_id)}</td>
-                                  <td className={cls.numCell}>{qty(l.quantity)}</td>
-                                  <td className={cls.numCell}>{money(l.unit_price)}</td>
-                                  <td className={cls.numCell}>{money(l.line_total)}</td>
+                          <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+                            <table className={cls.tableSub} style={{ flex: 1, minWidth: 0 }}>
+                              <thead>
+                                <tr>
+                                  <th>{t("col.product")}</th>
+                                  <th className={cls.numCell}>{t("col.qty")}</th>
+                                  <th className={cls.numCell}>{t("col.unitPrice")}</th>
+                                  <th className={cls.numCell}>{t("col.lineTotal")}</th>
                                 </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                              </thead>
+                              <tbody>
+                                {o.lines.map((l) => (
+                                  <tr key={l.id}>
+                                    <td>{productName(l.product_id)}</td>
+                                    <td className={cls.numCell}>{qty(l.quantity)}</td>
+                                    <td className={cls.numCell}>{money(l.unit_price)}</td>
+                                    <td className={cls.numCell}>{money(l.line_total)}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                            {isManager ? (
+                              <div className={cls.orderEditor} onClick={(e) => e.stopPropagation()}>
+                                <label className={cls.field}>
+                                  <span>{t("orders.deliWho")}</span>
+                                  <select
+                                    value={editDelivererId}
+                                    disabled={o.status !== "new"}
+                                    onChange={(e) =>
+                                      setEditDelivererId(
+                                        e.target.value === "" ? "" : Number(e.target.value),
+                                      )
+                                    }
+                                  >
+                                    <option value="">{t("orders.deliPlaceholder")}</option>
+                                    {deliverers.data?.map((d) => (
+                                      <option key={d.id} value={d.id}>
+                                        {d.full_name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </label>
+                                <Button
+                                  variant="ghost"
+                                  disabled={saveDeliverer.isPending || o.status !== "new"}
+                                  onClick={() => saveDeliverer.mutate(o)}
+                                >
+                                  {t("orders.save")}
+                                </Button>
+                              </div>
+                            ) : (
+                              <p className={cls.note}>{t("orders.managerOnly")}</p>
+                            )}
+                          </div>
                           {o.note && (
                             <p className={cls.note}>
                               {t("orders.note")}: {o.note}
@@ -445,80 +446,7 @@ export default function OrdersPage() {
                               🧾 {t("orders.receipt")}
                             </Button>
                           )}
-                          {isManager && (
-                            <Button
-                              variant="ghost"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/orders/${o.id}/history`);
-                              }}
-                            >
-                              🕓 {t("orders.fullHistory")}
-                            </Button>
-                          )}
-                          {isManager && (
-                            <Button
-                              variant="ghost"
-                              disabled={archive.isPending || unarchive.isPending}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                (isArchived ? unarchive : archive).mutate(o);
-                              }}
-                            >
-                              {isArchived
-                                ? `↩️ ${t("orders.unarchive")}`
-                                : `🗄️ ${t("orders.archive")}`}
-                            </Button>
-                          )}
 
-                          {isManager ? (
-                            <div className={cls.orderEditor} onClick={(e) => e.stopPropagation()}>
-                              <label className={cls.field}>
-                                <span>{t("orders.deliWho")}</span>
-                                <select
-                                  value={editDelivererId}
-                                  disabled={o.status !== "new"}
-                                  onChange={(e) =>
-                                    setEditDelivererId(
-                                      e.target.value === "" ? "" : Number(e.target.value),
-                                    )
-                                  }
-                                >
-                                  <option value="">{t("orders.deliPlaceholder")}</option>
-                                  {deliverers.data?.map((d) => (
-                                    <option key={d.id} value={d.id}>
-                                      {d.full_name}
-                                    </option>
-                                  ))}
-                                </select>
-                              </label>
-                              <Button
-                                variant="ghost"
-                                disabled={saveDeliverer.isPending || o.status !== "new"}
-                                onClick={() => saveDeliverer.mutate(o)}
-                              >
-                                {t("orders.save")}
-                              </Button>
-                              <label className={cls.field}>
-                                <span>{t("orders.moveTo")}</span>
-                                <select
-                                  value={moveSel}
-                                  onChange={(e) => setMoveSel(e.target.value as SalesOrderStatus)}
-                                >
-                                  {MOVE_TARGETS.map((s) => (
-                                    <option key={s} value={s}>
-                                      {t(`status.${s}`)}
-                                    </option>
-                                  ))}
-                                </select>
-                              </label>
-                              <Button onClick={() => openMove(o, moveSel)}>
-                                {t("orders.move")}
-                              </Button>
-                            </div>
-                          ) : (
-                            <p className={cls.note}>{t("orders.managerOnly")}</p>
-                          )}
                         </div>
                       </td>
                     </tr>
@@ -532,95 +460,6 @@ export default function OrdersPage() {
         )}
       </Card>
 
-      {moving && (
-        <Modal
-          title={t("orders.moveTitle", { id: moving.order_no ?? moving.id, status: t(`status.${moveTarget}`) })}
-          onClose={() => setMoving(null)}
-        >
-          <p className={cls.cx(cls.muted, cls.small)} style={{ marginTop: 0 }}>
-            {t("orders.moveHint")}
-          </p>
-          <table className={cls.tableSub}>
-            <thead>
-              <tr>
-                <th></th>
-                <th>{t("col.product")}</th>
-                <th className={cls.numCell}>{t("orders.available")}</th>
-                <th className={cls.numCell}>{t("orders.moveQty")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {moveLines.map((l) => {
-                const r = moveRows[l.product_id];
-                return (
-                  <tr key={l.id}>
-                    <td>
-                      <input
-                        type="checkbox"
-                        checked={r.checked}
-                        onChange={(e) =>
-                          setMoveRows((s) => ({
-                            ...s,
-                            [l.product_id]: { ...r, checked: e.target.checked },
-                          }))
-                        }
-                      />
-                    </td>
-                    <td>{productName(l.product_id)}</td>
-                    <td className={cls.numCell}>{qty(r.max)}</td>
-                    <td className={cls.numCell}>
-                      <input
-                        className={cls.qtyInput}
-                        type="number"
-                        min="0"
-                        max={r.max}
-                        step="0.001"
-                        value={r.qty}
-                        disabled={!r.checked}
-                        onChange={(e) =>
-                          setMoveRows((s) => ({
-                            ...s,
-                            [l.product_id]: { ...r, qty: e.target.value },
-                          }))
-                        }
-                      />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-
-          {moveTarget === "refund" && (
-            <div className={cls.refundDest}>
-              <label className={cls.radio}>
-                <input type="radio" checked={restock} onChange={() => setRestock(true)} />
-                {t("orders.restock")}
-              </label>
-              <label className={cls.radio}>
-                <input type="radio" checked={!restock} onChange={() => setRestock(false)} />
-                {t("orders.holdRefunded")}
-              </label>
-            </div>
-          )}
-
-          <div className={cls.modalActions}>
-            <Button variant="ghost" onClick={() => setMoving(null)}>
-              {t("common.cancel")}
-            </Button>
-            <Button
-              variant={moveTarget === "cancelled" || moveTarget === "refund" ? "danger" : "primary"}
-              disabled={
-                move.isPending ||
-                !Object.values(moveRows).some((r) => r.checked && parseFloat(r.qty) > 0)
-              }
-              onClick={() => moving && move.mutate(moving)}
-            >
-              {move.isPending ? t("common.saving") : t("orders.confirmMove")}
-            </Button>
-          </div>
-        </Modal>
-      )}
 
     </div>
   );

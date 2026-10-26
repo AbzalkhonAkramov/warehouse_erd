@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import * as cls from "../ui/cls";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createTopic, discoverUpdates, listTopics, updateTopic } from "../api/endpoints";
+import { createTopic, deleteTopic, discoverUpdates, listTopics, updateTopic } from "../api/endpoints";
 import type { TelegramTopic } from "../api/types";
 import { Button, Card, Empty, ErrorBox, Modal, Spinner } from "../components/ui";
 import { useI18n } from "../i18n";
@@ -45,6 +45,11 @@ export default function TopicsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["topics"] }),
   });
 
+  const remove = useMutation({
+    mutationFn: (id: number) => deleteTopic(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["topics"] }),
+  });
+
   function submit(e: FormEvent) {
     e.preventDefault();
     setFormError(null);
@@ -83,6 +88,7 @@ export default function TopicsPage() {
                 <th className={cls.numCell}>{t("col.threadId")}</th>
                 <th>{t("col.default")}</th>
                 <th>{t("common.status")}</th>
+                <th className={cls.actionsCol} />
               </tr>
             </thead>
             <tbody>
@@ -112,6 +118,19 @@ export default function TopicsPage() {
                     >
                       {topic.is_active ? t("topics.activeBtn") : t("topics.inactiveBtn")}
                     </button>
+                  </td>
+                  <td className={cls.actionsCol}>
+                    <Button
+                      variant="danger"
+                      disabled={remove.isPending}
+                      onClick={() => {
+                        if (window.confirm(t("topics.confirmDelete", { name: topic.name }))) {
+                          remove.mutate(topic.id);
+                        }
+                      }}
+                    >
+                      {t("common.delete")}
+                    </Button>
                   </td>
                 </tr>
               ))}

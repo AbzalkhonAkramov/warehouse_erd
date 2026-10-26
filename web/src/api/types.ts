@@ -118,15 +118,36 @@ export interface AnalyticsTimePoint {
   profit: Money;
 }
 
+export interface AgentProfitRow {
+  agent_id: number;
+  agent_name: string;
+  orders: number;
+  revenue: Money;
+  profit: Money;
+  margin_pct: number;
+}
+
+export interface CustomerSalesRow {
+  customer_id: number;
+  customer_name: string;
+  orders: number;
+  revenue: Money;
+}
+
 export interface Analytics {
   revenue: Money;
   cost: Money;
   profit: Money;
   margin_pct: number;
   orders: number;
+  units_sold: Money;
+  avg_order: Money;
+  customers: number;
   stock_value: Money;
   total_debt: Money;
   by_product: ProductProfitRow[];
+  by_agent: AgentProfitRow[];
+  by_customer: CustomerSalesRow[];
   over_time: AnalyticsTimePoint[];
 }
 

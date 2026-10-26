@@ -61,15 +61,36 @@ class TimePoint(BaseModel):
     profit: Decimal
 
 
+class AgentProfitRow(BaseModel):
+    agent_id: int
+    agent_name: str
+    orders: int
+    revenue: Decimal
+    profit: Decimal
+    margin_pct: float
+
+
+class CustomerSalesRow(BaseModel):
+    customer_id: int
+    customer_name: str
+    orders: int
+    revenue: Decimal
+
+
 class AnalyticsOut(BaseModel):
     revenue: Decimal
     cost: Decimal          # COGS of sold goods
     profit: Decimal        # gross profit
     margin_pct: float
     orders: int
+    units_sold: Decimal    # total quantity sold
+    avg_order: Decimal     # average order value (revenue / orders)
+    customers: int         # distinct shops that bought
     stock_value: Decimal   # current stock valued at cost
     total_debt: Decimal
     by_product: list[ProductProfitRow]
+    by_agent: list[AgentProfitRow]
+    by_customer: list[CustomerSalesRow]
     over_time: list[TimePoint]
 
 
@@ -96,6 +117,8 @@ async def analytics(
             SalesOrderLine.line_total,
             SalesOrder.id,
             SalesOrder.created_at,
+            SalesOrder.agent_id,
+            SalesOrder.customer_id,
         )
         .join(SalesOrder, SalesOrder.id == SalesOrderLine.sales_order_id)
         .join(Product, Product.id == SalesOrderLine.product_id)
@@ -106,18 +129,23 @@ async def analytics(
     if date_to is not None:
         stmt = stmt.where(SalesOrder.created_at <= datetime.combine(date_to, datetime.max.time()))
 
-    revenue = cost = Decimal("0")
+    revenue = cost = units = Decimal("0")
     order_ids: set[int] = set()
     per_prod: dict[int, dict] = {}
     per_time: dict[str, dict] = {}
+    per_agent: dict[int, dict] = {}
+    per_cust: dict[int, dict] = {}
 
-    for pid, pname, cost_price, qty, line_total, oid, created in (await db.execute(stmt)).all():
+    for pid, pname, cost_price, qty, line_total, oid, created, agent_id, cust_id in (
+        await db.execute(stmt)
+    ).all():
         q = Decimal(qty)
         rev = Decimal(line_total)
         cst = (q * Decimal(cost_price or 0)).quantize(Decimal("0.01"))
         prof = rev - cst
         revenue += rev
         cost += cst
+        units += q
         order_ids.add(oid)
 
         p = per_prod.setdefault(
@@ -132,6 +160,54 @@ async def analytics(
         t = per_time.setdefault(key, {"rev": Decimal("0"), "prof": Decimal("0")})
         t["rev"] += rev
         t["prof"] += prof
+
+        a = per_agent.setdefault(
+            agent_id, {"rev": Decimal("0"), "cost": Decimal("0"), "orders": set()}
+        )
+        a["rev"] += rev
+        a["cost"] += cst
+        a["orders"].add(oid)
+
+        c = per_cust.setdefault(cust_id, {"rev": Decimal("0"), "orders": set()})
+        c["rev"] += rev
+        c["orders"].add(oid)
+
+    # Resolve agent + customer names in one query each.
+    agent_names = dict(
+        (await db.execute(select(User.id, User.full_name).where(User.id.in_(per_agent.keys())))).all()
+    ) if per_agent else {}
+    cust_names = dict(
+        (await db.execute(select(Customer.id, Customer.name).where(Customer.id.in_(per_cust.keys())))).all()
+    ) if per_cust else {}
+
+    by_agent = sorted(
+        (
+            AgentProfitRow(
+                agent_id=aid,
+                agent_name=agent_names.get(aid, f"#{aid}"),
+                orders=len(v["orders"]),
+                revenue=v["rev"],
+                profit=v["rev"] - v["cost"],
+                margin_pct=_margin(v["rev"] - v["cost"], v["rev"]),
+            )
+            for aid, v in per_agent.items()
+        ),
+        key=lambda r: r.revenue,
+        reverse=True,
+    )
+    by_customer = sorted(
+        (
+            CustomerSalesRow(
+                customer_id=cid,
+                customer_name=cust_names.get(cid, f"#{cid}"),
+                orders=len(v["orders"]),
+                revenue=v["rev"],
+            )
+            for cid, v in per_cust.items()
+        ),
+        key=lambda r: r.revenue,
+        reverse=True,
+    )[:10]
 
     by_product = sorted(
         (
@@ -161,15 +237,21 @@ async def analytics(
     )
     total_debt = await db.scalar(select(func.coalesce(func.sum(Customer.debt), 0)))
 
+    n_orders = len(order_ids)
     return AnalyticsOut(
         revenue=revenue,
         cost=cost,
         profit=revenue - cost,
         margin_pct=_margin(revenue - cost, revenue),
-        orders=len(order_ids),
+        orders=n_orders,
+        units_sold=units,
+        avg_order=(revenue / n_orders).quantize(Decimal("0.01")) if n_orders else Decimal("0"),
+        customers=len(per_cust),
         stock_value=Decimal(stock_value or 0),
         total_debt=Decimal(total_debt or 0),
         by_product=by_product,
+        by_agent=by_agent,
+        by_customer=by_customer,
         over_time=over_time,
     )
 

@@ -46,6 +46,10 @@ export default function AnalyticsPage() {
     () => Math.max(1, ...(a?.over_time ?? []).map((p) => parseFloat(String(p.revenue)) || 0)),
     [a],
   );
+  const maxAgentRev = useMemo(
+    () => Math.max(1, ...(a?.by_agent ?? []).map((r) => parseFloat(String(r.revenue)) || 0)),
+    [a],
+  );
 
   return (
     <div className={cls.page}>
@@ -83,6 +87,9 @@ export default function AnalyticsPage() {
             <StatCard label={t("analytics.profit")} value={money(a.profit)} tone="profit" />
             <StatCard label={t("analytics.margin")} value={`${a.margin_pct}%`} tone="profit" />
             <StatCard label={t("analytics.orders")} value={String(a.orders)} />
+            <StatCard label={t("analytics.avgOrder")} value={money(a.avg_order)} />
+            <StatCard label={t("analytics.unitsSold")} value={String(Number(a.units_sold))} />
+            <StatCard label={t("analytics.customers")} value={String(a.customers)} />
             <StatCard label={t("analytics.stockValue")} value={money(a.stock_value)} />
             <StatCard label={t("analytics.debt")} value={money(a.total_debt)} tone="cost" />
           </div>
@@ -119,6 +126,77 @@ export default function AnalyticsPage() {
                   <span><i className={cls.legendProfit} /> {t("analytics.profit")}</span>
                 </div>
               </div>
+            )}
+          </Card>
+
+          {/* By agent */}
+          <Card title={t("analytics.byAgent")}>
+            {a.by_agent.length === 0 ? (
+              <p className={cls.muted}>{t("analytics.noData")}</p>
+            ) : (
+              <table className={cls.table}>
+                <thead>
+                  <tr>
+                    <th>{t("col.agent")}</th>
+                    <th className={cls.numCell}>{t("analytics.orders")}</th>
+                    <th className={cls.numCell}>{t("analytics.revenue")}</th>
+                    <th className={cls.numCell}>{t("analytics.profit")}</th>
+                    <th className={cls.numCell}>{t("analytics.margin")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {a.by_agent.map((r) => {
+                    const rev = parseFloat(String(r.revenue)) || 0;
+                    return (
+                      <tr key={r.agent_id}>
+                        <td>
+                          {r.agent_name}
+                          <div
+                            style={{
+                              height: 3,
+                              marginTop: 4,
+                              borderRadius: 2,
+                              background: "var(--brand, #2563eb)",
+                              width: `${(rev / maxAgentRev) * 100}%`,
+                              opacity: 0.5,
+                            }}
+                          />
+                        </td>
+                        <td className={cls.numCell}>{r.orders}</td>
+                        <td className={cls.cx(cls.numCell, cls.strong)}>{money(r.revenue)}</td>
+                        <td className={cls.numCell}>{money(r.profit)}</td>
+                        <td className={cls.numCell}>{r.margin_pct}%</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </Card>
+
+          {/* Top customers */}
+          <Card title={t("analytics.topCustomers")}>
+            {a.by_customer.length === 0 ? (
+              <p className={cls.muted}>{t("analytics.noData")}</p>
+            ) : (
+              <table className={cls.table}>
+                <thead>
+                  <tr>
+                    <th>{t("col.customer")}</th>
+                    <th className={cls.numCell}>{t("analytics.orders")}</th>
+                    <th className={cls.numCell}>{t("analytics.revenue")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {a.by_customer.map((r) => (
+                    <tr key={r.customer_id}>
+                      <td>{r.customer_name}</td>
+                      <td className={cls.numCell}>{r.orders}</td>
+                      <td className={cls.cx(cls.numCell, cls.strong)}>{money(r.revenue)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             )}
           </Card>
 

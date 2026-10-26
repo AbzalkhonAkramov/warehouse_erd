@@ -224,25 +224,13 @@ class _CreateOrderView extends StatelessWidget {
 
         return Column(
           children: [
-            // Top row: running total on the right, a draft icon in the corner.
+            // Top row: a draft (bookmark) icon in the corner. The running total now
+            // sits just above the submit button at the bottom.
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 4, 0),
+              padding: const EdgeInsets.fromLTRB(12, 6, 4, 0),
               child: Row(
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(context.tr('order.total'),
-                            style: const TextStyle(
-                                color: AppColors.neutral, fontSize: 12)),
-                        Text(money(state.total),
-                            style: const TextStyle(
-                                fontSize: 22, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                  ),
+                  const Spacer(),
                   IconButton(
                     tooltip: context.tr('drafts.save'),
                     onPressed: canSaveDraft ? () => cubit.saveDraft() : null,
@@ -343,6 +331,21 @@ class _CreateOrderView extends StatelessWidget {
                       },
                     ),
                     ),
+            ),
+            // Running total, right above the submit button.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(context.tr('order.total'),
+                      style: const TextStyle(
+                          color: AppColors.neutral, fontSize: 13)),
+                  Text(money(state.total),
+                      style: const TextStyle(
+                          fontSize: 22, fontWeight: FontWeight.bold)),
+                ],
+              ),
             ),
             _SubmitBar(
               canSubmit: state.canSubmit &&

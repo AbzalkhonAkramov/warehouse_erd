@@ -17,6 +17,8 @@ class PurchaseOrderCreate(BaseModel):
     warehouse_id: int | None = None
     expected_date: date | None = None
     note: str | None = None
+    # Save as a draft (status=draft) to finish/receive later, instead of ordered.
+    draft: bool = False
     lines: list[PurchaseOrderLineCreate] = Field(min_length=1)
 
 

@@ -147,7 +147,7 @@ async def _receipt_dicts(db: AsyncSession, orders: list[SalesOrder]) -> tuple[li
         cust = custs.get(o.customer_id)
         dicts.append({
             "order_no": _fmt_order_no(o.id, fork_no),
-            "date": o.created_at.strftime("%Y-%m-%d %H:%M"),
+            "date": o.created_at.strftime("%d.%m.%Y"),
             "status": o.status.value,
             "customer_name": cust.name if cust else f"#{o.customer_id}",
             "city": cust.city if cust else None,

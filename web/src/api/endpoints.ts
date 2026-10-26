@@ -372,6 +372,7 @@ export const createPurchaseOrder = (body: {
   supplier_id?: number | null;
   expected_date?: string | null;
   note?: string | null;
+  draft?: boolean;
   lines: { product_id: number; quantity: string; unit_cost: string }[];
 }) => api<PurchaseOrder>("/purchase-orders", { method: "POST", body });
 export const receivePurchaseOrder = (id: number) =>
@@ -389,6 +390,8 @@ export const createTopic = (body: Partial<TelegramTopic>) =>
   api<TelegramTopic>("/telegram-topics", { method: "POST", body });
 export const updateTopic = (id: number, body: Partial<TelegramTopic>) =>
   api<TelegramTopic>(`/telegram-topics/${id}`, { method: "PATCH", body });
+export const deleteTopic = (id: number) =>
+  api<void>(`/telegram-topics/${id}`, { method: "DELETE" });
 export const discoverUpdates = () =>
   api<TelegramUpdateHint[]>("/telegram-topics/updates");
 

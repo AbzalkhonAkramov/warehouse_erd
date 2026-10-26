@@ -40,7 +40,8 @@ async def create_purchase_order(
     po = PurchaseOrder(
         supplier_id=supplier_id,
         warehouse_id=warehouse_id,
-        status=PurchaseOrderStatus.ORDERED,
+        # A draft is saved for later; it is finalized when the goods are received.
+        status=PurchaseOrderStatus.DRAFT if data.draft else PurchaseOrderStatus.ORDERED,
         expected_date=data.expected_date,
         note=data.note,
         created_by_id=user.id,

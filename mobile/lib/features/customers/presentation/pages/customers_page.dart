@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/di/injection.dart';
+import '../../../../core/format.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/state_views.dart';
 import '../../../../l10n/l10n_ext.dart';
@@ -55,24 +56,31 @@ class _CustomersView extends StatelessWidget {
                 onRetry: () => context.read<CustomersCubit>().load(),
               );
             case CustomersStatus.loaded:
+              final todayIdx = DateTime.now().weekday - 1; // 0=Mon .. 6=Sun
               return DefaultTabController(
-                length: 2,
+                // All + 7 weekdays; land on today's tab by default.
+                length: 1 + kWeekdays.length,
+                initialIndex: todayIdx + 1,
                 child: Column(
                   children: [
                     Material(
                       color: Theme.of(context).scaffoldBackgroundColor,
                       child: TabBar(
+                        isScrollable: true,
+                        tabAlignment: TabAlignment.start,
                         tabs: [
-                          Tab(text: context.tr('markets.tabVisits')),
                           Tab(text: context.tr('markets.tabAll')),
+                          for (final day in kWeekdays)
+                            Tab(text: context.tr('day.$day')),
                         ],
                       ),
                     ),
                     Expanded(
                       child: TabBarView(
                         children: [
-                          _VisitsTab(customers: state.customers),
                           _AllMarketsTab(customers: state.customers),
+                          for (final day in kWeekdays)
+                            _DayTab(day: day, customers: state.customers),
                         ],
                       ),
                     ),
@@ -81,6 +89,35 @@ class _CustomersView extends StatelessWidget {
               );
           }
         },
+      ),
+    );
+  }
+}
+
+/// Markets scheduled for one weekday.
+class _DayTab extends StatelessWidget {
+  const _DayTab({required this.day, required this.customers});
+
+  final String day;
+  final List<Customer> customers;
+
+  @override
+  Widget build(BuildContext context) {
+    final markets =
+        customers.where((c) => c.visitDays.contains(day)).toList();
+    if (markets.isEmpty) {
+      return RefreshableEmpty(
+        onRefresh: () => context.read<CustomersCubit>().load(),
+        message: context.tr('customers.empty'),
+        icon: Icons.event_outlined,
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: () => context.read<CustomersCubit>().load(),
+      child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
+        itemCount: markets.length,
+        itemBuilder: (context, i) => _CustomerCard(customer: markets[i]),
       ),
     );
   }
@@ -107,104 +144,6 @@ class _AllMarketsTab extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
         itemCount: customers.length,
         itemBuilder: (context, i) => _CustomerCard(customer: customers[i]),
-      ),
-    );
-  }
-}
-
-/// Markets grouped by the weekday(s) they should be visited — today first.
-class _VisitsTab extends StatelessWidget {
-  const _VisitsTab({required this.customers});
-
-  final List<Customer> customers;
-
-  @override
-  Widget build(BuildContext context) {
-    // Order weekdays starting from today, then the rest of the week.
-    final todayIdx = DateTime.now().weekday - 1; // 0=Mon .. 6=Sun
-    final ordered = [
-      for (var i = 0; i < 7; i++) kWeekdays[(todayIdx + i) % 7],
-    ];
-    final unscheduled = customers.where((c) => c.visitDays.isEmpty).toList();
-
-    final sections = <Widget>[];
-    for (final day in ordered) {
-      final markets =
-          customers.where((c) => c.visitDays.contains(day)).toList();
-      if (markets.isEmpty) continue;
-      final isToday = day == kWeekdays[todayIdx];
-      sections.add(_DayHeader(
-        label: context.tr('day.$day'),
-        isToday: isToday,
-        count: markets.length,
-      ));
-      sections.addAll(markets.map((c) => _CustomerCard(customer: c)));
-    }
-    if (unscheduled.isNotEmpty) {
-      sections.add(_DayHeader(
-        label: context.tr('market.noVisitDays'),
-        isToday: false,
-        count: unscheduled.length,
-      ));
-      sections.addAll(unscheduled.map((c) => _CustomerCard(customer: c)));
-    }
-
-    if (sections.isEmpty) {
-      return RefreshableEmpty(
-        onRefresh: () => context.read<CustomersCubit>().load(),
-        message: context.tr('customers.empty'),
-        icon: Icons.event_outlined,
-      );
-    }
-    return RefreshIndicator(
-      onRefresh: () => context.read<CustomersCubit>().load(),
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 96),
-        children: sections,
-      ),
-    );
-  }
-}
-
-class _DayHeader extends StatelessWidget {
-  const _DayHeader({required this.label, required this.isToday, required this.count});
-
-  final String label;
-  final bool isToday;
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 14, 4, 6),
-      child: Row(
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 15,
-              color: isToday ? AppColors.brand : const Color(0xFF0F172A),
-            ),
-          ),
-          const SizedBox(width: 6),
-          if (isToday)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppColors.brand.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(context.tr('markets.today'),
-                  style: const TextStyle(
-                      color: AppColors.brand,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700)),
-            ),
-          const Spacer(),
-          Text('$count',
-              style: const TextStyle(color: AppColors.neutral, fontSize: 13)),
-        ],
       ),
     );
   }
@@ -276,6 +215,30 @@ class _CustomerCard extends StatelessWidget {
                   ],
                 ),
               ),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    context.tr('customers.debt'),
+                    style: const TextStyle(
+                        color: AppColors.neutral, fontSize: 11),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    money(customer.debt),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      color: customer.debt > 0
+                          ? AppColors.danger
+                          : AppColors.neutral,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 4),
               const Icon(Icons.chevron_right, color: AppColors.neutral),
             ],
           ),

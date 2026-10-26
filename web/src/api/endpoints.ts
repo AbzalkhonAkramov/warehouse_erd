@@ -129,10 +129,10 @@ export const listStockCounts = () =>
   api<StockCountSummary[]>("/inventory/counts");
 export const getStockCount = (id: number) =>
   api<StockCountDetail>(`/inventory/counts/${id}`);
-export const startStockCount = (note?: string | null) =>
+export const startStockCount = (opts?: { note?: string | null; draft?: boolean }) =>
   api<StockCountDetail>("/inventory/counts", {
     method: "POST",
-    body: { note: note ?? null },
+    body: { note: opts?.note ?? null, draft: opts?.draft ?? false },
   });
 export interface StockCountLineIn {
   product_id: number;
@@ -143,10 +143,13 @@ export const saveStockCountLines = (id: number, lines: StockCountLineIn[]) =>
     method: "PUT",
     body: { lines },
   });
-export const completeStockCount = (id: number, lines: StockCountLineIn[]) =>
+export const completeStockCount = (
+  id: number,
+  opts: { lines: StockCountLineIn[]; apply: boolean; exclude_product_ids: number[] },
+) =>
   api<StockCountDetail>(`/inventory/counts/${id}/complete`, {
     method: "POST",
-    body: { lines },
+    body: opts,
   });
 export const cancelStockCount = (id: number) =>
   api<StockCountDetail>(`/inventory/counts/${id}/cancel`, { method: "POST" });

@@ -24,6 +24,9 @@ router = APIRouter(prefix="/inventory/counts", tags=["inventory"])
 
 _MANAGE = require_roles(UserRole.MANAGER, UserRole.WAREHOUSE)
 
+# Statuses that may still be edited / completed / cancelled.
+_EDITABLE = (StockCountStatus.OPEN, StockCountStatus.DRAFT)
+
 
 # --- Schemas ---------------------------------------------------------------
 
@@ -36,12 +39,16 @@ class CountLineOut(BaseModel):
     system_qty: Decimal
     counted_qty: Decimal | None = None
     difference: Decimal | None = None
+    # After completion: True = difference applied to stock, False = excluded
+    # (exception) or report-only; null while the count is still open/draft.
+    applied: bool | None = None
 
 
 class CountDetailOut(BaseModel):
     id: int
     status: StockCountStatus
     note: str | None = None
+    apply_stock: bool = True
     created_at: datetime
     completed_at: datetime | None = None
     created_by_name: str | None = None
@@ -70,8 +77,20 @@ class CountLinesIn(BaseModel):
     lines: list[CountLineIn]
 
 
+class CountCompleteIn(BaseModel):
+    # True = correct stock by the counted amounts; False = record the count as a
+    # report only, leaving stock untouched.
+    apply: bool = True
+    # SKUs excluded from the correction (exceptions); their stock is left as-is
+    # and they are listed separately. Only meaningful when apply is True.
+    exclude_product_ids: list[int] = []
+    # Optional final set of counted quantities to save before applying.
+    lines: list[CountLineIn] | None = None
+
+
 class CountCreateIn(BaseModel):
     note: str | None = None
+    draft: bool = False
 
 
 # --- Helpers ---------------------------------------------------------------
@@ -123,12 +142,14 @@ async def _detail(db: AsyncSession, count: StockCount) -> CountDetailOut:
                 system_qty=Decimal(ln.system_qty),
                 counted_qty=counted,
                 difference=diff,
+                applied=ln.applied,
             )
         )
     return CountDetailOut(
         id=count.id,
         status=count.status,
         note=count.note,
+        apply_stock=count.apply_stock,
         created_at=count.created_at,
         completed_at=count.completed_at,
         created_by_name=names.get(count.created_by_id),
@@ -211,7 +232,7 @@ async def start_count(
     }
     count = StockCount(
         warehouse_id=warehouse_id,
-        status=StockCountStatus.OPEN,
+        status=StockCountStatus.DRAFT if data.draft else StockCountStatus.OPEN,
         note=data.note,
         created_by_id=user.id,
     )
@@ -245,10 +266,10 @@ async def save_lines(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(_MANAGE),
 ) -> CountDetailOut:
-    """Save the counted quantities on an open count (without applying them)."""
+    """Save the counted quantities on an open/draft count (without applying)."""
     count = await _load(db, count_id)
-    if count.status != StockCountStatus.OPEN:
-        raise HTTPException(status.HTTP_409_CONFLICT, "Count is not open")
+    if count.status not in _EDITABLE:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Count is not editable")
     by_product = {ln.product_id: ln for ln in count.lines}
     for item in data.lines:
         ln = by_product.get(item.product_id)
@@ -267,18 +288,23 @@ async def save_lines(
 @router.post("/{count_id}/complete", response_model=CountDetailOut)
 async def complete_count(
     count_id: int,
-    data: CountLinesIn | None = None,
+    data: CountCompleteIn | None = None,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(_MANAGE),
 ) -> CountDetailOut:
-    """Apply the counted quantities: for every counted product, set stock to the
-    counted amount and record an ADJUSTMENT movement for the difference."""
+    """Complete a count. When ``apply`` is True (default), every counted product
+    has its stock set to the counted amount and an ADJUSTMENT movement recorded
+    for the difference — except SKUs listed in ``exclude_product_ids``, which are
+    kept as exceptions (stock untouched) and flagged separately. When ``apply``
+    is False the count is recorded as a report only and no stock is changed."""
     count = await _load(db, count_id)
-    if count.status != StockCountStatus.OPEN:
-        raise HTTPException(status.HTTP_409_CONFLICT, "Count is not open")
+    if count.status not in _EDITABLE:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Count is not editable")
+
+    data = data or CountCompleteIn()
 
     # Accept a final set of counted quantities on completion (optional).
-    if data is not None:
+    if data.lines is not None:
         by_product = {ln.product_id: ln for ln in count.lines}
         for item in data.lines:
             ln = by_product.get(item.product_id)
@@ -290,9 +316,18 @@ async def complete_count(
                 )
             ln.counted_qty = item.counted_qty
 
+    count.apply_stock = data.apply
+    excluded = set(data.exclude_product_ids)
+
     for ln in count.lines:
         if ln.counted_qty is None:
-            continue  # product not counted — leave its stock untouched
+            ln.applied = None  # product not counted — leave its stock untouched
+            continue
+        # Report-only completion, or this SKU is an exception: record but don't
+        # touch stock.
+        if not data.apply or ln.product_id in excluded:
+            ln.applied = False
+            continue
         counted = Decimal(ln.counted_qty)
         stock = await db.scalar(
             select(Stock).where(
@@ -302,6 +337,7 @@ async def complete_count(
         )
         current = Decimal(stock.quantity) if stock else Decimal("0")
         delta = counted - current
+        ln.applied = True
         if delta == 0:
             continue
         if stock is None:
@@ -339,8 +375,8 @@ async def cancel_count(
     _: User = Depends(_MANAGE),
 ) -> CountDetailOut:
     count = await _load(db, count_id)
-    if count.status != StockCountStatus.OPEN:
-        raise HTTPException(status.HTTP_409_CONFLICT, "Count is not open")
+    if count.status not in _EDITABLE:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Count is not editable")
     count.status = StockCountStatus.CANCELLED
     await db.flush()
     await db.refresh(count, attribute_names=["lines"])

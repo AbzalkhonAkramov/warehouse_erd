@@ -49,6 +49,7 @@ class StockMovementType(str, enum.Enum):
 
 
 class StockCountStatus(str, enum.Enum):
+    DRAFT = "draft"          # saved as a draft, not yet being actively counted
     OPEN = "open"            # count in progress, quantities being entered
     COMPLETED = "completed"  # counted quantities applied to stock
     CANCELLED = "cancelled"  # abandoned without applying

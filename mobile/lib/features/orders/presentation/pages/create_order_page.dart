@@ -224,24 +224,10 @@ class _CreateOrderView extends StatelessWidget {
 
         return Column(
           children: [
-            // Top row: a draft (bookmark) icon in the corner. The running total now
-            // sits just above the submit button at the bottom.
+            // The draft (bookmark) icon now sits beside the submit button in the
+            // bottom bar; the running total is just above it.
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 6, 4, 0),
-              child: Row(
-                children: [
-                  const Spacer(),
-                  IconButton(
-                    tooltip: context.tr('drafts.save'),
-                    onPressed: canSaveDraft ? () => cubit.saveDraft() : null,
-                    icon: const Icon(Icons.bookmark_add_outlined),
-                    color: AppColors.brand,
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 4, 12, 6),
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
               child: Card(
                 child: ListTile(
                   shape: RoundedRectangleBorder(
@@ -352,6 +338,8 @@ class _CreateOrderView extends StatelessWidget {
                   state.status != CreateOrderStatus.submitting,
               submitting: state.status == CreateOrderStatus.submitting,
               onSubmit: () => cubit.submit(),
+              canSaveDraft: canSaveDraft,
+              onSaveDraft: () => cubit.saveDraft(),
             ),
           ],
         );
@@ -534,11 +522,15 @@ class _SubmitBar extends StatelessWidget {
     required this.canSubmit,
     required this.submitting,
     required this.onSubmit,
+    required this.canSaveDraft,
+    required this.onSaveDraft,
   });
 
   final bool canSubmit;
   final bool submitting;
   final VoidCallback onSubmit;
+  final bool canSaveDraft;
+  final VoidCallback onSaveDraft;
 
   @override
   Widget build(BuildContext context) {
@@ -550,20 +542,34 @@ class _SubmitBar extends StatelessWidget {
         top: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-          child: SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: canSubmit ? onSubmit : null,
-              icon: submitting
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Icon(Icons.send),
-              label: Text(context.tr('order.submit')),
-            ),
+          child: Row(
+            children: [
+              // Save-as-draft, right next to the submit button.
+              OutlinedButton(
+                onPressed: canSaveDraft ? onSaveDraft : null,
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(52, 48),
+                  padding: EdgeInsets.zero,
+                  foregroundColor: AppColors.brand,
+                ),
+                child: const Icon(Icons.bookmark_add_outlined),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: canSubmit ? onSubmit : null,
+                  icon: submitting
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Icon(Icons.send),
+                  label: Text(context.tr('order.submit')),
+                ),
+              ),
+            ],
           ),
         ),
       ),

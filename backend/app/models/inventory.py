@@ -65,6 +65,9 @@ class StockCount(Base, TimestampMixin):
         Enum(StockCountStatus), default=StockCountStatus.OPEN, nullable=False
     )
     note: Mapped[str | None] = mapped_column(Text)
+    # True = completion corrected stock by the counted amounts;
+    # False = the count was recorded as a report only (stock left untouched).
+    apply_stock: Mapped[bool] = mapped_column(default=True, nullable=False)
     created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
     completed_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -91,5 +94,8 @@ class StockCountLine(Base):
     system_qty: Mapped[float] = mapped_column(Numeric(14, 3), default=0, nullable=False)
     # What was physically counted; null = this product has not been counted yet.
     counted_qty: Mapped[float | None] = mapped_column(Numeric(14, 3))
+    # After completion: True = the difference was applied to stock, False = this
+    # SKU was excluded (an exception) or the count was report-only; null = open.
+    applied: Mapped[bool | None] = mapped_column()
 
     stock_count: Mapped["StockCount"] = relationship(back_populates="lines")

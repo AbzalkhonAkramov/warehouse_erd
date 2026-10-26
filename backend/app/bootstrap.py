@@ -40,6 +40,11 @@ _PRODUCT_COLUMN_MIGRATIONS = (
     # Returns may be recorded by market+SKU without a specific order.
     "ALTER TABLE return_requests ALTER COLUMN sales_order_id DROP NOT NULL",
     "ALTER TABLE refund_entries ALTER COLUMN sales_order_id DROP NOT NULL",
+    # Inventory count: completion mode + per-line applied/excluded flag.
+    "ALTER TABLE stock_counts ADD COLUMN IF NOT EXISTS apply_stock BOOLEAN NOT NULL DEFAULT TRUE",
+    "ALTER TABLE stock_count_lines ADD COLUMN IF NOT EXISTS applied BOOLEAN",
+    # New DRAFT state for inventory counts (native enum needs the value added).
+    "ALTER TYPE stockcountstatus ADD VALUE IF NOT EXISTS 'DRAFT'",
 )
 
 

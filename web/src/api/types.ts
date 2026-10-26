@@ -383,7 +383,7 @@ export interface TelegramUpdateHint {
 }
 
 // --- Inventory counts (stocktaking / инвентаризация) ---
-export type StockCountStatus = "open" | "completed" | "cancelled";
+export type StockCountStatus = "draft" | "open" | "completed" | "cancelled";
 
 export interface StockCountLine {
   product_id: number;
@@ -394,12 +394,14 @@ export interface StockCountLine {
   system_qty: Money;
   counted_qty?: Money | null;
   difference?: Money | null;
+  applied?: boolean | null;
 }
 
 export interface StockCountDetail {
   id: number;
   status: StockCountStatus;
   note?: string | null;
+  apply_stock?: boolean;
   created_at: string;
   completed_at?: string | null;
   created_by_name?: string | null;

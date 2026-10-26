@@ -37,6 +37,8 @@ class CustomerUpdate(BaseModel):
     latitude: Decimal | None = None
     longitude: Decimal | None = None
     credit_limit: Decimal | None = None
+    # Market's debt — set manually by the manager (no longer derived from invoices).
+    debt: Decimal | None = None
     region_id: int | None = None
     agent_ids: list[int] | None = None
 

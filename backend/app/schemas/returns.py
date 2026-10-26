@@ -12,7 +12,11 @@ class ReturnLineIn(BaseModel):
 
 
 class ReturnRequestCreate(BaseModel):
-    sales_order_id: int
+    # Either a specific order, OR a market+SKU return (customer_id + agent_id).
+    sales_order_id: int | None = None
+    customer_id: int | None = None
+    # Agent the return is attributed to — the manager picks it for market returns.
+    agent_id: int | None = None
     lines: list[ReturnLineIn] = Field(min_length=1)
     note: str | None = None
     # Manager-entered: goods back to sellable stock, or held as refunded goods.
@@ -38,7 +42,7 @@ class ReturnRequestOut(BaseModel):
     id: int
     customer_id: int
     customer_name: str | None = None
-    sales_order_id: int
+    sales_order_id: int | None = None
     order_no: str | None = None
     agent_id: int | None
     agent_name: str | None = None

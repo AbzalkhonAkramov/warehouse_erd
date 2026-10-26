@@ -15,12 +15,10 @@ from sqlalchemy.orm import selectinload
 from app.models.associations import agent_categories
 from app.models.catalog import Product, Warehouse
 from app.models.enums import (
-    InvoiceStatus,
     SalesOrderStatus,
     StockMovementType,
     UserRole,
 )
-from app.models.finance import Invoice, Payment
 from app.models.inventory import Stock, StockMovement
 from app.models.photo import PhotoReport, PhotoReportImage
 from app.models.sales import (
@@ -83,11 +81,6 @@ async def create_order(db: AsyncSession, creator: User, data: SalesOrderCreate) 
             status.HTTP_403_FORBIDDEN, "This shop is not assigned to you"
         )
 
-    # Only managers/admins may apply a discount.
-    discount = data.discount or ZERO
-    if creator.role not in (UserRole.ADMIN, UserRole.MANAGER):
-        discount = ZERO
-
     warehouse_id = data.warehouse_id or await _default_warehouse_id(db)
 
     # Resolve which agent the order belongs to.
@@ -119,7 +112,7 @@ async def create_order(db: AsyncSession, creator: User, data: SalesOrderCreate) 
         created_by_id=creator.id,
         warehouse_id=warehouse_id,
         status=SalesOrderStatus.NEW,
-        discount=discount,
+        discount=ZERO,
         note=data.note,
     )
 
@@ -161,7 +154,7 @@ async def create_order(db: AsyncSession, creator: User, data: SalesOrderCreate) 
         )
 
     order.subtotal = subtotal
-    order.total = max(subtotal - discount, ZERO)
+    order.total = subtotal
 
     db.add(order)
     await db.flush()
@@ -179,25 +172,18 @@ async def create_order(db: AsyncSession, creator: User, data: SalesOrderCreate) 
         )
     )
 
-    # Flag (do not block) when this order would push the customer over their credit limit.
-    over_limit = (
-        customer.credit_limit
-        and (Decimal(customer.debt) + order.total) > Decimal(customer.credit_limit)
-    )
-    warn = "  ⚠️ OVER CREDIT LIMIT" if over_limit else ""
-
     # New orders wait for a manager to ship/deliver them.
     await telegram.notify_managers(
         f"🆕 <b>New order #{order.id}</b>\n"
         f"Customer: {customer.name}\n"
         f"Agent: {agent.full_name}\n"
-        f"Total: {order.total}{warn}"
+        f"Total: {order.total}"
     )
     return order
 
 
-# Statuses that mean the goods have left the warehouse (stock already deducted and an
-# invoice created). Entering one of these for the first time triggers fulfilment.
+# Statuses that mean the goods have left the warehouse (stock already deducted).
+# Entering one of these for the first time triggers fulfilment (stock deduction).
 _FULFILLED_STATUSES = (SalesOrderStatus.SHIPPED, SalesOrderStatus.DELIVERED)
 
 
@@ -281,20 +267,6 @@ def _change_status(
     order.archived = False
 
 
-def _recompute_invoice_status(inv: Invoice) -> None:
-    paid = Decimal(inv.paid_amount)
-    if paid <= ZERO:
-        inv.status = InvoiceStatus.UNPAID
-    elif paid >= Decimal(inv.total):
-        inv.status = InvoiceStatus.PAID
-    else:
-        inv.status = InvoiceStatus.PARTIAL
-
-
-async def _invoice_of(db: AsyncSession, order_id: int) -> "Invoice | None":
-    return await db.scalar(select(Invoice).where(Invoice.sales_order_id == order_id))
-
-
 async def _refund_goods(db, order, plan, restock, actor_id) -> None:
     """Restock (optional) and record the returned goods for the refunded-goods page."""
     for line, q, value in plan:
@@ -337,15 +309,74 @@ async def _refund_goods(db, order, plan, restock, actor_id) -> None:
         )
 
 
+async def record_market_return(
+    db: AsyncSession,
+    actor: User,
+    customer_id: int,
+    agent_id: int | None,
+    items: list[tuple[int, Decimal]],
+    restock: bool,
+) -> None:
+    """Order-less return (by market + SKU): optionally restock and record a
+    RefundEntry per product so it shows on the refunded-goods page. No debt effect
+    (debt is manual). ``items`` is a list of (product_id, quantity)."""
+    wh = await db.scalar(select(Warehouse).where(Warehouse.is_default).limit(1))
+    if wh is None:
+        wh = await db.scalar(select(Warehouse).order_by(Warehouse.id).limit(1))
+    if wh is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "No warehouse configured")
+
+    for product_id, q in items:
+        product = await db.get(Product, product_id)
+        if product is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, f"Product {product_id} not found")
+        unit_price = Decimal(product.sale_price)
+        value = (unit_price * Decimal(q)).quantize(Decimal("0.01"))
+        if restock:
+            stock = await db.scalar(
+                select(Stock).where(
+                    Stock.product_id == product_id, Stock.warehouse_id == wh.id
+                )
+            )
+            if stock is None:
+                stock = Stock(product_id=product_id, warehouse_id=wh.id, quantity=ZERO)
+                db.add(stock)
+            stock.quantity = Decimal(stock.quantity) + Decimal(q)
+            db.add(
+                StockMovement(
+                    product_id=product_id,
+                    warehouse_id=wh.id,
+                    type=StockMovementType.RETURN_IN,
+                    quantity=Decimal(q),
+                    reference=f"market_return:{customer_id}",
+                    created_by_id=actor.id,
+                )
+            )
+        db.add(
+            RefundEntry(
+                sales_order_id=None,
+                product_id=product_id,
+                customer_id=customer_id,
+                agent_id=agent_id,
+                deliverer=None,
+                quantity=Decimal(q),
+                unit_price=unit_price,
+                value=value,
+                restocked=restock,
+                created_by_id=actor.id,
+            )
+        )
+
+
 async def move_order(
     db: AsyncSession, manager: User, order_id: int, data: StatusMoveRequest
 ) -> SalesOrder:
     """Move an order to a status. With no lines the whole order moves; with lines a
     partial amount moves and a new order forks off (the rest keeps the old status).
 
-    NEW -> SHIPPED/DELIVERED deducts stock + creates an invoice + debt. REFUND /
-    CANCELLED of already-sold goods cuts the debt (REFUND can also restock and is
-    recorded as refunded goods)."""
+    NEW -> SHIPPED/DELIVERED deducts stock. REFUND records the returned goods (and
+    can restock); CANCELLED is a label. Debt is not touched here — a market's debt
+    is set manually by the manager."""
     order = await _get_order_with_lines(db, order_id)
     target = data.status
     if data.note:
@@ -389,7 +420,8 @@ async def move_order(
     full = move_qty >= total_qty
     moved_desc = await _plan_items_desc(db, plan)
 
-    had_invoice = await _invoice_of(db, order.id) is not None
+    # Whether these goods were already taken out of stock (order was shipped/delivered).
+    already_sold = order.status in _FULFILLED_STATUSES
     is_fulfil = target in _FULFILLED_STATUSES
     is_reversal = target in (SalesOrderStatus.REFUND, SalesOrderStatus.CANCELLED)
 
@@ -463,53 +495,21 @@ async def move_order(
         )
         moved = fork
 
-    # Financial effects on the moved goods.
+    # Stock effects on the moved goods. Debt is no longer touched here — a market's
+    # debt is set manually by the manager on the customer.
     if is_fulfil:
-        if not had_invoice:
-            invoice = await _fulfil_order(db, moved, manager.id)
+        if not already_sold:
+            # First time out of the warehouse: deduct stock + record movements.
+            await _fulfil_order(db, moved, manager.id)
             moved.approved_by_id = manager.id
             moved.approved_at = datetime.now(timezone.utc)
-            await _notify_agent(
-                db, order, f"📦 Order #{order.id} → {target.value}. Invoice {invoice.number}."
-            )
-        else:
-            # Goods already sold/deducted (e.g. shipped → delivered).
-            if not full:
-                inv = await _invoice_of(db, order.id)
-                if inv is not None:
-                    inv.total = max(Decimal(inv.total) - moved_value, ZERO)
-                    _recompute_invoice_status(inv)
-                    db.add(
-                        Invoice(
-                            number=f"INV-{moved.id:06d}",
-                            sales_order_id=moved.id,
-                            customer_id=moved.customer_id,
-                            total=moved_value,
-                            paid_amount=ZERO,
-                            status=InvoiceStatus.UNPAID,
-                        )
-                    )
-            await _notify_agent(db, order, f"📦 Order #{order.id} → {target.value}.")
+        await _notify_agent(db, order, f"📦 Order #{order.id} → {target.value}.")
     elif is_reversal:
-        if had_invoice:
-            reverse_value = Decimal(order.total) if full else moved_value
-            customer = await db.get(Customer, order.customer_id)
-            if customer is not None:
-                customer.debt = max(Decimal(customer.debt) - reverse_value, ZERO)
-            inv = await _invoice_of(db, order.id)
-            if inv is not None:
-                inv.total = max(Decimal(inv.total) - reverse_value, ZERO)
-                _recompute_invoice_status(inv)
-            if target == SalesOrderStatus.REFUND:
-                await _refund_goods(db, order, plan, data.restock, manager.id)
-            await _notify_agent(
-                db, order, f"↩️ Order #{order.id} → {target.value} (−{reverse_value})."
-            )
-        else:
-            # Goods were never sold; refund just records them, cancel is a label.
-            if target == SalesOrderStatus.REFUND:
-                await _refund_goods(db, order, plan, False, manager.id)
-            await _notify_agent(db, order, f"Order #{order.id} → {target.value}.")
+        # Refund records the returned goods; restock only if they had actually been
+        # sold (otherwise there is nothing to put back). Cancel is just a label.
+        if target == SalesOrderStatus.REFUND:
+            await _refund_goods(db, order, plan, data.restock if already_sold else False, manager.id)
+        await _notify_agent(db, order, f"↩️ Order #{order.id} → {target.value}.")
     else:
         await _notify_agent(db, order, f"Order #{order.id} → {target.value}.")
 
@@ -545,9 +545,9 @@ async def _notify_agent(db: AsyncSession, order: SalesOrder, message: str) -> No
         await telegram.send_message(agent.telegram_chat_id, message)
 
 
-async def _fulfil_order(db: AsyncSession, order: SalesOrder, actor_id: int) -> Invoice:
-    """Decrement stock, record movements, create the invoice and raise the customer's
-    debt. Raises 409 if any line lacks stock. Caller sets the order status."""
+async def _fulfil_order(db: AsyncSession, order: SalesOrder, actor_id: int) -> None:
+    """Decrement stock and record the SALE movements. Raises 409 if any line lacks
+    stock. Caller sets the order status. (No invoice/debt — debt is manual.)"""
     for line in order.lines:
         stock = await db.scalar(
             select(Stock).where(
@@ -573,53 +573,6 @@ async def _fulfil_order(db: AsyncSession, order: SalesOrder, actor_id: int) -> I
                 created_by_id=actor_id,
             )
         )
-
-    invoice = Invoice(
-        number=f"INV-{order.id:06d}",
-        sales_order_id=order.id,
-        customer_id=order.customer_id,
-        total=order.total,
-        paid_amount=ZERO,
-        status=InvoiceStatus.UNPAID,
-    )
-    db.add(invoice)
-
-    customer = await db.get(Customer, order.customer_id)
-    customer.debt = Decimal(customer.debt) + Decimal(order.total)
-    return invoice
-
-
-async def record_payment(
-    db: AsyncSession, collector: User, invoice_id: int, amount: Decimal, method, note: str | None
-) -> Payment:
-    invoice = await db.get(Invoice, invoice_id)
-    if invoice is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Invoice not found")
-    if Decimal(amount) > (Decimal(invoice.total) - Decimal(invoice.paid_amount)):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Payment exceeds invoice balance")
-
-    payment = Payment(
-        invoice_id=invoice.id,
-        amount=amount,
-        method=method,
-        collected_by_id=collector.id,
-        collected_at=datetime.now(timezone.utc),
-        note=note,
-    )
-    db.add(payment)
-
-    invoice.paid_amount = Decimal(invoice.paid_amount) + Decimal(amount)
-    if Decimal(invoice.paid_amount) >= Decimal(invoice.total):
-        invoice.status = InvoiceStatus.PAID
-    else:
-        invoice.status = InvoiceStatus.PARTIAL
-
-    customer = await db.get(Customer, invoice.customer_id)
-    customer.debt = max(Decimal(customer.debt) - Decimal(amount), ZERO)
-
-    await db.flush()
-    return payment
-
 
 async def _get_order_with_lines(db: AsyncSession, order_id: int) -> SalesOrder:
     order = await db.scalar(

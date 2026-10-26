@@ -10,7 +10,7 @@ from app.models.catalog import (
     Supplier,
     Warehouse,
 )
-from app.models.inventory import Stock, StockMovement
+from app.models.inventory import Stock, StockCount, StockCountLine, StockMovement
 from app.models.purchasing import PurchaseOrder, PurchaseOrderLine
 from app.models.sales import (
     Customer,
@@ -21,7 +21,6 @@ from app.models.sales import (
     SalesOrderLine,
     Visit,
 )
-from app.models.finance import Invoice, Payment
 from app.models.agent import AgentTarget
 from app.models.telegram import TelegramTopic
 from app.models.photo import PhotoReport, PhotoReportImage
@@ -56,6 +55,4 @@ __all__ = [
     "RefundEntry",
     "OrderStatusHistory",
     "Visit",
-    "Invoice",
-    "Payment",
 ]

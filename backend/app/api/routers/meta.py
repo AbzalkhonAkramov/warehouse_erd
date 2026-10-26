@@ -17,7 +17,6 @@ router = APIRouter(prefix="/meta", tags=["meta"])
 
 _LOGO_SUBDIR = "branding"
 _MODES = {"text", "logo", "both"}
-_CASH_MODES = {"manager_records", "agent_submits"}
 
 
 _EXCEL_LANGS = {"ru", "uz", "en"}
@@ -27,14 +26,12 @@ class CompanyOut(BaseModel):
     name: str
     logo_url: str | None = None
     display_mode: str
-    cash_handover_mode: str = "manager_records"
     excel_lang: str = "ru"
 
 
 class CompanyUpdate(BaseModel):
     name: str | None = None
     display_mode: str | None = None
-    cash_handover_mode: str | None = None
     excel_lang: str | None = None
 
 
@@ -52,7 +49,6 @@ def _to_out(s: CompanySettings) -> CompanyOut:
         name=s.company_name,
         logo_url=f"/uploads/{s.logo_path}" if s.logo_path else None,
         display_mode=s.display_mode,
-        cash_handover_mode=s.cash_handover_mode,
         excel_lang=s.excel_lang,
     )
 
@@ -76,10 +72,6 @@ async def update_company(
         if data.display_mode not in _MODES:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid display mode")
         s.display_mode = data.display_mode
-    if data.cash_handover_mode is not None:
-        if data.cash_handover_mode not in _CASH_MODES:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid cash handover mode")
-        s.cash_handover_mode = data.cash_handover_mode
     if data.excel_lang is not None:
         if data.excel_lang not in _EXCEL_LANGS:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid excel language")

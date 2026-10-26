@@ -4,11 +4,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   approveReturn,
   createReturn,
+  listCustomers,
   listOrders,
+  listProducts,
   listReturns,
+  listUsers,
   rejectReturn,
 } from "../api/endpoints";
-import type { ReturnRequest, SalesOrder } from "../api/types";
+import type { Product, ReturnRequest, SalesOrder } from "../api/types";
 import { Button, Card, Empty, ErrorBox, Modal, Spinner } from "../components/ui";
 import { useI18n } from "../i18n";
 import { qty as fmtQty, money, date } from "../lib/format";
@@ -136,23 +139,41 @@ interface LineSel {
   max: number;
 }
 
-/** Manager records a return: pick a delivered/shipped order, choose which goods
- * came back and how many, and whether to restock. Applied immediately. */
+interface MarketLine {
+  product_id: number;
+  label: string;
+  qty: string;
+}
+
+/** Manager records a return in one of two modes: by order (pick a shipped/delivered
+ * order and its goods) or by market + SKU (pick a shop, the agent it came from, and
+ * add products by SKU). Applied immediately (restock or hold). */
 function CreateReturnModal({ onClose }: { onClose: () => void }) {
   const { t } = useI18n();
   const qc = useQueryClient();
-  const [orderId, setOrderId] = useState<number | "">("");
-  const [rows, setRows] = useState<Record<number, LineSel>>({});
+  const [mode, setMode] = useState<"order" | "market">("order");
   const [restock, setRestock] = useState(true);
   const [note, setNote] = useState("");
 
-  // Only delivered/shipped orders have goods that can be returned.
+  // --- by order ---
+  const [orderId, setOrderId] = useState<number | "">("");
+  const [rows, setRows] = useState<Record<number, LineSel>>({});
   const orders = useQuery({ queryKey: ["orders", "returnable"], queryFn: () => listOrders() });
   const returnable = useMemo(
     () => (orders.data ?? []).filter((o) => o.status === "shipped" || o.status === "delivered"),
     [orders.data],
   );
   const order = returnable.find((o) => o.id === orderId);
+
+  // --- by market + SKU ---
+  const [customerId, setCustomerId] = useState<number | "">("");
+  const [agentId, setAgentId] = useState<number | "">("");
+  const [mLines, setMLines] = useState<MarketLine[]>([]);
+  const [pickPid, setPickPid] = useState<number | "">("");
+  const [pickQty, setPickQty] = useState("1");
+  const customers = useQuery({ queryKey: ["customers"], queryFn: listCustomers });
+  const agents = useQuery({ queryKey: ["users", "agent"], queryFn: () => listUsers("agent") });
+  const products = useQuery({ queryKey: ["products"], queryFn: listProducts });
 
   function selectOrder(id: number | "") {
     setOrderId(id);
@@ -165,18 +186,39 @@ function CreateReturnModal({ onClose }: { onClose: () => void }) {
     setRows(next);
   }
 
+  function addMarketLine() {
+    if (pickPid === "" || parseFloat(pickQty) <= 0) return;
+    const p = products.data?.find((x: Product) => x.id === pickPid);
+    if (!p) return;
+    setMLines((prev) =>
+      prev.some((l) => l.product_id === p.id)
+        ? prev.map((l) => (l.product_id === p.id ? { ...l, qty: pickQty } : l))
+        : [...prev, { product_id: p.id, label: `${p.sku} — ${p.name}`, qty: pickQty }],
+    );
+    setPickPid("");
+    setPickQty("1");
+  }
+
   const create = useMutation({
     mutationFn: () =>
-      createReturn({
-        sales_order_id: order!.id,
-        restock,
-        note: note || null,
-        lines: Object.entries(rows)
-          .filter(([, r]) => r.checked && parseFloat(r.qty) > 0)
-          .map(([pid, r]) => ({ product_id: Number(pid), quantity: r.qty })),
-      }),
+      mode === "order"
+        ? createReturn({
+            sales_order_id: order!.id,
+            restock,
+            note: note || null,
+            lines: Object.entries(rows)
+              .filter(([, r]) => r.checked && parseFloat(r.qty) > 0)
+              .map(([pid, r]) => ({ product_id: Number(pid), quantity: r.qty })),
+          })
+        : createReturn({
+            customer_id: Number(customerId),
+            agent_id: agentId === "" ? null : Number(agentId),
+            restock,
+            note: note || null,
+            lines: mLines.map((l) => ({ product_id: l.product_id, quantity: l.qty })),
+          }),
     onSuccess: () => {
-      ["returns", "orders", "customers", "invoices", "refunds"].forEach((k) =>
+      ["returns", "orders", "customers", "refunds"].forEach((k) =>
         qc.invalidateQueries({ queryKey: [k] }),
       );
       onClose();
@@ -184,84 +226,187 @@ function CreateReturnModal({ onClose }: { onClose: () => void }) {
   });
 
   const anySelected = Object.values(rows).some((r) => r.checked && parseFloat(r.qty) > 0);
+  const canSubmit =
+    mode === "order" ? !!order && anySelected : customerId !== "" && mLines.length > 0;
 
   return (
     <Modal title={t("returns.create")} onClose={onClose}>
-      <label className={cls.field}>
-        <span>{t("returns.order")}</span>
-        <select
-          value={orderId}
-          onChange={(e) => selectOrder(e.target.value === "" ? "" : Number(e.target.value))}
+      <div className={cls.filterRow}>
+        <button
+          className={cls.cx(cls.chip, mode === "order" && cls.chipActive)}
+          onClick={() => setMode("order")}
         >
-          <option value="">{t("returns.pickOrder")}</option>
-          {returnable.map((o: SalesOrder) => (
-            <option key={o.id} value={o.id}>
-              #{o.order_no ?? o.id} · {o.customer_name ?? `#${o.customer_id}`} · {money(o.total)}
-            </option>
-          ))}
-        </select>
-      </label>
+          {t("returns.byOrder")}
+        </button>
+        <button
+          className={cls.cx(cls.chip, mode === "market" && cls.chipActive)}
+          onClick={() => setMode("market")}
+        >
+          {t("returns.byMarket")}
+        </button>
+      </div>
 
-      {order && (
-        <table className={cls.tableSub} style={{ marginTop: 12 }}>
-          <thead>
-            <tr>
-              <th />
-              <th>{t("col.product")}</th>
-              <th className={cls.numCell}>{t("orders.available")}</th>
-              <th className={cls.numCell}>{t("returns.qty")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {order.lines.map((l) => {
-              const r = rows[l.product_id];
-              if (!r) return null;
-              return (
-                <tr key={l.id}>
-                  <td>
-                    <input
-                      type="checkbox"
-                      checked={r.checked}
-                      onChange={(e) =>
-                        setRows((s) => ({ ...s, [l.product_id]: { ...r, checked: e.target.checked } }))
-                      }
-                    />
-                  </td>
-                  <td>{l.product_name ?? `#${l.product_id}`}</td>
-                  <td className={cls.numCell}>{fmtQty(r.max)}</td>
-                  <td className={cls.numCell}>
-                    <input
-                      className={cls.qtyInput}
-                      type="number"
-                      min="0"
-                      max={r.max}
-                      step="0.001"
-                      value={r.qty}
-                      disabled={!r.checked}
-                      onChange={(e) =>
-                        setRows((s) => ({ ...s, [l.product_id]: { ...r, qty: e.target.value } }))
-                      }
-                    />
-                  </td>
+      {mode === "order" ? (
+        <>
+          <label className={cls.field}>
+            <span>{t("returns.order")}</span>
+            <select
+              value={orderId}
+              onChange={(e) => selectOrder(e.target.value === "" ? "" : Number(e.target.value))}
+            >
+              <option value="">{t("returns.pickOrder")}</option>
+              {returnable.map((o: SalesOrder) => (
+                <option key={o.id} value={o.id}>
+                  #{o.order_no ?? o.id} · {o.customer_name ?? `#${o.customer_id}`} · {money(o.total)}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {order && (
+            <table className={cls.tableSub} style={{ marginTop: 12 }}>
+              <thead>
+                <tr>
+                  <th />
+                  <th>{t("col.product")}</th>
+                  <th className={cls.numCell}>{t("orders.available")}</th>
+                  <th className={cls.numCell}>{t("returns.qty")}</th>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
+              </thead>
+              <tbody>
+                {order.lines.map((l) => {
+                  const r = rows[l.product_id];
+                  if (!r) return null;
+                  return (
+                    <tr key={l.id}>
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={r.checked}
+                          onChange={(e) =>
+                            setRows((s) => ({ ...s, [l.product_id]: { ...r, checked: e.target.checked } }))
+                          }
+                        />
+                      </td>
+                      <td>{l.product_name ?? `#${l.product_id}`}</td>
+                      <td className={cls.numCell}>{fmtQty(r.max)}</td>
+                      <td className={cls.numCell}>
+                        <input
+                          className={cls.qtyInput}
+                          type="number"
+                          min="0"
+                          max={r.max}
+                          step="0.001"
+                          value={r.qty}
+                          disabled={!r.checked}
+                          onChange={(e) =>
+                            setRows((s) => ({ ...s, [l.product_id]: { ...r, qty: e.target.value } }))
+                          }
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </>
+      ) : (
+        <>
+          <label className={cls.field}>
+            <span>{t("returns.market")}</span>
+            <select
+              value={customerId}
+              onChange={(e) => setCustomerId(e.target.value === "" ? "" : Number(e.target.value))}
+            >
+              <option value="">{t("returns.pickMarket")}</option>
+              {customers.data?.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </label>
+          <label className={cls.field}>
+            <span>{t("returns.fromAgent")}</span>
+            <select
+              value={agentId}
+              onChange={(e) => setAgentId(e.target.value === "" ? "" : Number(e.target.value))}
+            >
+              <option value="">{t("returns.pickAgent")}</option>
+              {agents.data?.map((a) => (
+                <option key={a.id} value={a.id}>{a.full_name}</option>
+              ))}
+            </select>
+          </label>
+
+          <div className={cls.filterRow} style={{ marginTop: 8, alignItems: "flex-end" }}>
+            <label className={cls.field} style={{ flex: 1 }}>
+              <span>{t("returns.sku")}</span>
+              <select
+                value={pickPid}
+                onChange={(e) => setPickPid(e.target.value === "" ? "" : Number(e.target.value))}
+              >
+                <option value="">{t("returns.pickSku")}</option>
+                {products.data?.map((p: Product) => (
+                  <option key={p.id} value={p.id}>{p.sku} — {p.name}</option>
+                ))}
+              </select>
+            </label>
+            <label className={cls.field} style={{ width: 110 }}>
+              <span>{t("returns.qty")}</span>
+              <input
+                className={cls.qtyInput}
+                type="number"
+                min="0"
+                step="0.001"
+                value={pickQty}
+                onChange={(e) => setPickQty(e.target.value)}
+              />
+            </label>
+            <Button variant="ghost" onClick={addMarketLine}>{t("returns.add")}</Button>
+          </div>
+
+          {mLines.length > 0 && (
+            <table className={cls.tableSub} style={{ marginTop: 10 }}>
+              <thead>
+                <tr>
+                  <th>{t("col.product")}</th>
+                  <th className={cls.numCell}>{t("returns.qty")}</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {mLines.map((l) => (
+                  <tr key={l.product_id}>
+                    <td>{l.label}</td>
+                    <td className={cls.numCell}>{fmtQty(l.qty)}</td>
+                    <td className={cls.numCell}>
+                      <button
+                        className={cls.btn.ghost}
+                        onClick={() =>
+                          setMLines((prev) => prev.filter((x) => x.product_id !== l.product_id))
+                        }
+                      >
+                        ✕
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </>
       )}
 
-      {order && (
-        <div className={cls.refundDest}>
-          <label className={cls.radio}>
-            <input type="radio" checked={restock} onChange={() => setRestock(true)} />
-            {t("orders.restock")}
-          </label>
-          <label className={cls.radio}>
-            <input type="radio" checked={!restock} onChange={() => setRestock(false)} />
-            {t("orders.holdRefunded")}
-          </label>
-        </div>
-      )}
+      <div className={cls.refundDest}>
+        <label className={cls.radio}>
+          <input type="radio" checked={restock} onChange={() => setRestock(true)} />
+          {t("orders.restock")}
+        </label>
+        <label className={cls.radio}>
+          <input type="radio" checked={!restock} onChange={() => setRestock(false)} />
+          {t("orders.holdRefunded")}
+        </label>
+      </div>
 
       <label className={cls.cx(cls.field, cls.fieldFull)} style={{ marginTop: 10 }}>
         <span>{t("orders.note")}</span>
@@ -271,10 +416,7 @@ function CreateReturnModal({ onClose }: { onClose: () => void }) {
       {create.error && <ErrorBox error={create.error} />}
       <div className={cls.modalActions}>
         <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-        <Button
-          disabled={!order || !anySelected || create.isPending}
-          onClick={() => create.mutate()}
-        >
+        <Button disabled={!canSubmit || create.isPending} onClick={() => create.mutate()}>
           {create.isPending ? t("common.saving") : t("returns.create")}
         </Button>
       </div>

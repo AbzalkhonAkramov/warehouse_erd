@@ -14,7 +14,6 @@ Order _parseOrder(Map<String, dynamic> j) {
     customerName: j['customer_name'] as String?,
     customerAddress: j['customer_address'] as String?,
     subtotal: _toDouble(j['subtotal']),
-    discount: _toDouble(j['discount']),
     total: _toDouble(j['total']),
     deliverer: j['deliverer'] as String?,
     invoiceNumber: j['invoice_number'] as String?,

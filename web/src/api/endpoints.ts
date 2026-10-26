@@ -3,11 +3,9 @@ import type {
   ActivityEntry,
   Analytics,
   AgentSalesRow,
-  AgentCash,
   PurchaseOrder,
   PurchaseOrderStatus,
   Supplier,
-  CashRemittance,
   ReturnRequest,
   Category,
   CommissionRow,
@@ -16,10 +14,6 @@ import type {
   Customer,
   DashboardData,
   DebtRow,
-  Invoice,
-  InvoiceDetail,
-  Payment,
-  PaymentMethod,
   PhotoReport,
   Product,
   ProductHistoryEntry,
@@ -29,6 +23,8 @@ import type {
   RefundEntry,
   OrderStatusHistory,
   StockRow,
+  StockCountDetail,
+  StockCountSummary,
   TelegramTopic,
   TelegramUpdateHint,
   User,
@@ -128,6 +124,33 @@ export interface StockImportResult {
   skipped: number;
   errors: string[];
 }
+// --- Inventory counts (stocktaking) ---
+export const listStockCounts = () =>
+  api<StockCountSummary[]>("/inventory/counts");
+export const getStockCount = (id: number) =>
+  api<StockCountDetail>(`/inventory/counts/${id}`);
+export const startStockCount = (note?: string | null) =>
+  api<StockCountDetail>("/inventory/counts", {
+    method: "POST",
+    body: { note: note ?? null },
+  });
+export interface StockCountLineIn {
+  product_id: number;
+  counted_qty: string | null;
+}
+export const saveStockCountLines = (id: number, lines: StockCountLineIn[]) =>
+  api<StockCountDetail>(`/inventory/counts/${id}/lines`, {
+    method: "PUT",
+    body: { lines },
+  });
+export const completeStockCount = (id: number, lines: StockCountLineIn[]) =>
+  api<StockCountDetail>(`/inventory/counts/${id}/complete`, {
+    method: "POST",
+    body: { lines },
+  });
+export const cancelStockCount = (id: number) =>
+  api<StockCountDetail>(`/inventory/counts/${id}/cancel`, { method: "POST" });
+
 export const downloadStockTemplate = () =>
   downloadFile("/inventory/stock-template", "stock-template.xlsx");
 export const importStock = (file: File) => {
@@ -170,6 +193,8 @@ export interface CustomerInput {
   city?: string;
   visit_days?: string | null;
   credit_limit?: string;
+  /** Market debt — set manually by the manager. */
+  debt?: string;
   region_id?: number | null;
   agent_ids?: number[];
 }
@@ -200,7 +225,6 @@ export interface OrderLineInput {
 export interface CreateOrderInput {
   customer_id: number;
   agent_id?: number;
-  discount?: string;
   note?: string;
   lines: OrderLineInput[];
 }
@@ -234,7 +258,6 @@ export const getCompany = () => api<Company>("/meta/company");
 export const updateCompany = (body: {
   name?: string;
   display_mode?: string;
-  cash_handover_mode?: string;
   excel_lang?: string;
 }) => api<Company>("/meta/company", { method: "PATCH", body });
 
@@ -242,7 +265,10 @@ export const updateCompany = (body: {
 export const listReturns = (status?: string) =>
   api<ReturnRequest[]>(`/returns${status ? `?status_filter=${status}` : ""}`);
 export const createReturn = (body: {
-  sales_order_id: number;
+  // By order: sales_order_id. By market+SKU: customer_id + agent_id.
+  sales_order_id?: number;
+  customer_id?: number;
+  agent_id?: number | null;
   lines: { product_id: number; quantity: string }[];
   restock: boolean;
   note?: string | null;
@@ -252,19 +278,6 @@ export const approveReturn = (id: number, restock: boolean) =>
 export const rejectReturn = (id: number) =>
   api<ReturnRequest>(`/returns/${id}/reject`, { method: "POST" });
 
-// --- Cash custody / handovers ---
-export const listAgentsCash = () => api<AgentCash[]>("/cash/agents");
-export const receiveCash = (agent_id: number, amount: string, note?: string) =>
-  api<CashRemittance>("/cash/receive", {
-    method: "POST",
-    body: { agent_id, amount, note },
-  });
-export const listRemittances = (agentId?: number) =>
-  api<CashRemittance[]>(`/cash/remittances${agentId ? `?agent_id=${agentId}` : ""}`);
-export const confirmRemittance = (id: number) =>
-  api<CashRemittance>(`/cash/remittances/${id}/confirm`, { method: "POST" });
-export const rejectRemittance = (id: number) =>
-  api<unknown>(`/cash/remittances/${id}/reject`, { method: "POST" });
 export const uploadCompanyLogo = (file: File) => {
   const form = new FormData();
   form.append("file", file);
@@ -286,6 +299,20 @@ export const updateOrder = (id: number, body: UpdateOrderInput) =>
   api<SalesOrder>(`/sales-orders/${id}`, { method: "PATCH", body });
 export const moveOrder = (id: number, body: MoveInput) =>
   api<SalesOrder>(`/sales-orders/${id}/move`, { method: "POST", body });
+export const archiveOrder = (id: number) =>
+  api<SalesOrder>(`/sales-orders/${id}/archive`, { method: "POST" });
+export const unarchiveOrder = (id: number) =>
+  api<SalesOrder>(`/sales-orders/${id}/unarchive`, { method: "POST" });
+export const bulkMoveOrders = (ids: number[], status: SalesOrderStatus) =>
+  api<{ moved: number; failed: Record<number, string> }>("/sales-orders/bulk-move", {
+    method: "POST",
+    body: { ids, status },
+  });
+// Receipt downloads (.xlsx, 2 copies side by side, landscape).
+export const downloadReceipt = (id: number, orderNo?: string) =>
+  downloadFile(`/sales-orders/${id}/receipt.xlsx`, `receipt-${orderNo ?? id}.xlsx`);
+export const downloadReceiptsBulk = (ids: number[]) =>
+  downloadFile(`/sales-orders/receipts.xlsx?ids=${ids.join(",")}`, "receipts.xlsx");
 
 export const listRefunds = (filters: RefundFilters = {}) => {
   const p = new URLSearchParams();
@@ -301,17 +328,6 @@ export const listStatusHistory = (orderId?: number, tree = false) => {
   if (tree) p.set("tree", "true");
   const qs = p.toString();
   return api<OrderStatusHistory[]>(`/sales-orders/status-history${qs ? `?${qs}` : ""}`);
-};
-
-// --- Finance ---
-export const listInvoices = () => api<Invoice[]>("/invoices");
-export const getInvoice = (id: number) => api<InvoiceDetail>(`/invoices/${id}`);
-export const recordPayment = (invoice_id: number, amount: string, method: PaymentMethod) =>
-  api<unknown>("/payments", { method: "POST", body: { invoice_id, amount, method } });
-export const uploadPaymentImage = (paymentId: number, file: File) => {
-  const form = new FormData();
-  form.append("file", file);
-  return api<Payment>(`/payments/${paymentId}/image`, { method: "POST", body: form });
 };
 
 // --- Activity log (super-admin) ---

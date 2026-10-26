@@ -76,6 +76,7 @@ const GROUPS: NavGroup[] = [
       { to: "/create", labelKey: "nav.create" },
       { to: "/products", labelKey: "nav.products" },
       { to: "/incoming", labelKey: "nav.incoming", roles: ["manager", "warehouse"] },
+      { to: "/inventory", labelKey: "nav.inventory", roles: ["manager", "warehouse"] },
     ],
   },
   {
@@ -84,13 +85,6 @@ const GROUPS: NavGroup[] = [
       { to: "/customers", labelKey: "nav.customers" },
       { to: "/agents", labelKey: "nav.agents", roles: ["manager"] },
       { to: "/suppliers", labelKey: "nav.suppliers", roles: ["manager", "warehouse", "accountant"] },
-    ],
-  },
-  {
-    labelKey: "nav.group.finance",
-    items: [
-      { to: "/invoices", labelKey: "nav.invoices" },
-      { to: "/cash", labelKey: "nav.cash", roles: ["manager", "accountant"] },
     ],
   },
   {

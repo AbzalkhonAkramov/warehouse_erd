@@ -4,38 +4,20 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../l10n/l10n_ext.dart';
 import '../../l10n/language_switcher.dart';
 import '../auth/presentation/bloc/auth_bloc.dart';
-import '../cash/presentation/pages/cash_page.dart';
-import '../finance/presentation/pages/invoices_page.dart';
 import '../orders/presentation/pages/orders_page.dart';
 import '../settings/presentation/pages/settings_page.dart';
 
-/// Home for the DELIVERER role: their assigned deliveries, money collection
-/// (invoices/payments), and cash handover to the manager.
-class DelivererHomePage extends StatefulWidget {
+/// Home for the DELIVERER role: their assigned deliveries. The backend returns
+/// only this deliverer's orders. (Finance/cash were removed from the project.)
+class DelivererHomePage extends StatelessWidget {
   const DelivererHomePage({super.key});
-
-  @override
-  State<DelivererHomePage> createState() => _DelivererHomePageState();
-}
-
-class _DelivererHomePageState extends State<DelivererHomePage> {
-  int _index = 0;
-
-  // Deliveries reuses the orders list (backend returns only this deliverer's
-  // orders); Invoices = payment collection; Cash = handover to the manager.
-  static const _pages = [OrdersPage(), InvoicesPage(), CashPage()];
 
   @override
   Widget build(BuildContext context) {
     final agent = context.select((AuthBloc b) => b.state.agent);
-    final titles = [
-      context.tr('deliverer.deliveries'),
-      context.tr('home.finance'),
-      context.tr('cash.title'),
-    ];
     return Scaffold(
       appBar: AppBar(
-        title: Text(titles[_index]),
+        title: Text(context.tr('deliverer.deliveries')),
         actions: [
           const LanguageSwitcher(),
           IconButton(
@@ -86,22 +68,7 @@ class _DelivererHomePageState extends State<DelivererHomePage> {
           ),
         ],
       ),
-      body: IndexedStack(index: _index, children: _pages),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
-        destinations: [
-          NavigationDestination(
-              icon: const Icon(Icons.local_shipping_outlined),
-              label: context.tr('deliverer.deliveries')),
-          NavigationDestination(
-              icon: const Icon(Icons.account_balance_wallet_outlined),
-              label: context.tr('tab.finance')),
-          NavigationDestination(
-              icon: const Icon(Icons.payments_outlined),
-              label: context.tr('cash.drawer')),
-        ],
-      ),
+      body: const OrdersPage(),
     );
   }
 }

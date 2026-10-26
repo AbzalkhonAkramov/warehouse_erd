@@ -36,16 +36,6 @@ import '../../features/photo_report/data/datasources/photo_remote_data_source.da
 import '../../features/photo_report/data/repositories/photo_repository_impl.dart';
 import '../../features/photo_report/domain/repositories/photo_repository.dart';
 import '../../features/photo_report/presentation/bloc/photo_report_bloc.dart';
-// Finance (invoices & payments)
-import '../../features/finance/data/datasources/finance_remote_data_source.dart';
-import '../../features/finance/data/repositories/finance_repository_impl.dart';
-import '../../features/finance/domain/repositories/finance_repository.dart';
-import '../../features/finance/presentation/cubit/invoices_cubit.dart';
-// Cash custody
-import '../../features/cash/data/datasources/cash_remote_data_source.dart';
-import '../../features/cash/data/repositories/cash_repository_impl.dart';
-import '../../features/cash/domain/repositories/cash_repository.dart';
-import '../../features/cash/presentation/cubit/cash_cubit.dart';
 // Product returns
 import '../../features/returns/data/returns_remote_data_source.dart';
 import '../../features/returns/data/returns_repository_impl.dart';
@@ -95,16 +85,6 @@ void configureDependencies() {
   sl.registerLazySingleton(() => PhotoRemoteDataSource(sl()));
   sl.registerLazySingleton<PhotoRepository>(() => PhotoRepositoryImpl(sl()));
   sl.registerFactory(() => PhotoReportBloc(sl(), sl(), sl()));
-
-  // Finance (invoices & payments)
-  sl.registerLazySingleton(() => FinanceRemoteDataSource(sl()));
-  sl.registerLazySingleton<FinanceRepository>(() => FinanceRepositoryImpl(sl()));
-  sl.registerFactory(() => InvoicesCubit(sl(), sl()));
-
-  // Cash custody
-  sl.registerLazySingleton(() => CashRemoteDataSource(sl()));
-  sl.registerLazySingleton<CashRepository>(() => CashRepositoryImpl(sl()));
-  sl.registerFactory(() => CashCubit(sl()));
 
   // Product returns
   sl.registerLazySingleton(() => ReturnsRemoteDataSource(sl()));

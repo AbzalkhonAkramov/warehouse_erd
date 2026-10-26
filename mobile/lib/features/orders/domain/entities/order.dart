@@ -34,7 +34,6 @@ class Order extends Equatable {
     required this.status,
     required this.customerId,
     required this.subtotal,
-    required this.discount,
     required this.total,
     required this.createdAt,
     this.customerName,
@@ -51,7 +50,6 @@ class Order extends Equatable {
   final String? customerName; // market (shop) name
   final String? customerAddress; // where to deliver
   final double subtotal;
-  final double discount;
   final double total;
   final DateTime createdAt;
   final String? deliverer;

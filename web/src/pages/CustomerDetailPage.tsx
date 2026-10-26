@@ -34,6 +34,7 @@ export default function CustomerDetailPage() {
     address: "",
     city: "",
     credit_limit: "0",
+    debt: "0",
     region_id: "",
   });
   const [agentIds, setAgentIds] = useState<Set<number>>(new Set());
@@ -51,6 +52,7 @@ export default function CustomerDetailPage() {
         address: c.address ?? "",
         city: c.city ?? "",
         credit_limit: String(c.credit_limit ?? "0"),
+        debt: String(c.debt ?? "0"),
         region_id: c.region_id ? String(c.region_id) : "",
       });
       setAgentIds(new Set(c.agent_ids ?? []));
@@ -79,6 +81,7 @@ export default function CustomerDetailPage() {
         city: form.city || undefined,
         visit_days: WEEKDAYS.filter((d) => visitDays.has(d)).join(",") || null,
         credit_limit: form.credit_limit,
+        debt: form.debt,
         region_id: form.region_id ? Number(form.region_id) : null,
         agent_ids: [...agentIds],
       }),
@@ -143,6 +146,11 @@ export default function CustomerDetailPage() {
             <span>{t("col.creditLimit")}</span>
             <input type="number" step="0.01" value={form.credit_limit} disabled={!canEdit}
               onChange={(e) => setForm({ ...form, credit_limit: e.target.value })} />
+          </label>
+          <label className={cls.field}>
+            <span>{t("col.debt")}</span>
+            <input type="number" step="0.01" value={form.debt} disabled={!canEdit}
+              onChange={(e) => setForm({ ...form, debt: e.target.value })} />
           </label>
           <label className={cls.cx(cls.field, cls.fieldFull)}>
             <span>{t("field.address")}</span>

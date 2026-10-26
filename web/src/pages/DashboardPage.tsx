@@ -28,7 +28,7 @@ export default function DashboardPage() {
           <Stat label={t("dashboard.stockValue")} value={money(d.stock_value)} />
         </Card>
         <Card>
-          <Link to="/invoices" className={cls.plainLink}>
+          <Link to="/customers" className={cls.plainLink}>
             <Stat label={t("dashboard.totalDebt")} value={money(d.total_debt)} accent="#b91c1c" />
           </Link>
         </Card>

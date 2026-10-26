@@ -74,7 +74,6 @@ class _ReceiptPageState extends State<ReceiptPage> {
         'unit': context.tr('col.unitPrice'),
         'lineTotal': context.tr('col.lineTotal'),
         'subtotal': context.tr('receipt.subtotal'),
-        'discount': context.tr('receipt.discount'),
         'total': context.tr('order.total'),
         'statusLabel': context.tr('status.${_order!.status}'),
       };
@@ -156,7 +155,6 @@ class _ReceiptPageState extends State<ReceiptPage> {
                 crossAxisAlignment: pw.CrossAxisAlignment.end,
                 children: [
                   pw.Text('${l['subtotal']}: ${o.subtotal.toStringAsFixed(2)}'),
-                  pw.Text('${l['discount']}: ${o.discount.toStringAsFixed(2)}'),
                   pw.Text('${l['total']}: ${o.total.toStringAsFixed(2)}',
                       style: pw.TextStyle(
                           fontWeight: pw.FontWeight.bold, fontSize: 14)),
@@ -282,7 +280,6 @@ class _ReceiptBody extends StatelessWidget {
             )),
         const Divider(),
         _row(context.tr('receipt.subtotal'), money(order.subtotal)),
-        _row(context.tr('receipt.discount'), money(order.discount)),
         Align(
           alignment: Alignment.centerRight,
           child: Text('${context.tr('order.total')}: ${money(order.total)}',

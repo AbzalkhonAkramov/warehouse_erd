@@ -4,12 +4,11 @@ from app.api.routers import (
     activity,
     agents,
     auth,
-    cash,
     catalog,
     currencies,
     customers,
-    finance,
     inventory,
+    inventory_counts,
     meta,
     photo_reports,
     products,
@@ -32,10 +31,9 @@ api_router.include_router(products.router)
 api_router.include_router(customers.router)
 api_router.include_router(regions.router)
 api_router.include_router(inventory.router)
+api_router.include_router(inventory_counts.router)
 api_router.include_router(purchasing.router)
 api_router.include_router(sales_orders.router)
-api_router.include_router(finance.router)
-api_router.include_router(cash.router)
 api_router.include_router(returns.router)
 api_router.include_router(agents.router)
 api_router.include_router(telegram_topics.router)

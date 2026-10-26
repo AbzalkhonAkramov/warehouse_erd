@@ -11,7 +11,6 @@ import '../../../orders/presentation/pages/receipt_page.dart';
 import '../../../photo_report/presentation/pages/photo_report_page.dart';
 import '../../domain/entities/customer.dart';
 import '../widgets/visit_day_picker.dart';
-import 'market_invoices_page.dart';
 import 'market_orders_page.dart';
 
 /// Market (shop) profile: a grid of field services (desktop-parity), the client
@@ -57,50 +56,14 @@ class _MarketProfilePageState extends State<MarketProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    final overLimit = c.creditLimit > 0 && c.debt > c.creditLimit;
-
     return Scaffold(
       appBar: AppBar(
         title: Text(context.tr('market.profile')),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(20),
-              onTap: () => _push(MarketInvoicesPage(
-                customerId: c.id,
-                customerName: c.name,
-                title: context.tr('market.balance'),
-                unpaidOnly: true,
-              )),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                child: Row(
-                  children: [
-                    Icon(Icons.account_balance_wallet,
-                        size: 18,
-                        color: overLimit ? AppColors.danger : Colors.white),
-                    const SizedBox(width: 6),
-                    Text(
-                      money(c.debt),
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: overLimit ? AppColors.danger : Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           _header(context),
-          const SizedBox(height: 16),
-          _debtCard(context, overLimit),
           const SizedBox(height: 20),
           Text(context.tr('market.deliveredOrders'),
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
@@ -161,48 +124,6 @@ class _MarketProfilePageState extends State<MarketProfilePage> {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _debtCard(BuildContext context, bool overLimit) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          children: [
-            Icon(Icons.account_balance_wallet_outlined,
-                color: overLimit ? AppColors.danger : AppColors.neutral),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(context.tr('market.debt'),
-                    style: const TextStyle(
-                        color: AppColors.neutral, fontSize: 12)),
-                Text(
-                  money(c.debt),
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: overLimit ? AppColors.danger : AppColors.brand,
-                  ),
-                ),
-              ],
-            ),
-            const Spacer(),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(context.tr('market.limit'),
-                    style: const TextStyle(
-                        color: AppColors.neutral, fontSize: 12)),
-                Text(money(c.creditLimit),
-                    style: const TextStyle(fontWeight: FontWeight.w600)),
-              ],
-            ),
-          ],
         ),
       ),
     );

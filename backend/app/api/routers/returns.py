@@ -45,7 +45,7 @@ async def _to_out(db: AsyncSession, r: ReturnRequest) -> ReturnRequestOut:
     out = ReturnRequestOut.model_validate(r)
     out.customer_name = customer.name if customer else None
     out.agent_name = agent.full_name if agent else None
-    out.order_no = str(r.sales_order_id)
+    out.order_no = str(r.sales_order_id) if r.sales_order_id else None
     for ln in out.lines:
         ln.product_name = names.get(ln.product_id)
     return out
@@ -57,39 +57,70 @@ async def create_return(
     db: AsyncSession = Depends(get_db),
     manager: User = Depends(require_roles(UserRole.MANAGER)),
 ) -> ReturnRequestOut:
-    """Manager records a product return against an order and applies it at once
-    (cuts debt + restock/hold). Returns are fully manager-driven; the manager
-    enters the data."""
-    order = await db.get(SalesOrder, data.sales_order_id)
-    if order is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Order not found")
-
-    req = ReturnRequest(
-        customer_id=order.customer_id,
-        sales_order_id=order.id,
-        agent_id=order.agent_id,  # the order's agent, not the manager
-        status=ReturnRequestStatus.PENDING,
-        note=data.note,
-    )
-    req.lines = [
-        ReturnRequestLine(product_id=ln.product_id, quantity=ln.quantity)
-        for ln in data.lines
-    ]
-    db.add(req)
-    await db.flush()
-
-    # Apply the refund immediately through the standard flow.
-    await sales_service.move_order(
-        db,
-        manager,
-        order.id,
-        StatusMoveRequest(
-            status=SalesOrderStatus.REFUND,
-            lines=[RefundLineIn(product_id=ln.product_id, quantity=ln.quantity) for ln in req.lines],
-            restock=data.restock,
+    """Manager records a product return and applies it at once (restock/hold). Two
+    modes: against a specific order (sales_order_id), or by market + SKU
+    (customer_id + manager-picked agent_id). Returns are fully manager-driven."""
+    if data.sales_order_id is not None:
+        # --- By order: apply the refund through the standard sales flow. ---
+        order = await db.get(SalesOrder, data.sales_order_id)
+        if order is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Order not found")
+        req = ReturnRequest(
+            customer_id=order.customer_id,
+            sales_order_id=order.id,
+            agent_id=order.agent_id,  # the order's agent, not the manager
+            status=ReturnRequestStatus.PENDING,
             note=data.note,
-        ),
-    )
+        )
+        req.lines = [
+            ReturnRequestLine(product_id=ln.product_id, quantity=ln.quantity)
+            for ln in data.lines
+        ]
+        db.add(req)
+        await db.flush()
+        await sales_service.move_order(
+            db,
+            manager,
+            order.id,
+            StatusMoveRequest(
+                status=SalesOrderStatus.REFUND,
+                lines=[RefundLineIn(product_id=ln.product_id, quantity=ln.quantity) for ln in req.lines],
+                restock=data.restock,
+                note=data.note,
+            ),
+        )
+    elif data.customer_id is not None:
+        # --- By market + SKU: no order; restock/hold and record refunded goods. ---
+        customer = await db.get(Customer, data.customer_id)
+        if customer is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Customer not found")
+        req = ReturnRequest(
+            customer_id=customer.id,
+            sales_order_id=None,
+            agent_id=data.agent_id,  # the manager picks which agent it came from
+            status=ReturnRequestStatus.PENDING,
+            note=data.note,
+        )
+        req.lines = [
+            ReturnRequestLine(product_id=ln.product_id, quantity=ln.quantity)
+            for ln in data.lines
+        ]
+        db.add(req)
+        await db.flush()
+        await sales_service.record_market_return(
+            db,
+            manager,
+            customer.id,
+            data.agent_id,
+            [(ln.product_id, ln.quantity) for ln in req.lines],
+            data.restock,
+        )
+    else:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "Provide either sales_order_id or customer_id",
+        )
+
     req.status = ReturnRequestStatus.APPROVED
     req.reviewed_by_id = manager.id
     req.reviewed_at = datetime.now(timezone.utc)

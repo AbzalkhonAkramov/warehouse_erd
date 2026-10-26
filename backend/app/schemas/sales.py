@@ -22,7 +22,6 @@ class SalesOrderCreate(BaseModel):
     # blank and the order is filed under their own account.
     agent_id: int | None = None
     warehouse_id: int | None = None  # defaults to the default warehouse
-    discount: Decimal = Decimal("0")
     note: str | None = None
     lines: list[SalesOrderLineCreate] = Field(min_length=1)
 
@@ -83,7 +82,6 @@ class SalesOrderOut(BaseModel):
     warehouse_id: int
     status: SalesOrderStatus
     subtotal: Decimal
-    discount: Decimal
     total: Decimal
     note: str | None
     deliverer: str | None
@@ -131,7 +129,7 @@ class RefundEntryOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    sales_order_id: int
+    sales_order_id: int | None = None
     product_id: int
     product_name: str | None = None
     customer_id: int

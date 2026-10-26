@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/di/injection.dart';
-import '../../../../core/format.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/state_views.dart';
 import '../../../../l10n/l10n_ext.dart';
@@ -218,11 +217,6 @@ class _CustomerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final overLimit =
-        customer.creditLimit > 0 && customer.debt > customer.creditLimit;
-    final debtColor = overLimit
-        ? AppColors.danger
-        : (customer.debt > 0 ? const Color(0xFF0F172A) : AppColors.success);
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       child: InkWell(
@@ -282,23 +276,7 @@ class _CustomerCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text('${context.tr('customers.debt')} ${money(customer.debt)}',
-                      style: TextStyle(
-                          color: debtColor,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14)),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${context.tr('customers.limit')} ${money(customer.creditLimit)}',
-                    style:
-                        const TextStyle(fontSize: 11, color: AppColors.neutral),
-                  ),
-                ],
-              ),
+              const Icon(Icons.chevron_right, color: AppColors.neutral),
             ],
           ),
         ),

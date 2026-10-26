@@ -48,16 +48,10 @@ class StockMovementType(str, enum.Enum):
     RETURN_OUT = "return_out"  # return to supplier
 
 
-class InvoiceStatus(str, enum.Enum):
-    UNPAID = "unpaid"
-    PARTIAL = "partial"
-    PAID = "paid"
-
-
-class PaymentMethod(str, enum.Enum):
-    CASH = "cash"
-    TRANSFER = "transfer"
-    CARD = "card"
+class StockCountStatus(str, enum.Enum):
+    OPEN = "open"            # count in progress, quantities being entered
+    COMPLETED = "completed"  # counted quantities applied to stock
+    CANCELLED = "cancelled"  # abandoned without applying
 
 
 class PhotoStage(str, enum.Enum):
@@ -69,11 +63,6 @@ class PhotoReportStatus(str, enum.Enum):
     PENDING = "pending"   # saved, not yet sent to Telegram
     SENT = "sent"         # all images delivered to the topic
     FAILED = "failed"     # Telegram send failed; can be retried
-
-
-class CashRemittanceStatus(str, enum.Enum):
-    PENDING = "pending"    # agent declared a handover, awaiting manager confirmation
-    RECEIVED = "received"  # manager confirmed receipt (money now with manager)
 
 
 class ReturnRequestStatus(str, enum.Enum):

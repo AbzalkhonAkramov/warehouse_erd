@@ -3,11 +3,15 @@ import * as cls from "../ui/cls";
 import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  archiveOrder,
+  bulkMoveOrders,
+  downloadReceiptsBulk,
   listCustomers,
   listOrders,
   listProducts,
   listUsers,
   moveOrder,
+  unarchiveOrder,
   updateOrder,
   type MoveLineInput,
 } from "../api/endpoints";
@@ -68,6 +72,11 @@ export default function OrdersPage() {
   const [moveRows, setMoveRows] = useState<Record<number, MoveRow>>({});
   const [restock, setRestock] = useState(true);
 
+  // Bulk selection (checkboxes) for mass status move + receipt printing.
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [bulkStatus, setBulkStatus] = useState<SalesOrderStatus>("shipped");
+  const [printing, setPrinting] = useState(false);
+
   const isArchived = filter === "archived";
   const orders = useQuery({
     queryKey: ["orders", filter],
@@ -123,7 +132,7 @@ export default function OrdersPage() {
   }
 
   function refresh() {
-    ["orders", "dashboard", "invoices", "refunds"].forEach((k) =>
+    ["orders", "dashboard", "refunds"].forEach((k) =>
       qc.invalidateQueries({ queryKey: [k] }),
     );
   }
@@ -133,6 +142,46 @@ export default function OrdersPage() {
   const saveDeliverer = useMutation({
     mutationFn: (o: SalesOrder) =>
       updateOrder(o.id, { deliverer_id: editDelivererId === "" ? undefined : editDelivererId }),
+    onSuccess: refresh,
+    onError,
+  });
+
+  const bulkMove = useMutation({
+    mutationFn: () => bulkMoveOrders([...selected], bulkStatus),
+    onSuccess: () => {
+      setSelected(new Set());
+      refresh();
+    },
+    onError,
+  });
+
+  async function printReceipts() {
+    if (selected.size === 0) return;
+    setPrinting(true);
+    try {
+      await downloadReceiptsBulk([...selected]);
+    } catch (e) {
+      onError(e);
+    } finally {
+      setPrinting(false);
+    }
+  }
+
+  function toggleSel(id: number) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  const archive = useMutation({
+    mutationFn: (o: SalesOrder) => archiveOrder(o.id),
+    onSuccess: refresh,
+    onError,
+  });
+  const unarchive = useMutation({
+    mutationFn: (o: SalesOrder) => unarchiveOrder(o.id),
     onSuccess: refresh,
     onError,
   });
@@ -265,6 +314,38 @@ export default function OrdersPage() {
 
       {actionError && <div className={cls.errorBox}>{actionError}</div>}
 
+      {selected.size > 0 && (
+        <div className={cls.cx(cls.filterRow)} style={{ alignItems: "center" }}>
+          <strong>{t("orders.selectedN", { n: selected.size })}</strong>
+          {isManager && (
+            <>
+              <label className={cls.inlineField}>
+                {t("orders.moveTo")}
+                <select
+                  value={bulkStatus}
+                  onChange={(e) => setBulkStatus(e.target.value as SalesOrderStatus)}
+                >
+                  {MOVE_TARGETS.map((s) => (
+                    <option key={s} value={s}>
+                      {t(`status.${s}`)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <Button disabled={bulkMove.isPending} onClick={() => bulkMove.mutate()}>
+                {bulkMove.isPending ? t("common.saving") : t("orders.bulkMove")}
+              </Button>
+            </>
+          )}
+          <Button variant="ghost" disabled={printing} onClick={printReceipts}>
+            🖨 {printing ? t("common.saving") : t("orders.bulkPrint")}
+          </Button>
+          <Button variant="ghost" onClick={() => setSelected(new Set())}>
+            {t("orders.clearSelection")}
+          </Button>
+        </div>
+      )}
+
       <Card>
         {orders.isLoading ? (
           <Spinner />
@@ -274,6 +355,15 @@ export default function OrdersPage() {
           <table className={cls.table}>
             <thead>
               <tr>
+                <th style={{ width: 32 }}>
+                  <input
+                    type="checkbox"
+                    checked={shownOrders.length > 0 && shownOrders.every((o) => selected.has(o.id))}
+                    onChange={(e) =>
+                      setSelected(e.target.checked ? new Set(shownOrders.map((o) => o.id)) : new Set())
+                    }
+                  />
+                </th>
                 <th>#</th>
                 <th>{t("col.customer")}</th>
                 <th>{t("col.agent")}</th>
@@ -287,6 +377,13 @@ export default function OrdersPage() {
               {shownOrders.map((o) => (
                 <Fragment key={o.id}>
                   <tr className={cls.clickable} onClick={() => openRow(o)}>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selected.has(o.id)}
+                        onChange={() => toggleSel(o.id)}
+                      />
+                    </td>
                     <td className={cls.mono}>{o.order_no ?? o.id}</td>
                     <td>{customerName(o.customer_id)}</td>
                     <td>{o.agent_name ?? agentName(o.agent_id)}</td>
@@ -299,7 +396,7 @@ export default function OrdersPage() {
                   </tr>
                   {expanded === o.id && (
                     <tr className={cls.detailRowTd}>
-                      <td colSpan={7}>
+                      <td colSpan={8}>
                         <div className={cls.orderDetail}>
                           {o.parent_order_id && (
                             <p className={cls.note}>
@@ -357,6 +454,20 @@ export default function OrdersPage() {
                               }}
                             >
                               🕓 {t("orders.fullHistory")}
+                            </Button>
+                          )}
+                          {isManager && (
+                            <Button
+                              variant="ghost"
+                              disabled={archive.isPending || unarchive.isPending}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                (isArchived ? unarchive : archive).mutate(o);
+                              }}
+                            >
+                              {isArchived
+                                ? `↩️ ${t("orders.unarchive")}`
+                                : `🗄️ ${t("orders.archive")}`}
                             </Button>
                           )}
 

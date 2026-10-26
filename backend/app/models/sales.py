@@ -95,9 +95,6 @@ class SalesOrder(Base, TimestampMixin):
     lines: Mapped[list["SalesOrderLine"]] = relationship(
         back_populates="order", cascade="all, delete-orphan"
     )
-    invoice: Mapped["Invoice | None"] = relationship(  # noqa: F821
-        back_populates="order", uselist=False
-    )
 
 
 class SalesOrderLine(Base):
@@ -133,7 +130,8 @@ class RefundEntry(Base, TimestampMixin):
     __tablename__ = "refund_entries"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    sales_order_id: Mapped[int] = mapped_column(ForeignKey("sales_orders.id"), nullable=False)
+    # Null for a market+SKU return not tied to a specific order.
+    sales_order_id: Mapped[int | None] = mapped_column(ForeignKey("sales_orders.id"))
     product_id: Mapped[int] = mapped_column(ForeignKey("products.id"), nullable=False)
     customer_id: Mapped[int] = mapped_column(ForeignKey("customers.id"), nullable=False)
     agent_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
@@ -174,7 +172,8 @@ class ReturnRequest(Base, TimestampMixin):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     customer_id: Mapped[int] = mapped_column(ForeignKey("customers.id"), nullable=False)
-    sales_order_id: Mapped[int] = mapped_column(ForeignKey("sales_orders.id"), nullable=False)
+    # Null for a market+SKU return not tied to a specific order.
+    sales_order_id: Mapped[int | None] = mapped_column(ForeignKey("sales_orders.id"))
     agent_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
     status: Mapped[ReturnRequestStatus] = mapped_column(
         Enum(ReturnRequestStatus), default=ReturnRequestStatus.PENDING, nullable=False

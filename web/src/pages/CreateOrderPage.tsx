@@ -33,7 +33,6 @@ export default function CreateOrderPage() {
 
   const [agentId, setAgentId] = useState("");
   const [customerId, setCustomerId] = useState("");
-  const [discount, setDiscount] = useState("0");
   const [note, setNote] = useState("");
   const [lines, setLines] = useState<LineRow[]>([{ ...EMPTY_LINE }]);
   const [error, setError] = useState<string | null>(null);
@@ -73,12 +72,11 @@ export default function CreateOrderPage() {
   }, [products.data]);
 
   const total = useMemo(() => {
-    const sub = lines.reduce(
+    return lines.reduce(
       (acc, l) => acc + priceOf(l.product_id) * (parseFloat(l.quantity) || 0),
       0,
     );
-    return Math.max(sub - (parseFloat(discount) || 0), 0);
-  }, [lines, discount, priceOf]);
+  }, [lines, priceOf]);
 
   function setLine(i: number, patch: Partial<LineRow>) {
     setLines((rows) => rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
@@ -98,7 +96,6 @@ export default function CreateOrderPage() {
       return createOrder({
         customer_id: Number(customerId),
         agent_id: agentId ? Number(agentId) : undefined,
-        discount,
         note: note || undefined,
         lines: payload,
       });
@@ -209,17 +206,6 @@ export default function CreateOrderPage() {
           </Button>
 
           <div className={cls.formGrid} style={{ marginTop: "1rem" }}>
-            {canPickAgent && (
-              <label className={cls.field}>
-                <span>{t("createOrder.discount")}</span>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={discount}
-                  onChange={(e) => setDiscount(e.target.value)}
-                />
-              </label>
-            )}
             <label className={cls.cx(cls.field, cls.fieldFull)}>
               <span>{t("orders.note")}</span>
               <input value={note} onChange={(e) => setNote(e.target.value)} />

@@ -140,9 +140,6 @@ class OrderDetailPage extends StatelessWidget {
               child: Column(
                 children: [
                   _total(context.tr('receipt.subtotal'), money(order.subtotal)),
-                  if (order.discount > 0)
-                    _total(context.tr('receipt.discount'),
-                        '− ${money(order.discount)}'),
                   const Divider(height: 18),
                   _total(context.tr('order.total'), money(order.total),
                       bold: true),

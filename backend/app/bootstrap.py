@@ -37,6 +37,9 @@ _PRODUCT_COLUMN_MIGRATIONS = (
     # Individual supplier code (unique).
     "ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS code VARCHAR(32)",
     "CREATE UNIQUE INDEX IF NOT EXISTS ix_suppliers_code ON suppliers (code)",
+    # Returns may be recorded by market+SKU without a specific order.
+    "ALTER TABLE return_requests ALTER COLUMN sales_order_id DROP NOT NULL",
+    "ALTER TABLE refund_entries ALTER COLUMN sales_order_id DROP NOT NULL",
 )
 
 

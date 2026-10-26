@@ -1,7 +1,8 @@
 from collections import defaultdict
 from datetime import date, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased, selectinload
@@ -11,9 +12,9 @@ from app.core.database import get_db
 from app.core.refcodes import format_ref
 from app.models.catalog import Product
 from app.models.enums import SalesOrderStatus, UserRole
-from app.models.finance import Invoice
 from app.models.photo import PhotoReport, PhotoReportImage
 from app.models.sales import Customer, OrderStatusHistory, RefundEntry, SalesOrder
+from app.models.setting import CompanySettings
 from app.models.user import User
 from app.schemas.sales import (
     OrderPhotoOut,
@@ -24,7 +25,9 @@ from app.schemas.sales import (
     SalesOrderUpdate,
     StatusMoveRequest,
 )
-from app.services import sales_service
+from app.services import receipt_xlsx, sales_service
+
+_XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 router = APIRouter(prefix="/sales-orders", tags=["sales-orders"])
 
@@ -118,6 +121,95 @@ async def list_orders(
             for ln in row.lines:
                 ln.product_name = names.get(ln.product_id)
     return out
+
+
+async def _receipt_dicts(db: AsyncSession, orders: list[SalesOrder]) -> tuple[list[dict], str, str]:
+    """Build the plain dicts the Excel receipt generator expects, for the given orders."""
+    fork_no = _order_nos(await _parent_chain(db))
+    s = await db.scalar(select(CompanySettings).limit(1))
+    company_name = s.company_name if s else "ERP"
+    lang = s.excel_lang if s else "ru"
+
+    pids = {ln.product_id for o in orders for ln in o.lines}
+    pnames = (
+        dict((await db.execute(select(Product.id, Product.name).where(Product.id.in_(pids)))).all())
+        if pids else {}
+    )
+    cids = {o.customer_id for o in orders}
+    custs = {c.id: c for c in await db.scalars(select(Customer).where(Customer.id.in_(cids)))}
+    aids = {o.agent_id for o in orders}
+    anames = dict(
+        (await db.execute(select(User.id, User.full_name).where(User.id.in_(aids)))).all()
+    )
+
+    dicts: list[dict] = []
+    for o in orders:
+        cust = custs.get(o.customer_id)
+        dicts.append({
+            "order_no": _fmt_order_no(o.id, fork_no),
+            "date": o.created_at.strftime("%Y-%m-%d %H:%M"),
+            "status": o.status.value,
+            "customer_name": cust.name if cust else f"#{o.customer_id}",
+            "city": cust.city if cust else None,
+            "address": cust.address if cust else None,
+            "phone": cust.phone if cust else None,
+            "agent_name": anames.get(o.agent_id, f"#{o.agent_id}"),
+            "deliverer": o.deliverer,
+            "lines": [
+                {
+                    "name": pnames.get(ln.product_id, f"#{ln.product_id}"),
+                    "quantity": float(ln.quantity),
+                    "unit_price": float(ln.unit_price),
+                    "line_total": float(ln.line_total),
+                }
+                for ln in o.lines
+            ],
+            "total_qty": float(sum(ln.quantity for ln in o.lines)),
+            "subtotal": float(o.subtotal),
+            "total": float(o.total),
+        })
+    return dicts, company_name, lang
+
+
+async def _orders_for_receipt(db: AsyncSession, ids: list[int], user: User) -> list[SalesOrder]:
+    rows = list(
+        await db.scalars(
+            select(SalesOrder)
+            .where(SalesOrder.id.in_(ids))
+            .options(selectinload(SalesOrder.lines))
+        )
+    )
+    # Agents only get their own orders; deliverers only their assigned ones.
+    if user.role == UserRole.AGENT:
+        rows = [o for o in rows if o.agent_id == user.id]
+    elif user.role == UserRole.DELIVERER:
+        rows = [o for o in rows if o.deliverer_id == user.id]
+    by_id = {o.id: o for o in rows}
+    return [by_id[i] for i in ids if i in by_id]  # preserve requested order
+
+
+@router.get("/receipts.xlsx")
+async def bulk_receipts_xlsx(
+    ids: str = Query(..., description="Comma-separated order ids"),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> Response:
+    """One .xlsx with a receipt per order (2 copies side by side, landscape), each on
+    its own printable page — so a whole selection prints in one go."""
+    try:
+        id_list = [int(x) for x in ids.split(",") if x.strip()]
+    except ValueError:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid order ids") from None
+    orders = await _orders_for_receipt(db, id_list, user)
+    if not orders:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No matching orders")
+    dicts, name, lang = await _receipt_dicts(db, orders)
+    content = receipt_xlsx.build_receipts_xlsx(dicts, name, lang)
+    return Response(
+        content=content,
+        media_type=_XLSX_MIME,
+        headers={"Content-Disposition": 'attachment; filename="receipts.xlsx"'},
+    )
 
 
 @router.get("/refunds", response_model=list[RefundEntryOut])
@@ -223,7 +315,6 @@ async def get_order(
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Not your delivery")
 
     fork_no = _order_nos(await _parent_chain(db))
-    invoice = await db.scalar(select(Invoice.number).where(Invoice.sales_order_id == order.id))
 
     # Before/after photos pinned to this order, plus the agent's "important" flag.
     photo_rows = (
@@ -246,7 +337,6 @@ async def get_order(
     out.customer_name = customer.name if customer else None
     out.customer_address = customer.address if customer else None
     out.order_no = _fmt_order_no(order.id, fork_no)
-    out.invoice_number = invoice
     out.agent_photo_required = bool(agent_important)
     out.photos = [OrderPhotoOut(stage=s.value, link=link) for s, link in photo_rows]
     # Complete only when both stages actually reached Telegram (have a link).
@@ -297,3 +387,86 @@ async def move_order(
     """Move an order to a status. No lines = whole order; with lines a partial amount
     moves and the order forks (the rest keeps its old status)."""
     return await sales_service.move_order(db, manager, order_id, data)
+
+
+class BulkMoveRequest(BaseModel):
+    ids: list[int]
+    status: SalesOrderStatus
+
+
+class BulkMoveResult(BaseModel):
+    moved: int
+    failed: dict[int, str] = {}
+
+
+@router.post("/bulk-move", response_model=BulkMoveResult)
+async def bulk_move(
+    data: BulkMoveRequest,
+    db: AsyncSession = Depends(get_db),
+    manager: User = Depends(require_roles(UserRole.MANAGER)),
+) -> BulkMoveResult:
+    """Move several whole orders to a status in one go (checkbox selection)."""
+    moved = 0
+    failed: dict[int, str] = {}
+    for oid in data.ids:
+        try:
+            await sales_service.move_order(db, manager, oid, StatusMoveRequest(status=data.status))
+            moved += 1
+        except HTTPException as exc:
+            failed[oid] = str(exc.detail)
+    return BulkMoveResult(moved=moved, failed=failed)
+
+
+@router.get("/{order_id}/receipt.xlsx")
+async def receipt_xlsx_single(
+    order_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> Response:
+    """A single order's receipt as .xlsx (2 copies side by side, landscape)."""
+    orders = await _orders_for_receipt(db, [order_id], user)
+    if not orders:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Order not found")
+    dicts, name, lang = await _receipt_dicts(db, orders)
+    content = receipt_xlsx.build_receipts_xlsx(dicts, name, lang)
+    return Response(
+        content=content,
+        media_type=_XLSX_MIME,
+        headers={
+            "Content-Disposition": f'attachment; filename="receipt-{dicts[0]["order_no"]}.xlsx"'
+        },
+    )
+
+
+async def _set_archived(db: AsyncSession, order_id: int, value: bool) -> SalesOrder:
+    order = await db.scalar(
+        select(SalesOrder)
+        .where(SalesOrder.id == order_id)
+        .options(selectinload(SalesOrder.lines))
+    )
+    if order is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Order not found")
+    order.archived = value
+    await db.flush()
+    return order
+
+
+@router.post("/{order_id}/archive", response_model=SalesOrderOut)
+async def archive_order(
+    order_id: int,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_roles(UserRole.MANAGER)),
+) -> SalesOrder:
+    """Manually move an order to the archive. Archiving is a manual action — orders
+    are no longer archived automatically."""
+    return await _set_archived(db, order_id, True)
+
+
+@router.post("/{order_id}/unarchive", response_model=SalesOrderOut)
+async def unarchive_order(
+    order_id: int,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_roles(UserRole.MANAGER)),
+) -> SalesOrder:
+    """Return an order from the archive to the active list."""
+    return await _set_archived(db, order_id, False)

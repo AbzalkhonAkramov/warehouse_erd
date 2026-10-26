@@ -200,7 +200,6 @@ export interface Company {
   name: string;
   logo_url?: string | null;
   display_mode: "text" | "logo" | "both";
-  cash_handover_mode?: "manager_records" | "agent_submits";
   excel_lang?: "ru" | "uz" | "en";
 }
 
@@ -224,26 +223,6 @@ export interface ReturnRequest {
   lines: ReturnLine[];
 }
 
-export interface AgentCash {
-  agent_id: number;
-  agent_name: string;
-  collected: Money;
-  received: Money;
-  pending: Money;
-  outstanding: Money;
-}
-
-export interface CashRemittance {
-  id: number;
-  agent_id: number;
-  agent_name?: string | null;
-  amount: Money;
-  status: "pending" | "received";
-  note?: string | null;
-  created_at: string;
-  received_at?: string | null;
-  received_by_name?: string | null;
-}
 
 export interface SalesOrder {
   id: number;
@@ -260,7 +239,6 @@ export interface SalesOrder {
   warehouse_id: number;
   status: SalesOrderStatus;
   subtotal: Money;
-  discount: Money;
   total: Money;
   note?: string | null;
   deliverer?: string | null;
@@ -319,34 +297,6 @@ export interface OrderStatusHistory {
   created_at: string;
 }
 
-export type InvoiceStatus = "unpaid" | "partial" | "paid";
-
-export interface Invoice {
-  id: number;
-  number: string;
-  sales_order_id: number;
-  customer_id: number;
-  total: Money;
-  paid_amount: Money;
-  status: InvoiceStatus;
-  created_at: string;
-}
-
-export interface Payment {
-  id: number;
-  invoice_id: number;
-  amount: Money;
-  method: PaymentMethod;
-  collected_by_id: number | null;
-  collected_by_name: string | null;
-  collected_at: string;
-  note: string | null;
-  image_path: string | null;
-}
-
-export interface InvoiceDetail extends Invoice {
-  payments: Payment[];
-}
 
 export interface DashboardData {
   pending_orders: number;
@@ -380,8 +330,6 @@ export interface DebtRow {
   over_limit: boolean;
 }
 
-export type PaymentMethod = "cash" | "transfer" | "card";
-
 export interface Category {
   id: number;
   name: string;
@@ -411,6 +359,43 @@ export interface TelegramUpdateHint {
   message_thread_id: number | null;
   topic_name: string | null;
   text: string | null;
+}
+
+// --- Inventory counts (stocktaking / инвентаризация) ---
+export type StockCountStatus = "open" | "completed" | "cancelled";
+
+export interface StockCountLine {
+  product_id: number;
+  product_name: string;
+  sku: string;
+  unit: string;
+  image_path?: string | null;
+  system_qty: Money;
+  counted_qty?: Money | null;
+  difference?: Money | null;
+}
+
+export interface StockCountDetail {
+  id: number;
+  status: StockCountStatus;
+  note?: string | null;
+  created_at: string;
+  completed_at?: string | null;
+  created_by_name?: string | null;
+  completed_by_name?: string | null;
+  lines: StockCountLine[];
+}
+
+export interface StockCountSummary {
+  id: number;
+  status: StockCountStatus;
+  note?: string | null;
+  created_at: string;
+  completed_at?: string | null;
+  created_by_name?: string | null;
+  total_products: number;
+  counted: number;
+  discrepancies: number;
 }
 
 export type PhotoStage = "before" | "after";

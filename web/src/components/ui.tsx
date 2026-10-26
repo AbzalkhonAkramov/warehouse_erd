@@ -1,5 +1,5 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
-import type { SalesOrderStatus, InvoiceStatus } from "../api/types";
+import type { SalesOrderStatus } from "../api/types";
 import { useI18n } from "../i18n";
 import * as cls from "../ui/cls";
 
@@ -47,20 +47,9 @@ const ORDER_COLORS: Record<SalesOrderStatus, string> = {
   cancelled: "gray",
 };
 
-const INVOICE_COLORS: Record<InvoiceStatus, string> = {
-  unpaid: "red",
-  partial: "amber",
-  paid: "green",
-};
-
 export function StatusBadge({ status }: { status: SalesOrderStatus }) {
   const { t } = useI18n();
   return <span className={cls.badge[ORDER_COLORS[status]]}>{t(`status.${status}`)}</span>;
-}
-
-export function InvoiceBadge({ status }: { status: InvoiceStatus }) {
-  const { t } = useI18n();
-  return <span className={cls.badge[INVOICE_COLORS[status]]}>{t(`invoice.status.${status}`)}</span>;
 }
 
 export function ExcelButton({ onClick }: { onClick: () => void }) {

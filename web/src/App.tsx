@@ -13,9 +13,6 @@ import StatusHistoryPage from "./pages/StatusHistoryPage";
 import ProductsPage from "./pages/ProductsPage";
 import CustomersPage from "./pages/CustomersPage";
 import CustomerDetailPage from "./pages/CustomerDetailPage";
-import InvoicesPage from "./pages/InvoicesPage";
-import InvoiceDetailPage from "./pages/InvoiceDetailPage";
-import CashPage from "./pages/CashPage";
 import ReturnsPage from "./pages/ReturnsPage";
 import ReportsPage from "./pages/ReportsPage";
 import PhotoReportsPage from "./pages/PhotoReportsPage";
@@ -30,6 +27,7 @@ import ActivityLogPage from "./pages/ActivityLogPage";
 import BrandingPage from "./pages/BrandingPage";
 import CurrenciesPage from "./pages/CurrenciesPage";
 import IncomingPage from "./pages/IncomingPage";
+import InventoryPage from "./pages/InventoryPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import SuppliersPage from "./pages/SuppliersPage";
 
@@ -55,7 +53,7 @@ export default function App() {
     );
   }
 
-  // Agents don't get the dashboard/reports — they land on their own invoices.
+  // Agents don't get the dashboard/reports — they land on their orders.
   const isAgent = user.role === "agent";
 
   return (
@@ -63,7 +61,7 @@ export default function App() {
       <Route element={<Layout />}>
         <Route
           index
-          element={isAgent ? <Navigate to="/invoices" replace /> : <DashboardPage />}
+          element={isAgent ? <Navigate to="/orders" replace /> : <DashboardPage />}
         />
         <Route path="orders" element={<OrdersPage />} />
         <Route path="orders/new" element={<CreateOrderPage />} />
@@ -88,8 +86,12 @@ export default function App() {
           element={isAgent ? <Navigate to="/products" replace /> : <IncomingPage />}
         />
         <Route
+          path="inventory"
+          element={isAgent ? <Navigate to="/products" replace /> : <InventoryPage />}
+        />
+        <Route
           path="analytics"
-          element={isAgent ? <Navigate to="/invoices" replace /> : <AnalyticsPage />}
+          element={isAgent ? <Navigate to="/orders" replace /> : <AnalyticsPage />}
         />
         <Route path="customers" element={<CustomersPage />} />
         <Route path="customers/:id" element={<CustomerDetailPage />} />
@@ -98,12 +100,6 @@ export default function App() {
           path="suppliers"
           element={isAgent ? <Navigate to="/products" replace /> : <SuppliersPage />}
         />
-        <Route path="invoices" element={<InvoicesPage />} />
-        <Route path="invoices/:id" element={<InvoiceDetailPage />} />
-        <Route
-          path="cash"
-          element={isAgent ? <Navigate to="/invoices" replace /> : <CashPage />}
-        />
         <Route
           path="returns"
           element={isAgent ? <Navigate to="/orders" replace /> : <ReturnsPage />}
@@ -111,7 +107,7 @@ export default function App() {
         <Route path="photos" element={<PhotoReportsPage />} />
         <Route
           path="reports"
-          element={isAgent ? <Navigate to="/invoices" replace /> : <ReportsPage />}
+          element={isAgent ? <Navigate to="/orders" replace /> : <ReportsPage />}
         />
         <Route path="accounts" element={<AccountsPage />} />
         <Route path="activity" element={<ActivityLogPage />} />

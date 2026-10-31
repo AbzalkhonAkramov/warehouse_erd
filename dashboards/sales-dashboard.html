@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Аналитика продаж</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  /* Layout: fixed tab rail on top, scrollable panel of summary tiles + chart cards. */
+  :root{
+    --bg:#f4f6fb; --surface:#ffffff; --surface-2:#f8fafc; --ink:#0f172a; --muted:#64748b;
+    --line:#e6ebf3; --accent:#2563eb; --accent-soft:#e8effe;
+    --good:#16a34a; --bad:#dc2626; --warn:#d97706;
+    --c1:#2563eb; --c2:#0ea5e9; --c3:#8b5cf6; --c4:#f59e0b; --c5:#10b981; --c6:#ef4444;
+    --display:'Manrope',system-ui,sans-serif; --body:'Inter',system-ui,sans-serif;
+  }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+    --bg:#0b1120; --surface:#111a2e; --surface-2:#0f1830; --ink:#e8eef9; --muted:#93a1bd;
+    --line:#223049; --accent:#60a5fa; --accent-soft:#17243f; color-scheme:dark;
+  }}
+  :root[data-theme="dark"]{
+    --bg:#0b1120; --surface:#111a2e; --surface-2:#0f1830; --ink:#e8eef9; --muted:#93a1bd;
+    --line:#223049; --accent:#60a5fa; --accent-soft:#17243f; color-scheme:dark;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);
+    font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+  h1,h2,h3{font-family:var(--display);margin:0}
+  .wrap{max-width:1180px;margin:0 auto;padding:20px 16px 56px}
+  header.top{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 14px;margin-bottom:6px}
+  header.top h1{font-size:22px;font-weight:800;letter-spacing:-.02em}
+  .asof{color:var(--muted);font-size:12.5px}
+  .tabs{display:flex;gap:6px;overflow-x:auto;margin:16px 0 18px;padding-bottom:4px;
+    border-bottom:1px solid var(--line);scrollbar-width:thin}
+  .tab{flex:0 0 auto;appearance:none;border:0;background:transparent;color:var(--muted);
+    font-family:var(--display);font-weight:700;font-size:14px;padding:9px 13px;border-radius:9px 9px 0 0;
+    cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;margin-bottom:-1px}
+  .tab:hover{color:var(--ink)}
+  .tab.active{color:var(--accent);border-bottom-color:var(--accent);background:var(--accent-soft)}
+  .panel{display:none;animation:fade .2s ease}
+  .panel.active{display:block}
+  @keyframes fade{from{opacity:.4}to{opacity:1}}
+  @media (prefers-reduced-motion: reduce){.panel{animation:none}}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+  .tile{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 15px}
+  .tile .label{color:var(--muted);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.03em}
+  .tile .val{font-family:var(--display);font-weight:800;font-size:25px;margin-top:6px;letter-spacing:-.02em;
+    font-variant-numeric:tabular-nums}
+  .tile .sub{font-size:12px;color:var(--muted);margin-top:3px}
+  .pos{color:var(--good)} .neg{color:var(--bad)}
+  .grid{display:grid;gap:14px}
+  .g2{grid-template-columns:repeat(2,1fr)} .g3{grid-template-columns:repeat(3,1fr)}
+  @media (max-width:820px){.g2,.g3{grid-template-columns:1fr}}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:15px 16px;min-width:0}
+  .card h3{font-size:14.5px;font-weight:700;margin-bottom:12px}
+  .card .cap{color:var(--muted);font-size:12px;font-weight:500;margin:-8px 0 12px}
+  .chart{position:relative;height:280px}
+  .chart.tall{height:320px}
+  table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+  .tblwrap{overflow-x:auto}
+  th,td{padding:9px 10px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+  th:first-child,td:first-child{text-align:left}
+  thead th{color:var(--muted);font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;
+    position:sticky;top:0;background:var(--surface)}
+  tbody tr:hover{background:var(--surface-2)}
+  td.name{font-weight:600}
+  .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums}
+  .pill.g{background:color-mix(in srgb,var(--good) 15%,transparent);color:var(--good)}
+  .pill.b{background:color-mix(in srgb,var(--bad) 15%,transparent);color:var(--bad)}
+  .note{background:var(--surface-2);border:1px dashed var(--line);border-radius:12px;padding:12px 14px;
+    color:var(--muted);font-size:12.5px;margin-top:4px}
+  .note b{color:var(--ink)}
+  .foot{color:var(--muted);font-size:12px;margin-top:22px;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>Аналитика продаж</h1>
+    <span class="asof" id="asof"></span>
+  </header>
+
+  <nav class="tabs" id="tabs" role="tablist">
+    <button class="tab active" data-tab="overview" role="tab">Обзор</button>
+    <button class="tab" data-tab="sellers" role="tab">Продавцы</button>
+    <button class="tab" data-tab="products" role="tab">Товары</button>
+    <button class="tab" data-tab="customers" role="tab">Клиенты</button>
+    <button class="tab" data-tab="forecast" role="tab">Тренды и прогноз</button>
+  </nav>
+
+  <!-- OVERVIEW -->
+  <section class="panel active" id="overview" role="tabpanel">
+    <div class="tiles" id="kpi"></div>
+    <div class="grid g2">
+      <div class="card"><h3>Выручка и прибыль по месяцам</h3><div class="chart"><canvas id="c_month"></canvas></div></div>
+      <div class="card"><h3>Выручка по продавцам</h3><div class="chart"><canvas id="c_agentrev"></canvas></div></div>
+    </div>
+    <div class="grid g2" style="margin-top:14px">
+      <div class="card"><h3>Выручка по категориям</h3><div class="chart"><canvas id="c_cat"></canvas></div></div>
+      <div class="card"><h3>Выручка по дням</h3><div class="chart"><canvas id="c_day"></canvas></div></div>
+    </div>
+  </section>
+
+  <!-- SELLERS -->
+  <section class="panel" id="sellers" role="tabpanel">
+    <div class="card" style="margin-bottom:14px">
+      <h3>KPI продавцов</h3>
+      <p class="cap">Все метрики по каждому продавцу. Отрицательная прибыль/маржа подсвечены.</p>
+      <div class="tblwrap"><table id="t_agents"></table></div>
+    </div>
+    <div class="grid g2">
+      <div class="card"><h3>Прибыль по продавцам</h3><div class="chart"><canvas id="c_agentprofit"></canvas></div></div>
+      <div class="card"><h3>Выручка и маржа по продавцам</h3><p class="cap">Пузырёк = число заказов</p><div class="chart"><canvas id="c_agentscatter"></canvas></div></div>
+    </div>
+  </section>
+
+  <!-- PRODUCTS -->
+  <section class="panel" id="products" role="tabpanel">
+    <div class="card" style="margin-bottom:14px">
+      <h3>Товары</h3>
+      <div class="tblwrap"><table id="t_products"></table></div>
+    </div>
+    <div class="grid g2">
+      <div class="card"><h3>Топ по выручке</h3><div class="chart"><canvas id="c_prodrev"></canvas></div></div>
+      <div class="card"><h3>Прибыль по товарам</h3><div class="chart"><canvas id="c_prodprofit"></canvas></div></div>
+    </div>
+  </section>
+
+  <!-- CUSTOMERS -->
+  <section class="panel" id="customers" role="tabpanel">
+    <div class="card" style="margin-bottom:14px">
+      <h3>Клиенты (магазины)</h3>
+      <div class="tblwrap"><table id="t_customers"></table></div>
+    </div>
+    <div class="card"><h3>Выручка по клиентам</h3><div class="chart"><canvas id="c_custrev"></canvas></div></div>
+  </section>
+
+  <!-- FORECAST -->
+  <section class="panel" id="forecast" role="tabpanel">
+    <div class="tiles" id="fkpi"></div>
+    <div class="card" style="margin-bottom:14px">
+      <h3>Прогноз выручки и прибыли</h3>
+      <p class="cap">Сплошная — факт по месяцам, пунктир — проекция на 3 месяца вперёд.</p>
+      <div class="chart tall"><canvas id="c_fore"></canvas></div>
+    </div>
+    <div class="grid g2">
+      <div class="card">
+        <h3>Прогноз по месяцам</h3>
+        <div class="tblwrap"><table id="t_fore"></table></div>
+      </div>
+      <div class="card">
+        <h3>Как считается</h3>
+        <div class="note">
+          Прогноз — <b>простая линейная проекция</b> (метод наименьших квадратов)
+          по фактической помесячной динамике. Это ориентир тренда, а не точный план:
+          чем больше месяцев в базе, тем точнее. Сезонность и разовые всплески не учитываются.
+          <br><br>Обновляется вместе с данными дашборда (снимок базы ERP).
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <p class="foot" id="foot"></p>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+const DATA = {"agents": [{"agent_name": "Field Agent One", "orders": 6, "customers": 3, "units": 59, "revenue": 462, "cost": 341, "profit": 121, "margin": 26.2, "avg_order": 77}, {"agent_name": "Warehouse Manager", "orders": 1, "customers": 1, "units": 1.5, "revenue": 7.5, "cost": 15, "profit": -7.5, "margin": -100, "avg_order": 7.5}], "by_day": [{"d": "2026-09-10", "orders": 3, "units": 19.5, "revenue": 161.5, "profit": 46.5}, {"d": "2026-10-03", "orders": 1, "units": 5, "revenue": 25, "profit": -25}, {"d": "2026-10-24", "orders": 2, "units": 3, "revenue": 19, "profit": -7}, {"d": "2026-10-29", "orders": 1, "units": 33, "revenue": 264, "profit": 99}], "by_month": [{"month": "2026-09", "orders": 3, "units": 19.5, "revenue": 161.5, "profit": 46.5}, {"month": "2026-10", "orders": 4, "units": 41, "revenue": 308, "profit": 67}], "products": [{"name": "Potato Chips", "sku": "SKU-003", "category": "Snacks", "units": 41, "revenue": 328, "profit": 123, "margin": 37.5}, {"name": "Cola 1.5L", "sku": "SKU-001", "category": "Drinks", "units": 11, "revenue": 99, "profit": 33, "margin": 33.3}, {"name": "Chocolate Bar", "sku": "SKU-004", "category": "Snacks", "units": 8.5, "revenue": 42.5, "profit": -42.5, "margin": -100}], "customers": [{"name": "Mini Mart", "region": "—", "orders": 1, "units": 33, "revenue": 264, "profit": 99, "margin": 37.5}, {"name": "Corner Shop", "region": "—", "orders": 3, "units": 19.5, "revenue": 161.5, "profit": 46.5, "margin": 28.8}, {"name": "Sniker", "region": "—", "orders": 3, "units": 8, "revenue": 44, "profit": -32, "margin": -72.7}], "categories": [{"name": "Snacks", "units": 49.5, "revenue": 370.5, "profit": 80.5, "margin": 21.7}, {"name": "Drinks", "units": 11, "revenue": 99, "profit": 33, "margin": 33.3}]};
+const ASOF = "29.10.2026";
+
+const nf = new Intl.NumberFormat('ru-RU',{maximumFractionDigits:1});
+const money = n => nf.format(Math.round((n+Number.EPSILON)*100)/100);
+const pct = n => nf.format(n) + '%';
+
+// ---- derived totals ----
+const A = DATA.agents, M = DATA.by_month, D = DATA.by_day;
+const sum = (arr,k)=>arr.reduce((s,x)=>s+(+x[k]||0),0);
+const totals = {
+  revenue: sum(A,'revenue'), profit: sum(A,'profit'),
+  orders: sum(A,'orders'),  units: sum(A,'units'),
+  customers: DATA.customers.length, sellers: A.length,
+};
+totals.margin = totals.revenue ? totals.profit/totals.revenue*100 : 0;
+totals.avg = totals.orders ? totals.revenue/totals.orders : 0;
+
+document.getElementById('asof').textContent = 'Данные ERP · снимок на ' + ASOF;
+document.getElementById('foot').textContent =
+  'Warehouse ERP · интерактивный дашборд (снимок данных ' + ASOF + '). Валюта — учётная (сум).';
+
+// ---- KPI tiles ----
+function tile(label,val,sub,cls){
+  return `<div class="tile"><div class="label">${label}</div>
+    <div class="val ${cls||''}">${val}</div>${sub?`<div class="sub">${sub}</div>`:''}</div>`;
+}
+document.getElementById('kpi').innerHTML = [
+  tile('Выручка', money(totals.revenue)),
+  tile('Прибыль', money(totals.profit), null, totals.profit<0?'neg':'pos'),
+  tile('Маржа', pct(Math.round(totals.margin*10)/10), null, totals.margin<0?'neg':'pos'),
+  tile('Заказы', nf.format(totals.orders)),
+  tile('Средний чек', money(totals.avg)),
+  tile('Продано, шт', nf.format(totals.units)),
+  tile('Клиентов', nf.format(totals.customers)),
+  tile('Продавцов', nf.format(totals.sellers)),
+].join('');
+
+// ---- forecast (least-squares on monthly revenue & profit) ----
+function fit(ys){
+  const n=ys.length; if(n<2) return {a:0,b:ys[0]||0};
+  let sx=0,sy=0,sxx=0,sxy=0;
+  ys.forEach((y,i)=>{sx+=i;sy+=y;sxx+=i*i;sxy+=i*y;});
+  const d=n*sxx-sx*sx; const a=d?(n*sxy-sx*sy)/d:0; const b=(sy-a*sx)/n;
+  return {a,b};
+}
+function nextMonths(last,k){
+  const [y,m]=last.split('-').map(Number); const out=[];
+  let yy=y,mm=m;
+  for(let i=0;i<k;i++){mm++; if(mm>12){mm=1;yy++;} out.push(yy+'-'+String(mm).padStart(2,'0'));}
+  return out;
+}
+const revFit=fit(M.map(x=>+x.revenue)), proFit=fit(M.map(x=>+x.profit));
+const FN=3;
+const foreMonths = M.length?nextMonths(M[M.length-1].month,FN):[];
+const foreRev = foreMonths.map((_,i)=>Math.max(0,revFit.a*(M.length+i)+revFit.b));
+const forePro = foreMonths.map((_,i)=>proFit.a*(M.length+i)+proFit.b);
+
+document.getElementById('fkpi').innerHTML = [
+  tile('Тренд выручки', (revFit.a>=0?'+':'')+money(revFit.a)+' / мес', 'наклон линии тренда', revFit.a<0?'neg':'pos'),
+  tile('Прогноз на '+ (foreMonths[0]||'—'), money(foreRev[0]||0), 'выручка (проекция)'),
+  tile('Прогноз прибыли '+(foreMonths[0]||'—'), money(forePro[0]||0), 'прибыль (проекция)', (forePro[0]||0)<0?'neg':'pos'),
+  tile('Горизонт', FN+' мес', 'линейная проекция'),
+].join('');
+
+// ---- tables ----
+function marginPill(v){const c=v<0?'b':'g';return `<span class="pill ${c}">${pct(Math.round(v*10)/10)}</span>`;}
+function moneyCell(v){return `<span class="${v<0?'neg':''}">${money(v)}</span>`;}
+
+document.getElementById('t_agents').innerHTML =
+  `<thead><tr><th>Продавец</th><th>Заказы</th><th>Клиенты</th><th>Штук</th><th>Выручка</th><th>Себест.</th><th>Прибыль</th><th>Маржа</th><th>Ср. чек</th></tr></thead><tbody>`+
+  A.map(a=>`<tr><td class="name">${a.agent_name}</td><td>${nf.format(a.orders)}</td><td>${nf.format(a.customers)}</td>
+    <td>${nf.format(a.units)}</td><td>${money(a.revenue)}</td><td>${money(a.cost)}</td>
+    <td>${moneyCell(a.profit)}</td><td>${marginPill(a.margin)}</td><td>${money(a.avg_order)}</td></tr>`).join('')+`</tbody>`;
+
+document.getElementById('t_products').innerHTML =
+  `<thead><tr><th>Товар</th><th>SKU</th><th>Категория</th><th>Штук</th><th>Выручка</th><th>Прибыль</th><th>Маржа</th></tr></thead><tbody>`+
+  DATA.products.map(p=>`<tr><td class="name">${p.name}</td><td>${p.sku}</td><td>${p.category}</td>
+    <td>${nf.format(p.units)}</td><td>${money(p.revenue)}</td><td>${moneyCell(p.profit)}</td><td>${marginPill(p.margin)}</td></tr>`).join('')+`</tbody>`;
+
+document.getElementById('t_customers').innerHTML =
+  `<thead><tr><th>Клиент</th><th>Регион</th><th>Заказы</th><th>Штук</th><th>Выручка</th><th>Прибыль</th><th>Маржа</th></tr></thead><tbody>`+
+  DATA.customers.map(c=>`<tr><td class="name">${c.name}</td><td>${c.region}</td><td>${nf.format(c.orders)}</td>
+    <td>${nf.format(c.units)}</td><td>${money(c.revenue)}</td><td>${moneyCell(c.profit)}</td><td>${marginPill(c.margin)}</td></tr>`).join('')+`</tbody>`;
+
+document.getElementById('t_fore').innerHTML =
+  `<thead><tr><th>Месяц</th><th>Выручка (прогноз)</th><th>Прибыль (прогноз)</th></tr></thead><tbody>`+
+  foreMonths.map((m,i)=>`<tr><td class="name">${m}</td><td>${money(foreRev[i])}</td><td>${moneyCell(forePro[i])}</td></tr>`).join('')+`</tbody>`;
+
+// ---- charts ----
+const css = k => getComputedStyle(document.documentElement).getPropertyValue(k).trim();
+Chart.defaults.font.family = "'Inter',system-ui,sans-serif";
+Chart.defaults.color = css('--muted');
+const PALETTE = ['--c1','--c2','--c3','--c4','--c5','--c6'].map(css);
+const GRID = css('--line');
+const baseScales = ()=>({x:{grid:{color:GRID}},y:{grid:{color:GRID},beginAtZero:true}});
+const made = {};
+function once(id,fn){ if(made[id])return; made[id]=true; fn(); }
+
+function renderOverview(){
+  once('ov',()=>{
+    new Chart(c_month,{type:'bar',data:{labels:M.map(x=>x.month),
+      datasets:[{label:'Выручка',data:M.map(x=>x.revenue),backgroundColor:PALETTE[0],borderRadius:6},
+                {label:'Прибыль',data:M.map(x=>x.profit),backgroundColor:PALETTE[4],borderRadius:6}]},
+      options:{responsive:true,maintainAspectRatio:false,scales:baseScales()}});
+    new Chart(c_agentrev,{type:'bar',data:{labels:A.map(a=>a.agent_name),
+      datasets:[{label:'Выручка',data:A.map(a=>a.revenue),backgroundColor:A.map((_,i)=>PALETTE[i%PALETTE.length]),borderRadius:6}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:baseScales()}});
+    new Chart(c_cat,{type:'doughnut',data:{labels:DATA.categories.map(c=>c.name),
+      datasets:[{data:DATA.categories.map(c=>c.revenue),backgroundColor:PALETTE}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}}}});
+    new Chart(c_day,{type:'line',data:{labels:D.map(x=>x.d),
+      datasets:[{label:'Выручка',data:D.map(x=>x.revenue),borderColor:PALETTE[1],backgroundColor:'transparent',tension:.3,pointRadius:4},
+                {label:'Прибыль',data:D.map(x=>x.profit),borderColor:PALETTE[4],backgroundColor:'transparent',tension:.3,pointRadius:4}]},
+      options:{responsive:true,maintainAspectRatio:false,scales:baseScales()}});
+  });
+}
+function renderSellers(){
+  once('se',()=>{
+    new Chart(c_agentprofit,{type:'bar',data:{labels:A.map(a=>a.agent_name),
+      datasets:[{label:'Прибыль',data:A.map(a=>a.profit),
+        backgroundColor:A.map(a=>a.profit<0?css('--bad'):css('--good')),borderRadius:6}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:baseScales()}});
+    new Chart(c_agentscatter,{type:'bubble',data:{datasets:A.map((a,i)=>({label:a.agent_name,
+        data:[{x:a.revenue,y:a.margin,r:6+Math.min(22,a.orders*3)}],backgroundColor:PALETTE[i%PALETTE.length]}))},
+      options:{responsive:true,maintainAspectRatio:false,
+        scales:{x:{title:{display:true,text:'Выручка'},grid:{color:GRID}},
+                y:{title:{display:true,text:'Маржа %'},grid:{color:GRID}}}}});
+  });
+}
+function renderProducts(){
+  once('pr',()=>{
+    const P=[...DATA.products].sort((a,b)=>b.revenue-a.revenue);
+    new Chart(c_prodrev,{type:'bar',data:{labels:P.map(p=>p.name),
+      datasets:[{label:'Выручка',data:P.map(p=>p.revenue),backgroundColor:PALETTE[0],borderRadius:6}]},
+      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:baseScales()}});
+    new Chart(c_prodprofit,{type:'bar',data:{labels:DATA.products.map(p=>p.name),
+      datasets:[{label:'Прибыль',data:DATA.products.map(p=>p.profit),
+        backgroundColor:DATA.products.map(p=>p.profit<0?css('--bad'):css('--good')),borderRadius:6}]},
+      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:baseScales()}});
+  });
+}
+function renderCustomers(){
+  once('cu',()=>{
+    const C=[...DATA.customers].sort((a,b)=>b.revenue-a.revenue);
+    new Chart(c_custrev,{type:'bar',data:{labels:C.map(c=>c.name),
+      datasets:[{label:'Выручка',data:C.map(c=>c.revenue),backgroundColor:PALETTE[2],borderRadius:6},
+                {label:'Прибыль',data:C.map(c=>c.profit),backgroundColor:PALETTE[4],borderRadius:6}]},
+      options:{responsive:true,maintainAspectRatio:false,scales:baseScales()}});
+  });
+}
+function renderForecast(){
+  once('fo',()=>{
+    const labels=M.map(x=>x.month).concat(foreMonths);
+    const n=M.length;
+    const revActual=M.map(x=>x.revenue).concat(foreMonths.map(()=>null));
+    const proActual=M.map(x=>x.profit).concat(foreMonths.map(()=>null));
+    // connect last actual to first forecast point
+    const revFore=labels.map((_,i)=> i<n-1?null : (i===n-1?M[n-1].revenue:foreRev[i-n]));
+    const proFore=labels.map((_,i)=> i<n-1?null : (i===n-1?M[n-1].profit:forePro[i-n]));
+    new Chart(c_fore,{type:'line',data:{labels,datasets:[
+      {label:'Выручка (факт)',data:revActual,borderColor:PALETTE[0],backgroundColor:'transparent',tension:.25,pointRadius:4},
+      {label:'Выручка (прогноз)',data:revFore,borderColor:PALETTE[0],borderDash:[6,5],backgroundColor:'transparent',tension:.25,pointRadius:3},
+      {label:'Прибыль (факт)',data:proActual,borderColor:PALETTE[4],backgroundColor:'transparent',tension:.25,pointRadius:4},
+      {label:'Прибыль (прогноз)',data:proFore,borderColor:PALETTE[4],borderDash:[6,5],backgroundColor:'transparent',tension:.25,pointRadius:3},
+    ]},options:{responsive:true,maintainAspectRatio:false,scales:baseScales()}});
+  });
+}
+const renderers={overview:renderOverview,sellers:renderSellers,products:renderProducts,customers:renderCustomers,forecast:renderForecast};
+
+// ---- tab switching ----
+document.getElementById('tabs').addEventListener('click',e=>{
+  const b=e.target.closest('.tab'); if(!b)return;
+  const id=b.dataset.tab;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t===b));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.id===id));
+  renderers[id] && renderers[id]();
+});
+renderOverview();
+</script>
+</body>
+</html>

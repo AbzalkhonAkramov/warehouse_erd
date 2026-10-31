@@ -544,7 +544,9 @@ const en: Dict = {
   "topics.title": "Telegram topics",
   "topics.discover": "Discover IDs",
   "topics.new": "+ New topic",
-  "topics.confirmDelete": "Delete topic “{name}”? Agents assigned to it will lose it.",
+  "topics.confirmDelete": "Delete topic “{name}”? Agents assigned to it, and past photo reports, will be unlinked from it.",
+  "topics.deleteSelected": "Delete selected ({n})",
+  "topics.confirmDeleteMany": "Delete {n} selected topic(s)? Agents assigned to them, and past photo reports, will be unlinked.",
   "topics.subtitle":
     "Photo reports route here. Add the bot to a forum group, then record each topic's chat id and message thread id. One topic can be the default.",
   "topics.setDefault": "Set default",
@@ -1190,7 +1192,9 @@ const ru: Dict = {
   "topics.title": "Telegram-темы",
   "topics.discover": "Найти ID",
   "topics.new": "+ Новая тема",
-  "topics.confirmDelete": "Удалить тему «{name}»? У назначенных агентов она пропадёт.",
+  "topics.confirmDelete": "Удалить тему «{name}»? Она отвяжется от назначенных агентов и прошлых фотоотчётов, затем удалится.",
+  "topics.deleteSelected": "Удалить выбранные ({n})",
+  "topics.confirmDeleteMany": "Удалить выбранные темы ({n})? Они отвяжутся от агентов и прошлых фотоотчётов.",
   "topics.subtitle":
     "Сюда направляются фотоотчёты. Добавьте бота в группу-форум, затем укажите chat id и message thread id каждой темы. Одна тема может быть по умолчанию.",
   "topics.setDefault": "Сделать основной",
@@ -1835,7 +1839,9 @@ const uz: Dict = {
   "topics.title": "Telegram mavzular",
   "topics.discover": "ID topish",
   "topics.new": "+ Yangi mavzu",
-  "topics.confirmDelete": "«{name}» mavzusi o‘chirilsinmi? Biriktirilgan agentlarda yo‘qoladi.",
+  "topics.confirmDelete": "«{name}» mavzusi o‘chirilsinmi? Biriktirilgan agentlardan va o‘tgan foto hisobotlardan uziladi, keyin o‘chiriladi.",
+  "topics.deleteSelected": "Tanlanganlarni o‘chirish ({n})",
+  "topics.confirmDeleteMany": "Tanlangan ({n}) mavzu o‘chirilsinmi? Ular agentlardan va o‘tgan foto hisobotlardan uziladi.",
   "topics.subtitle":
     "Foto hisobotlar shu yerga yo‘naltiriladi. Botni forum guruhiga qo‘shing, so‘ng har bir mavzuning chat id va message thread id sini kiriting. Bitta mavzu asosiy bo‘lishi mumkin.",
   "topics.setDefault": "Asosiy qilish",

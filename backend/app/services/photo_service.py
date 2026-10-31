@@ -52,15 +52,15 @@ def _caption(report: PhotoReport, customer: Customer, agent: User) -> str:
     short date+time (24h, Tashkent) and the agent's comment — plus hashtags
     (#shop / #user / #order / #month) for easy searching inside Telegram."""
     now = datetime.now(_TZ)
-    order = f"Order #{report.sales_order_id}" if report.sales_order_id else "No order"
+    order = f"Заказ #{report.sales_order_id}" if report.sales_order_id else "Без заказа"
     lines = [
-        f"📸 Before / After — {customer.name}",
+        f"📸 До / После — {customer.name}",
         order,
-        f"Agent: {agent.full_name}",
-        f"Date: {now:%d.%m.%Y %H:%M}",
+        f"Агент: {agent.full_name}",
+        f"Дата: {now:%d.%m.%Y %H:%M}",
     ]
     if report.note:
-        lines.append(f"Comment: {report.note}")
+        lines.append(f"Комментарий: {report.note}")
 
     shop_tag = f"#shop_{_slug(customer.name) or customer.id}"
     user_tag = f"#user_{_slug(agent.full_name) or agent.id}"

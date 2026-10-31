@@ -34,6 +34,19 @@ from app.services import notifications, telegram
 
 ZERO = Decimal("0")
 
+# Russian labels for order statuses, used in Telegram notifications.
+_STATUS_RU = {
+    SalesOrderStatus.NEW: "Новый",
+    SalesOrderStatus.SHIPPED: "Отгружен",
+    SalesOrderStatus.DELIVERED: "Доставлен",
+    SalesOrderStatus.REFUND: "Возврат",
+    SalesOrderStatus.CANCELLED: "Отменён",
+}
+
+
+def _status_ru(status) -> str:
+    return _STATUS_RU.get(status, getattr(status, "value", str(status)))
+
 
 def _fmt_qty(q) -> str:
     return f"{float(q):g}"
@@ -118,6 +131,7 @@ async def create_order(db: AsyncSession, creator: User, data: SalesOrderCreate) 
 
     subtotal = ZERO
     created_items: list[tuple[str, Decimal]] = []
+    order_lines_text: list[str] = []  # detailed lines for the Telegram notification
     for line in data.lines:
         product = await db.get(Product, line.product_id)
         if product is None or not product.is_active:
@@ -141,6 +155,12 @@ async def create_order(db: AsyncSession, creator: User, data: SalesOrderCreate) 
         created_items.append((product.name, line.quantity))
         box_count = max(line.box_count, 0)
         box_size = int(product.box_qty or 0) if box_count > 0 else 0
+        # One detailed line for the manager's notification: name — qty unit (+ boxes).
+        qty_text = f"{Decimal(line.quantity).normalize():f}"
+        item_line = f"• {product.name} — {qty_text} {product.unit}"
+        if box_count > 0 and box_size > 0:
+            item_line += f" ({box_count}×{box_size})"
+        order_lines_text.append(item_line)
         order.lines.append(
             SalesOrderLine(
                 product_id=product.id,
@@ -174,11 +194,13 @@ async def create_order(db: AsyncSession, creator: User, data: SalesOrderCreate) 
 
     # New orders wait for a manager to ship/deliver them. Notify the legacy group
     # chat (if configured) and every manager who linked their personal Telegram.
+    items_block = "\n".join(order_lines_text)
     new_order_msg = (
-        f"🆕 <b>New order #{order.id}</b>\n"
-        f"Customer: {customer.name}\n"
-        f"Agent: {agent.full_name}\n"
-        f"Total: {order.total}"
+        f"🆕 <b>Новый заказ #{order.id}</b>\n"
+        f"Магазин: {customer.name}\n"
+        f"Агент: {agent.full_name}\n"
+        f"\n<b>Позиции:</b>\n{items_block}\n\n"
+        f"Итого: {order.total}"
     )
     await telegram.notify_managers(new_order_msg)
     await notifications.notify_roles(db, [UserRole.MANAGER], new_order_msg)
@@ -506,15 +528,15 @@ async def move_order(
             await _fulfil_order(db, moved, manager.id)
             moved.approved_by_id = manager.id
             moved.approved_at = datetime.now(timezone.utc)
-        await _notify_agent(db, order, f"📦 Order #{order.id} → {target.value}.")
+        await _notify_agent(db, order, f"📦 Заказ #{order.id} → {_status_ru(target)}.")
     elif is_reversal:
         # Refund records the returned goods; restock only if they had actually been
         # sold (otherwise there is nothing to put back). Cancel is just a label.
         if target == SalesOrderStatus.REFUND:
             await _refund_goods(db, order, plan, data.restock if already_sold else False, manager.id)
-        await _notify_agent(db, order, f"↩️ Order #{order.id} → {target.value}.")
+        await _notify_agent(db, order, f"↩️ Заказ #{order.id} → {_status_ru(target)}.")
     else:
-        await _notify_agent(db, order, f"Order #{order.id} → {target.value}.")
+        await _notify_agent(db, order, f"Заказ #{order.id} → {_status_ru(target)}.")
 
     await db.flush()
     await db.refresh(order, attribute_names=["lines"])

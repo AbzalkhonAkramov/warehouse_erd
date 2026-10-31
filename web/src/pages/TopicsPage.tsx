@@ -15,6 +15,7 @@ export default function TopicsPage() {
   const [form, setForm] = useState({ ...EMPTY });
   const [formError, setFormError] = useState<string | null>(null);
   const [showDiscover, setShowDiscover] = useState(false);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
 
   const topics = useQuery({ queryKey: ["topics"], queryFn: listTopics });
   const discover = useQuery({
@@ -50,6 +51,22 @@ export default function TopicsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["topics"] }),
   });
 
+  const removeMany = useMutation({
+    mutationFn: (ids: number[]) => Promise.all(ids.map((id) => deleteTopic(id))),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["topics"] });
+      setSelected(new Set());
+    },
+  });
+
+  function toggleSelect(id: number) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
   function submit(e: FormEvent) {
     e.preventDefault();
     setFormError(null);
@@ -60,11 +77,26 @@ export default function TopicsPage() {
     <div className={cls.page}>
       <div className={cls.pageHead}>
         <h1>{t("topics.title")}</h1>
-        <div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {selected.size > 0 && (
+            <Button
+              variant="danger"
+              disabled={removeMany.isPending}
+              onClick={() => {
+                if (window.confirm(t("topics.confirmDeleteMany", { n: String(selected.size) }))) {
+                  removeMany.mutate([...selected]);
+                }
+              }}
+            >
+              {removeMany.isPending
+                ? t("common.saving")
+                : t("topics.deleteSelected", { n: String(selected.size) })}
+            </Button>
+          )}
           <Button variant="ghost" onClick={() => setShowDiscover(true)}>
             {t("topics.discover")}
           </Button>
-          <Button onClick={() => setCreating(true)} style={{ marginLeft: 8 }}>
+          <Button onClick={() => setCreating(true)}>
             {t("topics.new")}
           </Button>
         </div>
@@ -83,6 +115,22 @@ export default function TopicsPage() {
           <table className={cls.table}>
             <thead>
               <tr>
+                <th style={{ width: 36 }}>
+                  <input
+                    type="checkbox"
+                    checked={
+                      (topics.data?.length ?? 0) > 0 &&
+                      selected.size === (topics.data?.length ?? 0)
+                    }
+                    onChange={(e) =>
+                      setSelected(
+                        e.target.checked
+                          ? new Set(topics.data?.map((t) => t.id))
+                          : new Set(),
+                      )
+                    }
+                  />
+                </th>
                 <th>{t("col.name")}</th>
                 <th className={cls.numCell}>{t("col.chatId")}</th>
                 <th className={cls.numCell}>{t("col.threadId")}</th>
@@ -94,6 +142,13 @@ export default function TopicsPage() {
             <tbody>
               {topics.data.map((topic) => (
                 <tr key={topic.id}>
+                  <td>
+                    <input
+                      type="checkbox"
+                      checked={selected.has(topic.id)}
+                      onChange={() => toggleSelect(topic.id)}
+                    />
+                  </td>
                   <td>{topic.name}</td>
                   <td className={cls.cx(cls.numCell, cls.mono)}>{topic.chat_id}</td>
                   <td className={cls.cx(cls.numCell, cls.mono)}>{topic.message_thread_id ?? "—"}</td>
@@ -140,6 +195,10 @@ export default function TopicsPage() {
           <Empty>{t("topics.empty")}</Empty>
         )}
       </Card>
+
+      {(remove.error || removeMany.error) && (
+        <ErrorBox error={remove.error || removeMany.error} />
+      )}
 
       {creating && (
         <Modal title={t("topics.newTitle")} onClose={() => setCreating(false)}>

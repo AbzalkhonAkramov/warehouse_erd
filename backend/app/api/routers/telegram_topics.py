@@ -6,6 +6,7 @@ from app.api.deps import require_roles
 from app.core.database import get_db
 from app.models.associations import agent_topics
 from app.models.enums import UserRole
+from app.models.photo import PhotoReport
 from app.models.telegram import TelegramTopic
 from app.models.user import User
 from app.schemas.telegram import TelegramUpdateHint, TopicCreate, TopicOut, TopicUpdate
@@ -70,16 +71,21 @@ async def delete_topic(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(_ADMIN),
 ) -> None:
-    """Delete a Telegram topic. First detaches it from any agent (default topic and
-    the allowed-topics list) so the foreign keys don't block the delete."""
+    """Delete a Telegram topic even if it is in use. First detaches it from
+    everything that references it — agents' default topic, the allowed-topics
+    list, and past photo reports — so no foreign key blocks the delete."""
     topic = await db.get(TelegramTopic, topic_id)
     if topic is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Topic not found")
-    # Clear references: agents' default topic + the allowed-topics association.
+    # Clear references: agents' default topic, the allowed-topics association,
+    # and any photo report that was routed to this topic.
     await db.execute(
         update(User).where(User.default_topic_id == topic_id).values(default_topic_id=None)
     )
     await db.execute(delete(agent_topics).where(agent_topics.c.topic_id == topic_id))
+    await db.execute(
+        update(PhotoReport).where(PhotoReport.topic_id == topic_id).values(topic_id=None)
+    )
     await db.delete(topic)
     await db.flush()
 
